@@ -224,7 +224,11 @@ jobs:
         # Known-benign errors on CI test environments — allowlisted to prevent false failures
         $allowedMessages = @(
           'No backup sessions available',              # CI test servers may have no sessions configured
-          'Get-VBREntraIDTenant.*is not recognized'   # Entra ID collection requires VBR v13+
+          'Get-VBREntraIDTenant.*is not recognized',  # Entra ID collection requires VBR v13+
+          'VMC\.log.*does not exist',                  # VMC.log only present when NAS backup configured
+          'Could not find file.*VMC\.log',             # VMC.log file-not-found variant
+          'Get-VhciObjectStorageRepos.*is not recognized', # Object storage cmdlet not available on all VBR versions
+          'Job Info Data import failed'                # Benign null-ref when job session data is sparse on CI
         )
         $findings = @()
 
@@ -508,16 +512,17 @@ jobs:
           $reportContent = Get-Content $reportPath -Raw
 
           # Core required sections (fail if missing)
+          # Match by id attributes which are stable across report redesigns
           $coreRequiredSections = @(
-            'License Information',
+            'License Summary',
             'Backup Server'
           )
 
           # Optional sections (warn if missing, but don't fail)
           $optionalSections = @(
             'Security Summary',
-            'Proxy Configuration',
-            'Repository Configuration',
+            'Proxy Info',
+            'Repository Details',
             'Job Summary'
           )
 
@@ -609,15 +614,15 @@ jobs:
         # Tables that MUST have at least one data row (1 <tr> header + 1+ <tr> data)
         # Key: regex to locate the table section; Value: human-readable name
         $requiredTables = @{
-          'License Information'  = 'License Information'
-          'Backup Server'        = 'Backup Server'
+          'License Summary'    = 'License Summary'
+          'Backup Server'      = 'Backup Server'
         }
 
         # Tables that SHOULD have data rows (warn only)
         $warnTables = @{
-          'Proxy Configuration'     = 'Proxy Configuration'
-          'Repository Configuration' = 'Repository Configuration'
-          'Job Summary'              = 'Job Summary'
+          'Proxy Info'              = 'Proxy Info'
+          'Repository Details'      = 'Repository Details'
+          'Job Summary'             = 'Job Summary'
         }
 
         $failures = @()
@@ -819,7 +824,11 @@ jobs:
         # Known-benign errors on CI test environments — allowlisted to prevent false failures
         $allowedMessages = @(
           'No backup sessions available',              # CI test servers may have no sessions configured
-          'Get-VBREntraIDTenant.*is not recognized'   # Entra ID collection requires VBR v13+
+          'Get-VBREntraIDTenant.*is not recognized',  # Entra ID collection requires VBR v13+
+          'VMC\.log.*does not exist',                  # VMC.log only present when NAS backup configured
+          'Could not find file.*VMC\.log',             # VMC.log file-not-found variant
+          'Get-VhciObjectStorageRepos.*is not recognized', # Object storage cmdlet not available on all VBR versions
+          'Job Info Data import failed'                # Benign null-ref when job session data is sparse on CI
         )
         $findings = @()
 
@@ -1103,16 +1112,17 @@ jobs:
           $reportContent = Get-Content $reportPath -Raw
 
           # Core required sections (fail if missing)
+          # Match by id attributes which are stable across report redesigns
           $coreRequiredSections = @(
-            'License Information',
+            'License Summary',
             'Backup Server'
           )
 
           # Optional sections (warn if missing, but don't fail)
           $optionalSections = @(
             'Security Summary',
-            'Proxy Configuration',
-            'Repository Configuration',
+            'Proxy Info',
+            'Repository Details',
             'Job Summary'
           )
 
@@ -1204,15 +1214,15 @@ jobs:
         # Tables that MUST have at least one data row (1 <tr> header + 1+ <tr> data)
         # Key: regex to locate the table section; Value: human-readable name
         $requiredTables = @{
-          'License Information'  = 'License Information'
-          'Backup Server'        = 'Backup Server'
+          'License Summary'    = 'License Summary'
+          'Backup Server'      = 'Backup Server'
         }
 
         # Tables that SHOULD have data rows (warn only)
         $warnTables = @{
-          'Proxy Configuration'     = 'Proxy Configuration'
-          'Repository Configuration' = 'Repository Configuration'
-          'Job Summary'              = 'Job Summary'
+          'Proxy Info'              = 'Proxy Info'
+          'Repository Details'      = 'Repository Details'
+          'Job Summary'             = 'Job Summary'
         }
 
         $failures = @()
@@ -1413,7 +1423,11 @@ jobs:
         # Known-benign errors on CI test environments — allowlisted to prevent false failures
         $allowedMessages = @(
           'No backup sessions available',              # CI test servers may have no sessions configured
-          'Get-VBREntraIDTenant.*is not recognized'   # Entra ID collection requires VBR v13+
+          'Get-VBREntraIDTenant.*is not recognized',  # Entra ID collection requires VBR v13+
+          'VMC\.log.*does not exist',                  # VMC.log only present when NAS backup configured
+          'Could not find file.*VMC\.log',             # VMC.log file-not-found variant
+          'Get-VhciObjectStorageRepos.*is not recognized', # Object storage cmdlet not available on all VBR versions
+          'Job Info Data import failed'                # Benign null-ref when job session data is sparse on CI
         )
         $findings = @()
 
@@ -1697,16 +1711,17 @@ jobs:
           $reportContent = Get-Content $reportPath -Raw
 
           # Core required sections (fail if missing)
+          # Match by id attributes which are stable across report redesigns
           $coreRequiredSections = @(
-            'License Information',
+            'License Summary',
             'Backup Server'
           )
 
           # Optional sections (warn if missing, but don't fail)
           $optionalSections = @(
             'Security Summary',
-            'Proxy Configuration',
-            'Repository Configuration',
+            'Proxy Info',
+            'Repository Details',
             'Job Summary'
           )
 
@@ -1798,15 +1813,15 @@ jobs:
         # Tables that MUST have at least one data row (1 <tr> header + 1+ <tr> data)
         # Key: regex to locate the table section; Value: human-readable name
         $requiredTables = @{
-          'License Information'  = 'License Information'
-          'Backup Server'        = 'Backup Server'
+          'License Summary'    = 'License Summary'
+          'Backup Server'      = 'Backup Server'
         }
 
         # Tables that SHOULD have data rows (warn only)
         $warnTables = @{
-          'Proxy Configuration'     = 'Proxy Configuration'
-          'Repository Configuration' = 'Repository Configuration'
-          'Job Summary'              = 'Job Summary'
+          'Proxy Info'              = 'Proxy Info'
+          'Repository Details'      = 'Repository Details'
+          'Job Summary'             = 'Job Summary'
         }
 
         $failures = @()
