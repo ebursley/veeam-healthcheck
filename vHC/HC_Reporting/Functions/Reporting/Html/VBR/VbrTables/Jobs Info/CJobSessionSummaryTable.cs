@@ -150,17 +150,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         bool skipTotals = false;
                         var jobType = jType;
 
-                        if (jType == string.Empty || jType == null)
+                        if (string.IsNullOrEmpty(jType))
                         {
+                            jobType = "Summary of All";
                         }
 
                         var realType = CJobTypesParser.GetJobType(jobType);
 
-                        string sectionHeader = realType;
-                        if (jType == null)
-                        {
-                            sectionHeader = "Summary of All";
-                        }
+                        string sectionHeader = realType ?? "Summary of All";
 
                         string jobTable = this.form.SectionStartWithButton("jobTable-" + realType.ToLower().Replace(" ", "-"), sectionHeader + " Jobs", string.Empty);
                         s += jobTable;

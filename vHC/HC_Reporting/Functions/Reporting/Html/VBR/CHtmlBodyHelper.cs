@@ -56,7 +56,15 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.log.Info(this.logStart + "ServerSummaryTable completed.");
 
             this.HTMLSTRING += "</div>";
-            
+
+            this.log.Info(this.logStart + "Generating ComplianceSummaryTable...");
+            this.ComplianceSummaryTable();
+            this.log.Info(this.logStart + "ComplianceSummaryTable completed.");
+
+            this.log.Info(this.logStart + "Generating ComplianceDetailTable...");
+            this.ComplianceDetailTable();
+            this.log.Info(this.logStart + "ComplianceDetailTable completed.");
+
             this.log.Info(this.logStart + "Generating Configuration Tables section...");
             this.ConfigurationTablesSection();
             this.log.Info(this.logStart + "Configuration Tables section completed.");
@@ -287,6 +295,16 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
         private void EmailNotificationTable()
         {
             this.HTMLSTRING += this.tables.AddEmailNotificationTable(this.SCRUB);
+        }
+
+        private void ComplianceSummaryTable()
+        {
+            this.HTMLSTRING += this.tables.AddComplianceSummaryTable();
+        }
+
+        private void ComplianceDetailTable()
+        {
+            this.HTMLSTRING += this.tables.AddComplianceDetailTable();
         }
 
         private void ObjectStorageReposTable()
