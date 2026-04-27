@@ -90,6 +90,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             else
                             {
                                 onDiskGB = Math.Round(job.OnDiskGB ?? 0, 2);
+                                onDiskTotalGB += onDiskGB;
                             }
 
                             string jobName = job.Name;
