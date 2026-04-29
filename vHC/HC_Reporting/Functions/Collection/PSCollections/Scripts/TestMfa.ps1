@@ -13,7 +13,6 @@ if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) {
 }
 
 function Resolve-VeeamConsolePath {
-    $psd1Name = 'Veeam.Backup.PowerShell.psd1'
     $attempted = [System.Collections.Generic.List[string]]::new()
 
     # Registry is authoritative — try it first
@@ -24,7 +23,7 @@ function Resolve-VeeamConsolePath {
         if ($corePath -match '^[A-Za-z]:\\') {
             $candidate = Join-Path $corePath 'Console'
             $attempted.Add($candidate)
-            if (Test-Path (Join-Path $candidate $psd1Name)) {
+            if (Test-Path $candidate) {
                 return $candidate
             }
         }
@@ -38,7 +37,7 @@ function Resolve-VeeamConsolePath {
     foreach ($base in $envCandidates) {
         $candidate = Join-Path $base 'Veeam\Backup and Replication\Console'
         $attempted.Add($candidate)
-        if (Test-Path (Join-Path $candidate $psd1Name)) {
+        if (Test-Path $candidate) {
             return $candidate
         }
     }
