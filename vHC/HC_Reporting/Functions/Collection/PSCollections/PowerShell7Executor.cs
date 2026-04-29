@@ -8,6 +8,7 @@ using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Text;
+using VeeamHealthCheck.Functions.Collection;
 using VeeamHealthCheck.Shared; // For CGlobals
 
 namespace VeeamHealthCheck.Functions.Collection.PSCollections
@@ -78,7 +79,7 @@ Write-Output ""Checking Veeam on $VeeamServer""
 
             using var process = Process.Start(psi);
             string output = process.StandardOutput.ReadToEnd();
-            string error = process.StandardError.ReadToEnd();
+            string error = CCollections.StripAnsiCodes(process.StandardError.ReadToEnd());
             process.WaitForExit();
 
             // Optionally, handle output/error here
@@ -176,7 +177,7 @@ Write-Output ""Checking Veeam on $VeeamServer""
 
             using var process = Process.Start(psi);
             string output = process.StandardOutput.ReadToEnd();
-            string error = process.StandardError.ReadToEnd();
+            string error = CCollections.StripAnsiCodes(process.StandardError.ReadToEnd());
             process.WaitForExit();
 
             CGlobals.Logger.Debug($"[PowerShell Version Log] Output: {output}", false);

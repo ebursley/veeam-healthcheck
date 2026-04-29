@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using Microsoft.Management.Infrastructure;
 using VeeamHealthCheck.Functions.Collection.DB;
@@ -22,8 +23,13 @@ namespace VeeamHealthCheck.Functions.Collection
 {
     internal class CCollections
     {
+        private static readonly Regex AnsiPattern = new Regex(@"\x1B\[[0-?]*[ -/]*[@-~]", RegexOptions.Compiled);
+
         public bool SCRIPTSUCCESS;
         private readonly CLogger log = CGlobals.Logger;
+
+        internal static string StripAnsiCodes(string s) =>
+            s is null ? string.Empty : AnsiPattern.Replace(s, string.Empty);
 
         public CCollections() { }
 
@@ -314,7 +320,7 @@ namespace VeeamHealthCheck.Functions.Collection
                 CGlobals.Logger.Debug($"ProcessStartInfo Settings:\n  FileName: {processInfo.FileName}\n  Arguments: {safeArgs}\n  RedirectStandardOutput: {processInfo.RedirectStandardOutput}\n  RedirectStandardError: {processInfo.RedirectStandardError}\n  UseShellExecute: {processInfo.UseShellExecute}\n  CreateNoWindow: {processInfo.CreateNoWindow}");
                 using var process = System.Diagnostics.Process.Start(processInfo);
                 string stdOut = process.StandardOutput.ReadToEnd();
-                string stdErr = process.StandardError.ReadToEnd();
+                string stdErr = StripAnsiCodes(process.StandardError.ReadToEnd());
                 process.WaitForExit();
                 error = stdErr;
                 if (!string.IsNullOrWhiteSpace(stdOut))
@@ -458,7 +464,7 @@ namespace VeeamHealthCheck.Functions.Collection
 
                 using var process = Process.Start(processInfo);
                 string stdOut = process.StandardOutput.ReadToEnd();
-                string stdErr = process.StandardError.ReadToEnd();
+                string stdErr = StripAnsiCodes(process.StandardError.ReadToEnd());
                 process.WaitForExit();
 
                 // Log summary only - avoid logging full output which could contain sensitive data

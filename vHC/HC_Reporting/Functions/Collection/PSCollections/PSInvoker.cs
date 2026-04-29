@@ -9,6 +9,7 @@ using System.Reflection;
 
 // using System.Management.Automation;
 using System.Runtime.InteropServices;
+using VeeamHealthCheck.Functions.Collection;
 using VeeamHealthCheck.Functions.Collection.Security;
 using VeeamHealthCheck.Functions.CredsWindow;
 using VeeamHealthCheck.Shared;
@@ -159,7 +160,7 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                     process.WaitForExit();
 
                     string stdOut = process.StandardOutput.ReadToEnd();
-                    string stdErr = process.StandardError.ReadToEnd();
+                    string stdErr = CCollections.StripAnsiCodes(process.StandardError.ReadToEnd());
                     if (!string.IsNullOrWhiteSpace(stdOut))
                     {
                         this.log.Debug($"[PS][STDOUT] {stdOut}", false);
@@ -291,7 +292,7 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                     this.log.Info($"[TestMfa] PowerShell process exited with code: {res.ExitCode}");
 
                     string stdOut = res.StandardOutput.ReadToEnd();
-                    string stdErr = res.StandardError.ReadToEnd();
+                    string stdErr = CCollections.StripAnsiCodes(res.StandardError.ReadToEnd());
 
                     // Note: Not logging full stdout/stderr to avoid potential password leakage in error messages
                     this.log.Debug($"[TestMfa] STDOUT length: {stdOut?.Length ?? 0} chars");
