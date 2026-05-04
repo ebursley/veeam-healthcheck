@@ -42,15 +42,19 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
                     {
                         s += "<tr>";
 
-                        string name = (string)(item.name ?? "");
+                        var row = (IDictionary<string, object>)item;
+                        string name = row.TryGetValue("Name", out var n) ? (string)(n ?? "") : "";
                         if (scrub)
                         {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
                         }
 
+                        string role = row.TryGetValue("Role", out var r) ? (string)(r ?? "") : "";
+                        string description = row.TryGetValue("Description", out var d) ? (string)(d ?? "") : "";
+
                         s += this.form.TableDataLeftAligned(name, string.Empty);
-                        s += this.form.TableData((string)(item.role ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.description ?? ""), string.Empty);
+                        s += this.form.TableData(role, string.Empty);
+                        s += this.form.TableData(description, string.Empty);
 
                         s += "</tr>";
                     }
