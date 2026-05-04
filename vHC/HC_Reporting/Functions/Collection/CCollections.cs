@@ -544,11 +544,10 @@ namespace VeeamHealthCheck.Functions.Collection
             CGlobals.Logger.Debug("EffectiveIsVbr: " + CGlobals.EffectiveIsVbr.ToString());
             CGlobals.Logger.Debug("REMOTEEXEC: " + CGlobals.REMOTEEXEC.ToString());
 
-            if (CGlobals.EffectiveIsVbr)
-            {
-                CGlobals.Logger.Info("Entering vbr ps invoker", false);
-                this.SCRIPTSUCCESS = p.Invoke();
-            }
+            // No EffectiveIsVbr guard here — callers (including DynamicFallback path) already
+            // determined runVbr=true; EffectiveIsVbr remains false in the remote+auto case.
+            CGlobals.Logger.Info("Entering vbr ps invoker", false);
+            this.SCRIPTSUCCESS = p.Invoke();
         }
 
         private void ExecVbrConfigOnly(PSInvoker p)
