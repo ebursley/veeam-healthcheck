@@ -21,7 +21,10 @@ function Resolve-VeeamConsolePath {
         $regKey = 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication'
         $corePath = (Get-ItemProperty -Path $regKey -Name 'CorePath' -ErrorAction Stop).CorePath
         if ($corePath -match '^[A-Za-z]:\\') {
-            $candidate = Join-Path $corePath 'Console'
+            # CorePath points to the Backup\ subfolder; Console is its sibling, not its child
+            $trimmed     = $corePath.TrimEnd('\','/')
+            $installRoot = Split-Path $trimmed -Parent
+            $candidate   = Join-Path $installRoot 'Console'
             $attempted.Add($candidate)
             if (Test-Path $candidate) {
                 return $candidate
