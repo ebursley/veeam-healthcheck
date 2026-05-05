@@ -45,17 +45,33 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.BackupServerTable();
             this.log.Info(this.logStart + "BackupServerTable completed.");
             
+            this.HTMLSTRING += "<div class=\"two-col\">";
+
             this.log.Info(this.logStart + "Generating SecuritySummaryTable...");
             this.SecuritySummaryTable();
             this.log.Info(this.logStart + "SecuritySummaryTable completed.");
-            
+
             this.log.Info(this.logStart + "Generating ServerSummaryTable...");
             this.ServerSummaryTable();
             this.log.Info(this.logStart + "ServerSummaryTable completed.");
-            
+
+            this.HTMLSTRING += "</div>";
+
+            this.log.Info(this.logStart + "Generating ComplianceSummaryTable...");
+            this.ComplianceSummaryTable();
+            this.log.Info(this.logStart + "ComplianceSummaryTable completed.");
+
+            this.log.Info(this.logStart + "Generating ComplianceDetailTable...");
+            this.ComplianceDetailTable();
+            this.log.Info(this.logStart + "ComplianceDetailTable completed.");
+
             this.log.Info(this.logStart + "Generating Configuration Tables section...");
             this.ConfigurationTablesSection();
             this.log.Info(this.logStart + "Configuration Tables section completed.");
+            
+            this.log.Info(this.logStart + "Generating General Settings section...");
+            this.GeneralSettingsSection();
+            this.log.Info(this.logStart + "General Settings section completed.");
             
             this.log.Info(this.logStart + "Generating RegistryKeyTable...");
             this.RegistryKeyTable();
@@ -183,6 +199,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.ExtentTable();
             this.CapacityTierExtentTable();
             this.ArchiveTierExtentTable();
+            this.ObjectStorageReposTable();
             this.RepoTable();
 
             this.HTMLSTRING += this.tables.AddRepositoryInfoFooter();
@@ -252,6 +269,47 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
         private void RepoTable()
         {
             this.HTMLSTRING += this.tables.AddRepoTable(this.SCRUB);
+        }
+
+        private void GeneralSettingsSection()
+        {
+            this.HTMLSTRING += this.tables.AddGeneralSettingsHeader();
+
+            this.CredentialsTable();
+            this.UserRolesTable();
+            this.EmailNotificationTable();
+
+            this.HTMLSTRING += this.tables.AddGeneralSettingsFooter();
+        }
+
+        private void CredentialsTable()
+        {
+            this.HTMLSTRING += this.tables.AddCredentialsTable(this.SCRUB);
+        }
+
+        private void UserRolesTable()
+        {
+            this.HTMLSTRING += this.tables.AddUserRolesTable(this.SCRUB);
+        }
+
+        private void EmailNotificationTable()
+        {
+            this.HTMLSTRING += this.tables.AddEmailNotificationTable(this.SCRUB);
+        }
+
+        private void ComplianceSummaryTable()
+        {
+            this.HTMLSTRING += this.tables.AddComplianceSummaryTable();
+        }
+
+        private void ComplianceDetailTable()
+        {
+            this.HTMLSTRING += this.tables.AddComplianceDetailTable();
+        }
+
+        private void ObjectStorageReposTable()
+        {
+            this.HTMLSTRING += this.tables.AddObjectStorageReposTable(this.SCRUB);
         }
 
         private void JobConcurrencyTable()

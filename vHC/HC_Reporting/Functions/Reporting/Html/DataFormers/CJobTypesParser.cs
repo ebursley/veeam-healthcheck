@@ -16,6 +16,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.DataFormers
                 CGlobals.Logger.Debug("JobType = " + jobType);
             }
 
+            if (jobType == null)
+                return "Other";
+
             switch (jobType)
             {
                 case "Copy":

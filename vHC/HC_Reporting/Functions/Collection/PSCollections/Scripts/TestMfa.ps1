@@ -7,19 +7,59 @@ param(
     [string]$PasswordBase64
 )
 
+# Suppress ANSI color codes in PS7+ so stderr is always plain text
+if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) {
+    $PSStyle.OutputRendering = 'PlainText'
+}
+
+function Resolve-VeeamConsolePath {
+    $attempted = [System.Collections.Generic.List[string]]::new()
+
+    # Registry is authoritative — try it first
+    # Reject UNC paths from the registry to prevent SMB coercion via tampered key
+    try {
+        $regKey = 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication'
+        $corePath = (Get-ItemProperty -Path $regKey -Name 'CorePath' -ErrorAction Stop).CorePath
+        if ($corePath -match '^[A-Za-z]:\\') {
+            # CorePath points to the Backup\ subfolder; Console is its sibling, not its child
+            $trimmed     = $corePath.TrimEnd('\','/')
+            $installRoot = Split-Path $trimmed -Parent
+            $candidate   = Join-Path $installRoot 'Console'
+            $attempted.Add($candidate)
+            if (Test-Path $candidate) {
+                return $candidate
+            }
+        }
+    }
+    catch {
+        # Registry key or value absent — continue to env-var fallbacks
+    }
+
+    # Fall back to standard environment-variable paths
+    $envCandidates = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ }
+    foreach ($base in $envCandidates) {
+        $candidate = Join-Path $base 'Veeam\Backup and Replication\Console'
+        $attempted.Add($candidate)
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    $pathList = $attempted -join "`n  "
+    Write-Error "Veeam Console path not found. Paths attempted:`n  $pathList"
+    return $null
+}
+
 try {
     Write-Host "[VERBOSE] PowerShell Version: $($PSVersionTable.PSVersion.ToString())"
-    # Compare PSModulePath in both contexts
-    # Add the Veeam Console directory to PSModulePath
-    $veeamConsolePath = "C:\Program Files\Veeam\Backup and Replication\Console"
-    if (Test-Path $veeamConsolePath) {
-        Write-Verbose "Adding Veeam Console path to PSModulePath: $veeamConsolePath"
-        $env:PSModulePath = "$veeamConsolePath;$env:PSModulePath"
-    }
-    else {
-        Write-Error "Veeam Console path not found: $veeamConsolePath"
+
+    $veeamConsolePath = Resolve-VeeamConsolePath
+    if ($null -eq $veeamConsolePath) {
         exit 1
     }
+
+    Write-Verbose "Adding Veeam Console path to PSModulePath: $veeamConsolePath"
+    $env:PSModulePath = "$veeamConsolePath;$env:PSModulePath"
 
     Write-Verbose "Attempting to import Veeam.Backup.PowerShell module..."
     Import-Module Veeam.Backup.PowerShell -Force -WarningAction Ignore
@@ -34,9 +74,7 @@ try {
     Write-Host "[VERBOSE] Password decoded successfully (length: $($password.Length))"
     Write-Host "[VERBOSE] Server: $Server"
     Write-Host "[VERBOSE] Username: $Username"
-    Write-Host "[VERBOSE] Password first 5 chars: $($password.Substring(0, [Math]::Min(5, $password.Length)))"
-    Write-Host "[VERBOSE] Password last 5 chars: $($password.Substring([Math]::Max(0, $password.Length - 5)))"
-    
+
     # Use -User and -Password parameters directly (same as manual CLI usage)
     # This approach works better for local accounts vs -Credential
     Connect-VBRServer -Server $Server -User $Username -Password $password -ForceAcceptTlsCertificate -ErrorAction Stop

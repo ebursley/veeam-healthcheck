@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using VeeamHealthCheck.Functions.Collection.PSCollections;
 using VeeamHealthCheck.Functions.CredsWindow;
+using VeeamHealthCheck.Functions.Monitor;
 
 // using VeeamHealthCheck.Reporting.vsac;
 using VeeamHealthCheck.Shared;
@@ -196,6 +197,20 @@ namespace VeeamHealthCheck.Startup
                     case "/debug":
                         CGlobals.DEBUG = true;
                         break;
+                    case "/vbr":
+                        if (CGlobals.TargetProductType == TargetProduct.Vb365)
+                            CGlobals.TargetProductType = TargetProduct.Both;
+                        else
+                            CGlobals.TargetProductType = TargetProduct.Vbr;
+                        CGlobals.Logger.Info("Target product: VBR", false);
+                        break;
+                    case "/vb365":
+                        if (CGlobals.TargetProductType == TargetProduct.Vbr)
+                            CGlobals.TargetProductType = TargetProduct.Both;
+                        else
+                            CGlobals.TargetProductType = TargetProduct.Vb365;
+                        CGlobals.Logger.Info("Target product: VB365", false);
+                        break;
                     case var match when new Regex("/path=.*").IsMatch(a):
                         _hfdPath = this.ParsePath(a);
                         CGlobals.Logger.Info("HFD path: " + targetDir);
@@ -228,7 +243,27 @@ namespace VeeamHealthCheck.Startup
                             CGlobals.REMOTEHOST = providedHost;
                         }
                         break;
+                    case "/monitor:setup":
+                        this.RunMonitorSetup();
+                        return 0;
+                    case "/monitor:run":
+                        return this.RunMonitorNow();
+                    case "/monitor:status":
+                        this.PrintMonitorStatus();
+                        return 0;
+                    case "/monitor:disable":
+                        CVhcMonitorIntegration.Uninstall();
+                        CGlobals.Logger.Info("VHC Monitor scheduled task removed.", false);
+                        return 0;
                 }
+            }
+
+            // If a product flag and host are provided, imply remote execution
+            if (CGlobals.TargetProductType != TargetProduct.Auto
+                && !string.IsNullOrEmpty(CGlobals.REMOTEHOST)
+                && !CGlobals.REMOTEHOST.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                CGlobals.REMOTEEXEC = true;
             }
 
             // Now that arguments are parsed, detect VBR version
@@ -362,6 +397,53 @@ namespace VeeamHealthCheck.Startup
             CGlobals.Logger.Info("Output is stored in " + targetDir, false);
 
             return res;
+        }
+
+        private void RunMonitorSetup()
+        {
+            if (!CVhcMonitorIntegration.IsExePresentInBundle())
+            {
+                CGlobals.Logger.Error("vhc-monitor.exe not found alongside VeeamHealthCheck.exe. Cannot set up.", false);
+                return;
+            }
+            var creds = CredentialStore.Get(CGlobals.VBRServerName);
+            if (creds == null)
+            {
+                CGlobals.Logger.Warning("No stored credentials for " + CGlobals.VBRServerName + ". Run interactively to store credentials first.", false);
+                return;
+            }
+            CVhcMonitorIntegration.Install(CGlobals.VBRServerName, creds.Value.Username, creds.Value.Password);
+            CGlobals.Logger.Info("VHC Monitor installed and scheduled task registered.", false);
+        }
+
+        private int RunMonitorNow()
+        {
+            if (!CVhcMonitorIntegration.IsInstalled())
+            {
+                CGlobals.Logger.Error("VHC Monitor not installed. Run /monitor:setup first.", false);
+                return 1;
+            }
+            var (exitCode, output) = CVhcMonitorIntegration.RunNow();
+            Console.WriteLine(output);
+            return exitCode;
+        }
+
+        private void PrintMonitorStatus()
+        {
+            bool bundled = CVhcMonitorIntegration.IsExePresentInBundle();
+            bool installed = CVhcMonitorIntegration.IsInstalled();
+            bool taskActive = CVhcMonitorIntegration.IsTaskRegistered();
+            string version = installed ? CVhcMonitorIntegration.GetInstalledVersion() : "n/a";
+            var lastRun = CVhcMonitorIntegration.GetLastRunStatus();
+
+            Console.WriteLine("=== VHC Monitor Status ===");
+            Console.WriteLine($"  Bundled:        {(bundled ? "Yes" : "No")}");
+            Console.WriteLine($"  Installed:      {(installed ? "Yes (" + version + ")" : "No")}");
+            Console.WriteLine($"  Scheduled Task: {(taskActive ? "Registered" : "Not registered")}");
+            Console.WriteLine($"  Config:         {CGlobals.VhcMonitorConfigPath}");
+            if (lastRun != null)
+                Console.WriteLine($"  Last Run:       {lastRun.Timestamp:g} — {lastRun.Summary}");
+            Console.WriteLine("==========================");
         }
     }
 }

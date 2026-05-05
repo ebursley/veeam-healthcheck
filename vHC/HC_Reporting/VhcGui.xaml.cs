@@ -2,8 +2,11 @@
 // MIT License
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using VeeamHealthCheck.Functions.Monitor;
 using VeeamHealthCheck.Resources.Localization;
 using VeeamHealthCheck.Shared;
 using VeeamHealthCheck.Startup;
@@ -24,6 +27,7 @@ namespace VeeamHealthCheck
             this.SetUi();
             pathBox.IsEnabled = true;
             this.InitializeServerList();
+            this.InitializeMonitorStatus();
 
             // pdfCheckBox.IsEnabled = false;
         }
@@ -94,18 +98,35 @@ namespace VeeamHealthCheck
             
             if (modeCheckResult == "fail")
             {
-                string errorMessage = "No Veeam Software detected on this machine.\n\n" +
-                                     "This tool requires Veeam Backup & Replication (VBR) or Veeam Backup for Microsoft 365 (VB365) to be installed.\n\n" +
-                                     "To connect to a remote Veeam server:\n" +
-                                     "1. Close this window\n" +
-                                     "2. Run from command line with: VeeamHealthCheck.exe /remote /host=your-vbr-server\n\n" +
-                                     "For more information, see the documentation.";
-                
-                MessageBox.Show(errorMessage, "Veeam Software Not Detected", MessageBoxButton.OK, MessageBoxImage.Error);
-                
-                // Close the application
-                Application.Current.Shutdown();
-                return;
+                // If remote servers are configured, don't exit — let user select product type
+                bool hasRemoteServers = false;
+                foreach (var item in serverListBox.Items)
+                {
+                    if (!item.ToString().Equals("localhost", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasRemoteServers = true;
+                        break;
+                    }
+                }
+
+                if (hasRemoteServers)
+                {
+                    this.Title = "Veeam Health Check - Remote Mode";
+                    CGlobals.Logger.Info("No local Veeam detected, but remote servers configured.", false);
+                }
+                else
+                {
+                    string errorMessage = "No Veeam Software detected on this machine.\n\n" +
+                                         "This tool requires Veeam Backup & Replication (VBR) or Veeam Backup for Microsoft 365 (VB365) to be installed.\n\n" +
+                                         "To connect to a remote Veeam server:\n" +
+                                         "1. Close this window\n" +
+                                         "2. Run from command line with: VeeamHealthCheck.exe /remote /host=your-vbr-server\n\n" +
+                                         "For more information, see the documentation.";
+
+                    MessageBox.Show(errorMessage, "Veeam Software Not Detected", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Application.Current.Shutdown();
+                    return;
+                }
             }
             
             this.Title = modeCheckResult;
@@ -230,6 +251,7 @@ namespace VeeamHealthCheck
             {
                 this.functions.StartPrimaryFunctions();
                 this.UpdateCollectionStatusText();
+                this.OfferMonitorSetupIfNeeded();
                 this.ShowCollectionWarningsIfAny();
                 Environment.Exit(0);
             }).ContinueWith(t =>
@@ -299,6 +321,7 @@ namespace VeeamHealthCheck
             removeServerBtn.IsEnabled = false;
             clearServersBtn.IsEnabled = false;
             serverListBox.IsEnabled = false;
+            productTypeSelector.IsEnabled = false;
             RescanBox.IsEnabled = false;
         }
 
@@ -550,11 +573,193 @@ namespace VeeamHealthCheck
         private void serverListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             UpdateSelectedServersGlobal();
-            
+
             if (serverListBox.SelectedItem != null)
             {
                 this.functions.LogUIAction($"Selected server: {serverListBox.SelectedItem}");
             }
+        }
+
+        private void productTypeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (productTypeSelector == null) return;
+            switch (productTypeSelector.SelectedIndex)
+            {
+                case 0: CGlobals.TargetProductType = TargetProduct.Auto; break;
+                case 1: CGlobals.TargetProductType = TargetProduct.Vbr; break;
+                case 2: CGlobals.TargetProductType = TargetProduct.Vb365; break;
+                case 3: CGlobals.TargetProductType = TargetProduct.Both; break;
+            }
+            this.functions.LogUIAction("Product type set to " + CGlobals.TargetProductType);
+        }
+
+        #endregion
+
+        #region Monitor Integration
+
+        private void InitializeMonitorStatus()
+        {
+            bool bundled = CVhcMonitorIntegration.IsExePresentInBundle();
+            bool installed = CVhcMonitorIntegration.IsInstalled();
+            bool taskActive = CVhcMonitorIntegration.IsTaskRegistered();
+
+            if (!bundled)
+            {
+                monitorStatusText.Text = "Not bundled";
+                monitorStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
+                monitorQuickSetupBtn.IsEnabled = false;
+                monitorVhcSetupBtn.IsEnabled = false;
+                monitorRunBtn.IsEnabled = false;
+            }
+            else if (!installed || !taskActive)
+            {
+                monitorStatusText.Text = "Available — not set up";
+                monitorStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xf0, 0xad, 0x4e));
+                monitorQuickSetupBtn.IsEnabled = true;
+                monitorRunBtn.IsEnabled = false;
+            }
+            else
+            {
+                string version = CVhcMonitorIntegration.GetInstalledVersion();
+                monitorStatusText.Text = $"Running ({version})";
+                monitorStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x5c, 0xb8, 0x5c));
+                monitorQuickSetupBtn.Content = "Reconfigure";
+                monitorQuickSetupBtn.IsEnabled = true;
+                monitorRunBtn.IsEnabled = true;
+
+                var status = CVhcMonitorIntegration.GetLastRunStatus();
+                if (status != null)
+                {
+                    monitorLastRunText.Text = $"Last run: {status.Timestamp:g} — {status.Summary}";
+                    monitorLastRunText.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private (string notifType, string notifUrl, string minSeverity) GetNotifSettings()
+        {
+            string notifType = (notifTypeBox.SelectedItem as ComboBoxItem)?.Content?.ToString()?.ToLower() ?? "ntfy";
+            string notifUrl = notifUrlBox.Text?.Trim() ?? string.Empty;
+            string minSeverity = (notifSeverityBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "warning";
+            return (notifType, notifUrl, minSeverity);
+        }
+
+        private void monitorQuickSetupBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string server = serverListBox.SelectedItem?.ToString() ?? CGlobals.VBRServerName;
+            var creds = CredentialStore.Get(server);
+            string username = creds?.Username ?? string.Empty;
+            string password = creds?.Password ?? string.Empty;
+
+            if (string.IsNullOrEmpty(username))
+            {
+                MessageBox.Show(
+                    $"No stored credentials found for '{server}'.\nPlease add credentials by running a health check first, or use the credential prompt.",
+                    "Credentials Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!CVhcMonitorIntegration.IsExePresentInBundle())
+            {
+                MessageBox.Show("vhc-monitor.exe not found in the VHC installation directory.", "Monitor Not Found", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            monitorQuickSetupBtn.IsEnabled = false;
+            monitorStatusText.Text = "Installing...";
+
+            var (notifType, notifUrl, minSeverity) = this.GetNotifSettings();
+
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    CVhcMonitorIntegration.Install(server, username, password, notifType, notifUrl, minSeverity);
+                    this.Dispatcher.Invoke(this.InitializeMonitorStatus);
+                }
+                catch (Exception ex)
+                {
+                    CGlobals.Logger.Error($"Monitor setup failed: {ex.Message}", false);
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        monitorStatusText.Text = "Setup failed — check log";
+                        monitorStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xd9, 0x53, 0x4f));
+                        monitorQuickSetupBtn.IsEnabled = true;
+                    });
+                }
+            });
+        }
+
+        private void monitorVhcSetupBtn_Click(object sender, RoutedEventArgs e)
+        {
+            monitorVhcSetupBtn.IsEnabled = false;
+            monitorStatusText.Text = "Installing from VHC data...";
+
+            var (notifType, notifUrl, minSeverity) = this.GetNotifSettings();
+
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    CVhcMonitorIntegration.InstallFromVhcData(notifType, notifUrl, minSeverity);
+                    this.Dispatcher.Invoke(this.InitializeMonitorStatus);
+                }
+                catch (Exception ex)
+                {
+                    CGlobals.Logger.Error($"Monitor VHC-assisted setup failed: {ex.Message}", false);
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        monitorStatusText.Text = "Setup failed — check log";
+                        monitorStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xd9, 0x53, 0x4f));
+                        monitorVhcSetupBtn.IsEnabled = true;
+                    });
+                }
+            });
+        }
+
+        private void monitorRunBtn_Click(object sender, RoutedEventArgs e)
+        {
+            monitorRunBtn.IsEnabled = false;
+            monitorLastRunText.Text = "Running...";
+            monitorLastRunText.Visibility = Visibility.Visible;
+
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                var (exitCode, output) = CVhcMonitorIntegration.RunNow();
+                this.Dispatcher.Invoke(() =>
+                {
+                    this.InitializeMonitorStatus();
+                    monitorRunBtn.IsEnabled = CVhcMonitorIntegration.IsTaskRegistered();
+                });
+            });
+        }
+
+        private void notifTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (notifUrlBox == null) return;
+            string type = (notifTypeBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "ntfy";
+            notifUrlBox.Tag = type switch
+            {
+                "Teams"     => "https://org.webhook.office.com/...",
+                "Slack"     => "https://hooks.slack.com/services/...",
+                "PagerDuty" => "https://events.pagerduty.com/...",
+                _           => "https://ntfy.sh/your-topic"
+            };
+        }
+
+        private void OfferMonitorSetupIfNeeded()
+        {
+            if (!CVhcMonitorIntegration.IsExePresentInBundle()) return;
+            if (CVhcMonitorIntegration.IsTaskRegistered()) return;
+
+            this.Dispatcher.Invoke(() =>
+            {
+                monitorVhcSetupBtn.IsEnabled = true;
+                monitorLastRunText.Text = "Health check complete — click 'Setup from VHC' to configure continuous monitoring with auto-detected server settings.";
+                monitorLastRunText.Visibility = Visibility.Visible;
+                monitorStatusText.Text = "Available — not set up";
+                monitorStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xf0, 0xad, 0x4e));
+            });
         }
 
         #endregion

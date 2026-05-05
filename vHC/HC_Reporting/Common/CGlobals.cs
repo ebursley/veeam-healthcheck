@@ -2,6 +2,7 @@
 // MIT License
 using System;
 using System.Collections.Generic;
+using System.IO;
 using VeeamHealthCheck.Functions.Analysis.DataModels;
 using VeeamHealthCheck.Functions.Reporting.DataTypes;
 using VeeamHealthCheck.Scrubber;
@@ -49,6 +50,15 @@ namespace VeeamHealthCheck.Shared
 
         // Remote Exec variables
         public static string VBRServerName = "localhost";
+
+        // vhc-monitor integration
+        public static string VhcMonitorInstallDir =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VeeamHealthCheck", "monitor");
+        public static string VhcMonitorConfigPath =>
+            Path.Combine(VhcMonitorInstallDir, "vhc-monitor.yaml");
+        public static string VhcMonitorExeBundlePath =>
+            Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? string.Empty, "vhc-monitor.exe");
+        public static readonly string VhcMonitorTaskName = "VHC Monitor";
         
         // Multi-server execution support
         public static List<string> SelectedServers = new List<string> { "localhost" };
@@ -153,6 +163,32 @@ namespace VeeamHealthCheck.Shared
         public static bool IsVbr { get { return isVbr; } set { isVbr = value; } }
 
         public static bool IsVb365 { get { return isVb365; } set { isVb365 = value; } }
+
+        public static TargetProduct TargetProductType { get; set; } = TargetProduct.Auto;
+
+        public static bool EffectiveIsVbr
+        {
+            get
+            {
+                if (TargetProductType == TargetProduct.Vbr || TargetProductType == TargetProduct.Both)
+                    return true;
+                if (TargetProductType == TargetProduct.Auto)
+                    return IsVbr;
+                return false;
+            }
+        }
+
+        public static bool EffectiveIsVb365
+        {
+            get
+            {
+                if (TargetProductType == TargetProduct.Vb365 || TargetProductType == TargetProduct.Both)
+                    return true;
+                if (TargetProductType == TargetProduct.Auto)
+                    return IsVb365;
+                return false;
+            }
+        }
 
         public static bool RunFullReport { get { return runFullReport; } set { runFullReport = value; } }
 
