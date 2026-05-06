@@ -110,11 +110,13 @@ NavTaskConLink = VMの同時実行性
 
 
 #License table
+LicAutoUpdateTT = ライセンスの自動更新は有効ですか？
 LicCcTT = Cloud Connectは有効になっていますか？
 LicExpTT = ライセンスの有効期限
 LicTblLicTo = ライセンス供与先
 LicSupExpTT = サポートの有効期限
 LicTableHeader = ライセンスの概要
+LicTblAutoUpdate = 自動更新
 LicTblCc = クラウドコネクト対応
 LicTblEdition = 	エディション
 LicTblExpDate = 有効期限
@@ -576,6 +578,10 @@ Jss14 = 平均待機（dd.hh：mm：ss）
 Jss14TT = 平均期間のジョブが利用可能なリソースを待機しています
 Jss15 = 職種
 Jss15TT = 職種
+Jss16 = Avg Dedup Ratio
+Jss16TT = Average deduplication ratio across backup sessions
+Jss17 = Avg Compress Ratio
+Jss17TT = Average compression ratio across backup sessions
 JssSum0 = この表は、過去7日間の個々の仕事の最近の履歴を詳しく説明することを目的としています。
 JssNote0subhdr = リソース/ジョブセッションの長さの問題を待機しています：
 JssNote1 = •異なるタイムスロットで開始するようにジョブをスケジュールすると、リソースを分散し、使用可能なリソースを待機しているジョブであるボトルネックを防ぐのに役立ちます。 （例：すべてのジョブを午後8時に開始するようにスケジュールする代わりに、1つのジョブを8:00に開始し、別のジョブを8:30に開始し、別のジョブを9:00に開始します。）

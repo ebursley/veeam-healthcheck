@@ -178,6 +178,20 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
 
                     stats.DataSize.Add(session.DataSize);
                     stats.BackupSize.Add(session.BackupSize);
+
+                    // Filter incremental-only sessions for DCR
+                    if (session.Alg != null && session.Alg.Contains("Increment", StringComparison.OrdinalIgnoreCase))
+                    {
+                        stats.IncrementalDataSize.Add(session.DataSize);
+                        stats.IncrementalBackupSize.Add(session.BackupSize);
+                    }
+
+                    // VBR stores DedupRatio/CompressRatio as scaled integers: raw = (output / input) * 100.
+                    // Invert to a human-readable reduction multiplier (e.g. raw 19 -> 5.26x compress).
+                    if (double.TryParse(session.DedupRatio, out double dedup) && dedup > 0)
+                        stats.DedupRatios.Add(100.0 / dedup);
+                    if (double.TryParse(session.CompressionRatio, out double compress) && compress > 0)
+                        stats.CompressionRatios.Add(100.0 / compress);
                 }
             }
 
@@ -239,6 +253,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
                     row.Add(Math.Round(o.AvgDataSize, 2).ToString());
                     row.Add(Math.Round(o.MaxDataSize, 2).ToString());
                     row.Add(Math.Round(o.AvgChangeRate, 2).ToString());
+                    row.Add(o.AvgDedupRatio > 0 ? o.AvgDedupRatio.ToString() + "x" : "");
+                    row.Add(o.AvgCompressionRatio > 0 ? o.AvgCompressionRatio.ToString() + "x" : "");
                     row.Add(wait);
                     row.Add(o.MaxWait);
                     row.Add(o.AvgWait);
@@ -254,7 +270,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
 
         public CJobSummaryTypes SessionSummaryStats(double totalSessions, double totalFailedSessions,
             double totalRetries, int totalProtectedInstances, List<double> avgBackupSizes, List<double> avgDataSizes,
-            List<double> maxBackupSize, List<double> avgRates, List<double> maxDataSizes)
+            List<double> maxBackupSize, List<double> avgRates, List<double> maxDataSizes,
+            List<double> avgDedupRatios, List<double> avgCompressRatios)
         {
             CJobSummaryTypes jobSummaryTypes = new CJobSummaryTypes();
 
@@ -264,8 +281,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
                 double totalSessionSuccessPercent = (totalSessions - totalFailedSessions) / totalSessions * 100;
                 successPercent = Math.Round(totalSessionSuccessPercent, 2);
             }
-
-            avgRates.RemoveAll(x => x == 0);
 
             jobSummaryTypes.JobName = "Total";
             jobSummaryTypes.ItemCount = totalProtectedInstances;
@@ -277,9 +292,25 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
             jobSummaryTypes.MaxBackupSize = Math.Round(maxBackupSize.Sum(), 2);
             jobSummaryTypes.AvgDataSize = Math.Round(avgDataSizes.Sum(), 2);
             jobSummaryTypes.MaxDataSize = Math.Round(maxDataSizes.Sum(), 2);
-            double maxDataSum = maxDataSizes.Sum();
-            double avgChangedData = maxDataSum > 0 ? avgDataSizes.Sum() / maxDataSum * 100 : 0;
-            jobSummaryTypes.AvgChangeRate = Math.Round(avgChangedData, 2);
+
+            // Weighted average of per-job change rates, weighted by MaxDataSize
+            double weightedRateSum = 0;
+            double weightTotal = 0;
+            for (int i = 0; i < avgRates.Count; i++)
+            {
+                if (avgRates[i] > 0 && i < maxDataSizes.Count && maxDataSizes[i] > 0)
+                {
+                    weightedRateSum += avgRates[i] * maxDataSizes[i];
+                    weightTotal += maxDataSizes[i];
+                }
+            }
+            jobSummaryTypes.AvgChangeRate = weightTotal > 0 ? Math.Round(weightedRateSum / weightTotal, 2) : 0;
+
+            // Average dedup/compression ratios for totals
+            var nonZeroDedup = avgDedupRatios.Where(x => x > 0).ToList();
+            var nonZeroCompress = avgCompressRatios.Where(x => x > 0).ToList();
+            jobSummaryTypes.AvgDedupRatio = nonZeroDedup.Count > 0 ? Math.Round(nonZeroDedup.Average(), 2) : 0;
+            jobSummaryTypes.AvgCompressionRatio = nonZeroCompress.Count > 0 ? Math.Round(nonZeroCompress.Average(), 2) : 0;
 
             return jobSummaryTypes;
         }

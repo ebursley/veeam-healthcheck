@@ -276,6 +276,9 @@
   <data name="NavTaskConLink" xml:space="preserve">
     <value>虚拟机并发</value>
   </data>
+  <data name="LicAutoUpdateTT" xml:space="preserve">
+    <value>是否启用了许可证自动更新？</value>
+  </data>
   <data name="LicCcTT" xml:space="preserve">
     <value>是否启用了Cloud Connect？</value>
   </data>
@@ -290,6 +293,9 @@
   </data>
   <data name="LicTableHeader" xml:space="preserve">
     <value>许可证摘要</value>
+  </data>
+  <data name="LicTblAutoUpdate" xml:space="preserve">
+    <value>自动更新</value>
   </data>
   <data name="LicTblCc" xml:space="preserve">
     <value>Cloud Connect 已启用</value>
@@ -1550,6 +1556,18 @@
   </data>
   <data name="Jss15TT" xml:space="preserve">
     <value>作业类型</value>
+  </data>
+  <data name="Jss16" xml:space="preserve">
+    <value>Avg Dedup Ratio</value>
+  </data>
+  <data name="Jss16TT" xml:space="preserve">
+    <value>Average deduplication ratio across backup sessions</value>
+  </data>
+  <data name="Jss17" xml:space="preserve">
+    <value>Avg Compress Ratio</value>
+  </data>
+  <data name="Jss17TT" xml:space="preserve">
+    <value>Average compression ratio across backup sessions</value>
   </data>
   <data name="JssSum0" xml:space="preserve">
     <value>此表旨在详细说明过去 7 天内各个作业的近期历史记录。</value>

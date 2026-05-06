@@ -50,6 +50,10 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
 
         public double AvgChangeRate { get; set; }
 
+        public double AvgDedupRatio { get; set; }
+
+        public double AvgCompressionRatio { get; set; }
+
         public string JobType { get; set; }
 
         public int WaitCount { get; set; }

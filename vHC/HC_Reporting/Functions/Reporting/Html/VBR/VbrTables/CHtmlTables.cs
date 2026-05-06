@@ -162,6 +162,7 @@ namespace VeeamHealthCheck.Html.VBR
                 this.form.TableHeader(VbrLocalizationHelper.LicTblExpDate, VbrLocalizationHelper.LicExpTT) +
                 this.form.TableHeader(VbrLocalizationHelper.LicTblSupExpDate, VbrLocalizationHelper.LicSupExpTT) +
                 this.form.TableHeader(VbrLocalizationHelper.LicTblCc, VbrLocalizationHelper.LicCcTT) +
+                this.form.TableHeader(VbrLocalizationHelper.LicTblAutoUpdate, VbrLocalizationHelper.LicAutoUpdateTT) +
                 "</tr>";
             s += "</thead><tbody>";
             try
@@ -204,6 +205,7 @@ namespace VeeamHealthCheck.Html.VBR
                     s += this.form.TableData(l.expirationdate, string.Empty);
                     s += this.form.TableData(l.supportexpirationdate, string.Empty);
                     s += this.form.TableData(l.cloudconnect, string.Empty);
+                    s += this.form.TableData(l.autoupdateenabled, string.Empty);
                     s += "</tr>";
 
                     // add to json
@@ -226,6 +228,7 @@ namespace VeeamHealthCheck.Html.VBR
                             ExpirationDate = l.expirationdate,
                             SupportExpirationDate = l.supportexpirationdate,
                             CloudConnect = l.cloudconnect,
+                            AutoUpdateEnabled = l.autoupdateenabled,
                         });
                     }
                     catch (Exception exRow)

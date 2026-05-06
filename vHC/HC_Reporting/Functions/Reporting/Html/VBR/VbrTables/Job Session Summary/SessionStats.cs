@@ -26,6 +26,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
 
         public List<double> BackupSize { get; set; } = new List<double>();
 
+        public List<double> IncrementalDataSize { get; set; } = new List<double>();
+
+        public List<double> IncrementalBackupSize { get; set; } = new List<double>();
+
+        public List<double> DedupRatios { get; set; } = new List<double>();
+
+        public List<double> CompressionRatios { get; set; } = new List<double>();
+
         public string JobType { get; set; }
     }
 }
