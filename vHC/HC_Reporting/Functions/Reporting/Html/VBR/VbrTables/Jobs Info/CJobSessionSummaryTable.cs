@@ -244,7 +244,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         }
 
                         // clean up totals:
-                        double successPercent = (totalSessionCount - (double)totalFails + totalRetries) / totalSessionCount * 100;
+                        double successPercent = (totalSessionCount - (double)totalFails) / totalSessionCount * 100;
                         totalSuccessRate = (double)Math.Round(successPercent, 2);
                         if (totalAvgDataSize == 0 && totalMaxDataSize == 0)
                         {
@@ -417,7 +417,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 }
 
                 // clean up totals:
-                double successPercent = (totalSessionCount - (double)totalFails + totalRetries) / totalSessionCount * 100;
+                double successPercent = (totalSessionCount - (double)totalFails) / totalSessionCount * 100;
                 totalSuccessRate = (double)Math.Round(successPercent, 2);
 
                 totalAvgChangeRate = Math.Round(totalAvgDataSize / totalMaxDataSize * 100, 2);
