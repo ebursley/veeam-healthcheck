@@ -854,6 +854,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     server.IsWan = this.isBackupServerWan;
                     server.OsInfo = c.OSInfo;
                     server.IsUnavailable = c.IsUnavailable;
+                    server.Platform = c.Platform;
 
                     list.Add(server);
                 }

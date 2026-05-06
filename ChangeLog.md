@@ -1,3 +1,18 @@
+vHC Platform Identification (2026-05-06)
+- Added Platform column to Managed Server and Job Info HTML tables.
+- New PowerShell helper Get-VhciPlatformMap (exported from vHC-VbrConfig) collects host→platform
+  mappings from VBR PlatformBackupJob sessions (VBR 12.1+ only).
+- CServerCsvInfos and CJobCsvInfos gain optional Platform field (backward-
+  compatible with legacy CSV files lacking the column).
+- CManagedServer and CServerTypeInfos gain Platform property; CDataFormer
+  propagates it through ServerXmlFromCsv.
+- CJobInfoTable renders Platform column for VmbApiPolicyTempJob job groups.
+- CManagedServerTable renders Platform column in HTML and JSON output.
+- Platform column is included in the JSON section for both tables.
+- Canonical platform strings: Proxmox VE, Nutanix AHV, HPE Morpheus VME,
+  SC HyperCore, XCP-ng, Sangfor HCI, RHV, Kasten.
+- 44 new cross-platform tests (PlatformParsingTests + VbrCsvPlatformFixtures).
+
 1.0.3.718
 - Fixed issue where program would crash and not create report
 - Job Session Summary Table:

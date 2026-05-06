@@ -954,6 +954,8 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
                 else
                     ti.Type = s.Type;
 
+                ti.Platform = s.Platform;
+
                 // ti.Uid = Guid.TryParse(s.Uid);
                 this.AddServerTypeToDict(ti.Type);
                 l.Add(ti);

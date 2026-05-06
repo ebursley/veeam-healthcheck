@@ -25,7 +25,13 @@ function Get-VhcServer {
             @{ name = 'Cores';    expression = { $_.GetPhysicalHost().hardwareinfo.CoresCount       } },
             @{ name = 'CPUCount'; expression = { $_.GetPhysicalHost().hardwareinfo.CPUCount          } },
             @{ name = 'RAM';      expression = { $_.GetPhysicalHost().hardwareinfo.PhysicalRamTotal  } },
-            @{ name = 'OSInfo';   expression = { $_.Info.Info                                        } }
+            @{ name = 'OSInfo';   expression = { $_.Info.Info                                        } },
+            @{ name = 'Platform'; expression = {
+                $key = if ($_.Name) { $_.Name.ToLowerInvariant() } else { '' }
+                if ($script:PlatformMap -and $script:PlatformMap.ContainsKey($key)) {
+                    $script:PlatformMap[$key]
+                } else { '' }
+            }}
 
         Write-LogFile ($message + "DONE")
         $Servers | Export-VhciCsv -FileName '_Servers.csv'
