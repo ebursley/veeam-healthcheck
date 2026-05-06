@@ -3,7 +3,7 @@
 # Reports Storage-level Corruption Guard (Perform backup files health check)
 # for all VBR jobs via the REST API (port 9419).
 #
-# backupHealth.isEnabled is null for NAS and Backup Copy jobs — those show as
+# backupHealth.isEnabled is null for NAS and Backup Copy jobs - those show as
 # "N/A (non-VM)" and are excluded from the True/False results automatically.
 
 param(

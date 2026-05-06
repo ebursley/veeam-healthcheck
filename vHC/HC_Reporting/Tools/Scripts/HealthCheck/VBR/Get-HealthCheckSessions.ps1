@@ -3,7 +3,7 @@
 # Retrieves Storage-level Corruption Guard (backup health check) session history
 # from VBR via internal .NET reflection.
 #
-# The VBR REST API and standard PS cmdlets do NOT expose health check sessions —
+# The VBR REST API and standard PS cmdlets do NOT expose health check sessions -
 # they live in an internal DB scope (EDbJobType.HealthCheck) not surfaced publicly.
 # This script accesses them via CDbManager reflection, which is the same mechanism
 # the VBR console uses.
@@ -42,7 +42,7 @@ try {
 
     # Query health check sessions then filter client-side.
     # GetSessionsByTypeAndInterval marshals DateTime through a resilient proxy wrapper
-    # that returns objects with empty/default property values from a script context —
+    # that returns objects with empty/default property values from a script context -
     # GetSessionsByTypes does not have this issue.
     $sessions = @($mgr.BackupJobsSessions.GetSessionsByTypes(@($hcJobType)) |
         Where-Object { $_.CreationTime -ge $FromDate -and $_.CreationTime -le $ToDate })
