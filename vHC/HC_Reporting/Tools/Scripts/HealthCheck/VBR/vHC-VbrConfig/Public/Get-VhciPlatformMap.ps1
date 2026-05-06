@@ -44,7 +44,7 @@ function Get-VhciPlatformMap {
                     Where-Object { $_.CreationTime -gt (Get-Date).AddDays(-30) }
         Write-LogFile "Platform map: found $(@($sessions).Count) recent PlatformBackupJob sessions"
 
-        # Track which host names we've already classified — lets us early-exit
+        # Track which host names we've already classified - lets us early-exit
         # the inner task-session loop once nothing new will be learned.
         foreach ($sess in @($sessions)) {
             try {
@@ -55,7 +55,7 @@ function Get-VhciPlatformMap {
                 try {
                     $platStr = $full.Platform.ToHumanReadable()
                 } catch {
-                    # Platform not available on this session — skip
+                    # Platform not available on this session - skip
                     continue
                 }
 
@@ -67,7 +67,7 @@ function Get-VhciPlatformMap {
                         $hostName = $task.Info.HostName
                         if (-not [string]::IsNullOrEmpty($hostName)) {
                             $key = $hostName.ToLowerInvariant()
-                            # First writer wins — keep earliest-seen platform per host
+                            # First writer wins - keep earliest-seen platform per host
                             if (-not $map.ContainsKey($key)) {
                                 $map[$key] = $platStr
                             }
