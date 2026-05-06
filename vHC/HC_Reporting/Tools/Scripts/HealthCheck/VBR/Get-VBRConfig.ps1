@@ -193,6 +193,13 @@ if ($RescanHosts) {
 }
 
 # ---------------------------------------------------------------------------
+# Platform map: build host->platform lookup once before server/job collectors.
+# Uses Get-VhciPlatformMap (exported helper). Stored on $script:PlatformMap so
+# Get-VhcServer and Get-VhcJob can read it via the calculated Platform property.
+# ---------------------------------------------------------------------------
+$script:PlatformMap = Get-VhciPlatformMap -VBRVersion $VBRVersion
+
+# ---------------------------------------------------------------------------
 # Task 4: User roles and server collection
 # ---------------------------------------------------------------------------
 $collectorResults.Add((Invoke-VhcCollector -Name 'UserRoles' -Action { Get-VhcUserRoles }))

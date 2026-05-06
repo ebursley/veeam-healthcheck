@@ -42,6 +42,8 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
 
         public string OSInfo { get; set; }
 
+        public string Platform { get; set; }
+
         public CServerTypeInfos()
         {
         }

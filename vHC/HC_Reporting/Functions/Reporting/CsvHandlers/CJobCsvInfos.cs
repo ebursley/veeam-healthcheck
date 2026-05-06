@@ -141,5 +141,9 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
         [Index(41)]
         [Optional]
         public string IsScheduleDisabled { get; set; }
+
+        [Index(42)]
+        [Optional]
+        public string Platform { get; set; }
     }
 }

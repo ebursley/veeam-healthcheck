@@ -96,3 +96,51 @@ Failures are recorded from two sources:
 The C# layer reads this manifest via `CCsvValidator.LoadManifest()` and surfaces
 failures in the HTML report (`DataCollectionSummaryTable()`), CLI warnings, and
 GUI amber status indicators.
+
+## Platform Identification
+
+Starting with VBR 12.1, the health check collector can identify the hypervisor
+platform for **External Infrastructure** (plug-in) backup jobs and propagate that
+string into `_Servers.csv` and `_Jobs.csv` as a `Platform` column.
+
+### Requirements
+
+- VBR **12.1** or later (major version integer >= 12). Older versions return an
+  empty platform map and the `Platform` column is written as empty string.
+- The `Get-VBRBackupSession` cmdlet must be available (it is absent on standalone
+  agents without the full VBR console snap-in).
+
+### Canonical platform strings
+
+The following 8 strings are the **only** canonical values produced by the VBR
+`Platform.ToHumanReadable()` API. Case and spacing are significant.
+
+| Platform string     | Product                               |
+|---------------------|---------------------------------------|
+| `Proxmox VE`        | Proxmox Virtual Environment           |
+| `Nutanix AHV`       | Nutanix Acropolis Hypervisor          |
+| `HPE Morpheus VME`  | HPE Morpheus Virtual Machine Engine   |
+| `SC HyperCore`      | Scale Computing HyperCore             |
+| `XCP-ng`            | XCP-ng hypervisor (Xen-based)         |
+| `Sangfor HCI`       | Sangfor Hyper-Converged Infrastructure|
+| `RHV`               | Red Hat Virtualization                |
+| `Kasten`            | Kasten K10 Kubernetes data protection |
+
+### How it works
+
+1. `Get-VhciPlatformMap` (exported from the `vHC-VbrConfig` module) is called once in `Get-VBRConfig.ps1`
+   before the server and job collectors. It returns a `[hashtable]` mapping
+   lowercase server hostname → canonical platform string.
+2. `Get-VhcServer` adds a `Platform` calculated property to each `_Servers.csv`
+   row using `$script:PlatformMap`.
+3. `Get-VhcJob` does the same for `_Jobs.csv` rows.
+4. On the C# side, `CServerCsvInfos` and `CJobCsvInfos` read the `Platform`
+   column (optional, backward-compatible). The field is propagated through
+   `CServerTypeInfos` → `CManagedServer` and rendered in the Managed Server
+   HTML table and the Job Info HTML table.
+
+### Backward compatibility
+
+Files produced by older collectors (without the `Platform` column) parse
+cleanly because `[Optional]` is applied to the field in both CSV handler
+classes.

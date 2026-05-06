@@ -29,5 +29,7 @@ namespace VeeamHealthCheck.Reporting.Html.VBR
         public bool IsWan { get; set; }
 
         public string IsUnavailable { get; set; }
+
+        public string Platform { get; set; }
     }
 }

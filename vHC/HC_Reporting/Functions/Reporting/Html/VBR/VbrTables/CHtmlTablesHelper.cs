@@ -14,6 +14,8 @@ namespace VeeamHealthCheck.Reporting.Html.VBR
 {
     internal class CHtmlTablesHelper
     {
+        internal const string PlatformColumnTooltip = "Hypervisor platform for plug-in jobs (Proxmox VE, Nutanix AHV, etc). Blank for native or unknown.";
+
         readonly CHtmlFormatting form = new();
 
         public CHtmlTablesHelper()
