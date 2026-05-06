@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using VeeamHealthCheck.Functions.Analysis.DataModels;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
 using VeeamHealthCheck.Functions.Reporting.Html.Shared;
 using VeeamHealthCheck.Shared;
@@ -14,10 +13,21 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
         private readonly CHtmlFormatting form = new();
         readonly CCsvParser csv = new();
         readonly IEnumerable<CComplianceCsv> csvResults;
+        readonly CComplianceMetaCsv meta;
 
         public CComplianceTable()
         {
             this.csvResults = this.csv.ComplianceCsv() ?? new List<CComplianceCsv>();
+            this.meta = this.csv.ComplianceMetaCsv();
+
+            CGlobals.FullReportJson.ComplianceScan = new ComplianceScanMeta
+            {
+                StartedAt = this.meta?.ScanStartedAt,
+                CompletedAt = this.meta?.ScanCompletedAt,
+                DurationSeconds = this.meta?.ScanDurationSeconds ?? 0,
+                Status = this.meta?.ScanStatus ?? "Unknown",
+                RuleCount = this.csvResults?.Count() ?? 0
+            };
         }
 
         public string ComplianceSummaryTable()
@@ -25,28 +35,33 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
             string t = string.Empty;
             try
             {
-                // Return early if no data
-                if (this.csvResults == null || !this.csvResults.Any())
+                bool hasRules = this.csvResults != null && this.csvResults.Any();
+                bool hasMeta  = this.meta != null;
+
+                if (!hasRules && !hasMeta)
                 {
                     CGlobals.Logger.Warning("No compliance data available - CSV file may not have been generated");
                     return t;
                 }
 
-                var passedCount = 0;
-                var warnFailCount = 0;
-                var totalCount = 0;
+                int totalCount    = 0;
+                int passedCount   = 0;
+                int warnFailCount = 0;
 
-                foreach (var res in this.csvResults)
+                if (hasRules)
                 {
-                    totalCount++;
-                    switch (res.Status)
+                    foreach (var res in this.csvResults)
                     {
-                        case "Passed":
-                            passedCount++;
-                            break;
-                        default:
-                            warnFailCount++;
-                            break;
+                        totalCount++;
+                        switch (res.Status)
+                        {
+                            case "Passed":
+                                passedCount++;
+                                break;
+                            default:
+                                warnFailCount++;
+                                break;
+                        }
                     }
                 }
 
@@ -54,28 +69,57 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
 
                 t += this.form.SectionStartWithButtonNoTable("ComplianceSummary", "Compliance Summary", "complianceSummaryButton");
 
+                if (hasMeta && !hasRules)
+                {
+                    string banner = this.meta.ScanStatus switch
+                    {
+                        "TimedOut" => "Scan exceeded the configured ceiling and was aborted before results were available. Increase Thresholds.CompliancePollMaxSeconds in VbrConfig.json and re-run.",
+                        "Failed"   => "Scan failed before results were available. See the health check log for details.",
+                        _          => "Scan returned no rule data."
+                    };
+                    t += $"<p style=\"color:var(--warning);margin:0 0 12px 0;\"><strong>Compliance scan {this.meta.ScanStatus}.</strong> {banner}</p>";
+                }
+
                 t += "<div class=\"compliance-stats\">";
 
-                t += "<div class=\"compliance-stat\">";
-                t += $"<div class=\"compliance-count\">{totalCount}</div>";
-                t += "<div class=\"compliance-label\">Total Rules</div>";
-                t += "</div>";
+                if (hasRules)
+                {
+                    t += "<div class=\"compliance-stat\">";
+                    t += $"<div class=\"compliance-count\">{totalCount}</div>";
+                    t += "<div class=\"compliance-label\">Total Rules</div>";
+                    t += "</div>";
 
-                t += "<div class=\"compliance-stat\">";
-                t += $"<div class=\"compliance-count\" style=\"color:var(--green)\">{passedCount}</div>";
-                t += "<div class=\"compliance-label\">Passed</div>";
-                t += "</div>";
+                    t += "<div class=\"compliance-stat\">";
+                    t += $"<div class=\"compliance-count\" style=\"color:var(--green)\">{passedCount}</div>";
+                    t += "<div class=\"compliance-label\">Passed</div>";
+                    t += "</div>";
 
-                t += "<div class=\"compliance-stat\">";
-                t += $"<div class=\"compliance-count\" style=\"color:var(--danger)\">{warnFailCount}</div>";
-                t += "<div class=\"compliance-label\">Warnings / Failed</div>";
-                t += "</div>";
+                    t += "<div class=\"compliance-stat\">";
+                    t += $"<div class=\"compliance-count\" style=\"color:var(--danger)\">{warnFailCount}</div>";
+                    t += "<div class=\"compliance-label\">Warnings / Failed</div>";
+                    t += "</div>";
 
-                t += "<div class=\"compliance-stat\">";
-                string scoreColor = scorePct >= 80 ? "var(--green)" : scorePct >= 50 ? "var(--warning)" : "var(--danger)";
-                t += $"<div class=\"compliance-count\" style=\"color:{scoreColor}\">{scorePct}%</div>";
-                t += "<div class=\"compliance-label\">Compliance Score</div>";
-                t += "</div>";
+                    t += "<div class=\"compliance-stat\">";
+                    string scoreColor = scorePct >= 80 ? "var(--green)" : scorePct >= 50 ? "var(--warning)" : "var(--danger)";
+                    t += $"<div class=\"compliance-count\" style=\"color:{scoreColor}\">{scorePct}%</div>";
+                    t += "<div class=\"compliance-label\">Compliance Score</div>";
+                    t += "</div>";
+                }
+
+                if (hasMeta)
+                {
+                    t += "<div class=\"compliance-stat\">";
+                    if (this.meta.ScanStatus == "Completed")
+                    {
+                        t += $"<div class=\"compliance-count\">{FormatDuration(this.meta.ScanDurationSeconds)}</div>";
+                    }
+                    else
+                    {
+                        t += $"<div class=\"compliance-count\" style=\"color:var(--warning)\">{FormatDuration(this.meta.ScanDurationSeconds)}</div>";
+                    }
+                    t += $"<div class=\"compliance-label\">Scan Duration ({this.meta.ScanStatus})</div>";
+                    t += "</div>";
+                }
 
                 t += "</div>"; // end compliance-stats
 
@@ -101,8 +145,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
                     CGlobals.Logger.Warning("No compliance data available - CSV file may not have been generated");
                     return t;
                 }
-                
-                // var csvResults = _csv.ComplianceCsv();
+
                 t += this.form.SectionStartWithButton("ComplianceTable", "Compliance Table", "complianceButton");
                 t += this.form.TableHeaderLeftAligned("Best Practice", "Name of the excluded sytem.");
                 t += this.form.TableHeader("Status", "Platform of the excluded item.");
@@ -127,6 +170,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
             }
 
             return t;
+        }
+
+        private static string FormatDuration(double seconds)
+        {
+            if (seconds < 1)  return "<1s";
+            if (seconds < 60) return $"{seconds:F0}s";
+            var ts = TimeSpan.FromSeconds(seconds);
+            return ts.Minutes > 0 ? $"{ts.Minutes}m {ts.Seconds}s" : $"{ts.Seconds}s";
         }
 
         private static string ComplianceBadge(string status)

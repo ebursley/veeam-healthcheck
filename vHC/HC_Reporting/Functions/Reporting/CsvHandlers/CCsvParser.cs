@@ -62,6 +62,7 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
         public readonly string nasShareSize = "NasSharesize";
         public readonly string nasObjectSize = "NasObjectSourceStorageSize";
         public readonly string compliance = "SecurityCompliance";
+        public readonly string complianceMeta = "SecurityComplianceMeta";
         public readonly string allServersRequirements = "AllServersRequirementsComparison";
 
         // Job files
@@ -678,6 +679,13 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
 
 
             return Enumerable.Empty<CComplianceCsv>();
+        }
+
+        public CComplianceMetaCsv ComplianceMetaCsv()
+        {
+            var res = this.VbrFileReader(this.complianceMeta);
+            if (res == null) return null;
+            return res.GetRecords<CComplianceMetaCsv>().FirstOrDefault();
         }
 
         public IEnumerable<CMalwareExcludedItem> MalwareExclusions()
