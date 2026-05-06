@@ -107,11 +107,13 @@ NavTaskConLink = Concurrence VMs
 
 
 #License table
+LicAutoUpdateTT = La mise à jour automatique de la licence est-elle activée?
 LicCcTT = Est-ce que Cloud Connect est activé?
 LicExpTT = Date d'expiration de la licence
 LicTblLicTo = Licensé à
 LicSupExpTT = Date d'expiration du support
 LicTableHeader = Résumé de la licence
+LicTblAutoUpdate = Mise à jour auto
 LicTblCc = Cloud Connect activé
 LicTblEdition =	Édition
 LicTblExpDate =	Date d'expiration
@@ -568,6 +570,10 @@ Jss14 = Attente moyenne ( jj.hh :mm:ss )
 Jss14TT = Le travail de durée moyenne attend les ressources disponibles
 Jss15 = Type de travail
 Jss15TT = type de travail
+Jss16 = Avg Dedup Ratio
+Jss16TT = Average deduplication ratio across backup sessions
+Jss17 = Avg Compress Ratio
+Jss17TT = Average compression ratio across backup sessions
 JssSum0 = Ce tableau est destiné à détailler l'historique récent des travaux individuels au cours des 7 derniers jours.
 JssNote0subhdr = En attente de ressources/problèmes de longueur de session :
 JssNote1 = • La planification des travaux pour qu'ils démarrent à différents créneaux horaires aidera à répartir les ressources et à éviter le goulot d'étranglement qu'est un travail en attente des ressources disponibles. (Ex. Au lieu de programmer vos travaux pour qu'ils commencent tous à 20h00, commencez un travail à 20h00, un autre à 20h30 et un autre à 21h00.)

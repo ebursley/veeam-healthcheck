@@ -33,5 +33,7 @@ namespace VeeamHealthCheck.Functions.Analysis.DataModels
         public string SupportExpirationDate { get; set; }
 
         public string CloudConnect { get; set; }
+
+        public string AutoUpdateEnabled { get; set; }
     }
 }

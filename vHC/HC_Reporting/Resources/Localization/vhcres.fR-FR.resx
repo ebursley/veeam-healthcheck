@@ -267,6 +267,9 @@
   <data name="NavTaskConLink" xml:space="preserve">
     <value>Concurrence VMs</value>
   </data>
+  <data name="LicAutoUpdateTT" xml:space="preserve">
+    <value>La mise à jour automatique de la licence est-elle activée?</value>
+  </data>
   <data name="LicCcTT" xml:space="preserve">
     <value>Est-ce que Cloud Connect est activé?</value>
   </data>
@@ -281,6 +284,9 @@
   </data>
   <data name="LicTableHeader" xml:space="preserve">
     <value>Résumé de la licence</value>
+  </data>
+  <data name="LicTblAutoUpdate" xml:space="preserve">
+    <value>Mise à jour auto</value>
   </data>
   <data name="LicTblCc" xml:space="preserve">
     <value>Cloud Connect activé</value>
@@ -1523,6 +1529,18 @@
   </data>
   <data name="Jss15TT" xml:space="preserve">
     <value>type de travail</value>
+  </data>
+  <data name="Jss16" xml:space="preserve">
+    <value>Avg Dedup Ratio</value>
+  </data>
+  <data name="Jss16TT" xml:space="preserve">
+    <value>Average deduplication ratio across backup sessions</value>
+  </data>
+  <data name="Jss17" xml:space="preserve">
+    <value>Avg Compress Ratio</value>
+  </data>
+  <data name="Jss17TT" xml:space="preserve">
+    <value>Average compression ratio across backup sessions</value>
   </data>
   <data name="JssSum0" xml:space="preserve">
     <value>Ce tableau est destiné à détailler l'historique récent des travaux individuels au cours des 7 derniers jours.</value>

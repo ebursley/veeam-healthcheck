@@ -556,5 +556,95 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables
         }
 
         #endregion
+
+        #region CJobSessSummaryHelper SessionStats Tests
+
+        [Fact]
+        public void SessionStats_AlgIsIncrement_AddsToIncrementalLists()
+        {
+            // Arrange: seed a session whose Alg value is the VBR string "Increment"
+            var session = new VeeamHealthCheck.Functions.Reporting.DataTypes.CJobSessionInfo
+            {
+                Name = "TestJob",
+                Status = "Success",
+                IsRetry = "False",
+                JobDuration = "00:10:00",
+                VmName = "VM1",
+                DataSize = 512.0,
+                BackupSize = 128.0,
+                Alg = "Increment",
+                DedupRatio = null,
+                CompressionRatio = null,
+                JobType = "Backup",
+                CreationTime = DateTime.Now.AddDays(-1),
+            };
+
+            var previousDtParser = CGlobals.DtParser;
+            var previousReportDays = CGlobals.ReportDays;
+            try
+            {
+                CGlobals.DtParser = new VeeamHealthCheck.Functions.Reporting.DataTypes.CDataTypesParser();
+                CGlobals.DtParser.JobSessions = new System.Collections.Generic.List<VeeamHealthCheck.Functions.Reporting.DataTypes.CJobSessionInfo> { session };
+                CGlobals.ReportDays = 9999;
+
+                var helper = new VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Summary.CJobSessSummaryHelper();
+                var stats = helper.SessionStats("TestJob");
+
+                Assert.Single(stats.IncrementalDataSize);
+                Assert.Equal(512.0, stats.IncrementalDataSize[0]);
+                Assert.Single(stats.IncrementalBackupSize);
+                Assert.Equal(128.0, stats.IncrementalBackupSize[0]);
+            }
+            finally
+            {
+                CGlobals.DtParser = previousDtParser;
+                CGlobals.ReportDays = previousReportDays;
+            }
+        }
+
+        [Fact]
+        public void SessionStats_DedupRatio99_StoresInverted()
+        {
+            // Arrange: raw DedupRatio "99" -> inverted value 100.0/99 ≈ 1.0101
+            var session = new VeeamHealthCheck.Functions.Reporting.DataTypes.CJobSessionInfo
+            {
+                Name = "TestJob",
+                Status = "Success",
+                IsRetry = "False",
+                JobDuration = "00:05:00",
+                VmName = "VM2",
+                DataSize = 100.0,
+                BackupSize = 50.0,
+                Alg = "Full",
+                DedupRatio = "99",
+                CompressionRatio = null,
+                JobType = "Backup",
+                CreationTime = DateTime.Now.AddDays(-1),
+            };
+
+            var previousDtParser = CGlobals.DtParser;
+            var previousReportDays = CGlobals.ReportDays;
+            try
+            {
+                CGlobals.DtParser = new VeeamHealthCheck.Functions.Reporting.DataTypes.CDataTypesParser();
+                CGlobals.DtParser.JobSessions = new System.Collections.Generic.List<VeeamHealthCheck.Functions.Reporting.DataTypes.CJobSessionInfo> { session };
+                CGlobals.ReportDays = 9999;
+
+                var helper = new VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Summary.CJobSessSummaryHelper();
+                var stats = helper.SessionStats("TestJob");
+
+                Assert.Single(stats.DedupRatios);
+                double expected = 100.0 / 99.0;
+                Assert.InRange(stats.DedupRatios[0], expected - 0.01, expected + 0.01);
+                Assert.Empty(stats.CompressionRatios);
+            }
+            finally
+            {
+                CGlobals.DtParser = previousDtParser;
+                CGlobals.ReportDays = previousReportDays;
+            }
+        }
+
+        #endregion
     }
 }
