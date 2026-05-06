@@ -1099,7 +1099,7 @@ $requiredThresholds = @(
     'CdpProxyRAM','CdpProxyCPU',
     'BackupServerCPU_v12','BackupServerRAM_v12','BackupServerCPU_v13','BackupServerRAM_v13',
     'SqlRAMMin','SqlCPUMin',
-    'CompliancePollMaxSeconds','CompliancePollIntervalSeconds'
+    'CompliancePollMaxSeconds','ComplianceHeartbeatSeconds'
 )
 foreach ($key in $requiredThresholds) {{
     if ($null -eq $config.Thresholds.$key) {{

@@ -213,6 +213,62 @@ namespace VhcXTests.Functions.Reporting.CsvHandlers
 
         #endregion
 
+        #region Compliance Meta CSV (Scan Telemetry)
+
+        [Fact]
+        public void ComplianceMetaCsv_NoFile_ReturnsNull()
+        {
+            var vbrDir = Path.Combine(_testDataDir, "VBR");
+            var parser = new CCsvParser(vbrDir);
+            var result = parser.ComplianceMetaCsv();
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void ComplianceMetaCsv_CompletedSample_ParsesCorrectly()
+        {
+            var csvContent = ComplianceCsvSampleGenerator.GenerateMetaSample(267.4, "Completed");
+            var vbrDir = CreateTestCsvFile("vbr-01_SecurityComplianceMeta.csv", csvContent);
+
+            var parser = new CCsvParser(vbrDir);
+            var result = parser.ComplianceMetaCsv();
+
+            Assert.NotNull(result);
+            Assert.Equal(267.4, result.ScanDurationSeconds);
+            Assert.Equal("Completed", result.ScanStatus);
+            Assert.NotNull(result.ScanStartedAt);
+            Assert.NotNull(result.ScanCompletedAt);
+        }
+
+        [Fact]
+        public void ComplianceMetaCsv_TimedOutStatus_ParsesCorrectly()
+        {
+            var csvContent = ComplianceCsvSampleGenerator.GenerateMetaSample(600.0, "TimedOut");
+            var vbrDir = CreateTestCsvFile("vbr-01_SecurityComplianceMeta.csv", csvContent);
+
+            var parser = new CCsvParser(vbrDir);
+            var result = parser.ComplianceMetaCsv();
+
+            Assert.NotNull(result);
+            Assert.Equal("TimedOut", result.ScanStatus);
+            Assert.Equal(600.0, result.ScanDurationSeconds);
+        }
+
+        [Fact]
+        public void ComplianceMetaCsv_FailedStatus_ParsesCorrectly()
+        {
+            var csvContent = ComplianceCsvSampleGenerator.GenerateMetaSample(2.1, "Failed");
+            var vbrDir = CreateTestCsvFile("vbr-01_SecurityComplianceMeta.csv", csvContent);
+
+            var parser = new CCsvParser(vbrDir);
+            var result = parser.ComplianceMetaCsv();
+
+            Assert.NotNull(result);
+            Assert.Equal("Failed", result.ScanStatus);
+        }
+
+        #endregion
+
         #region Error Handling
 
         [Fact]

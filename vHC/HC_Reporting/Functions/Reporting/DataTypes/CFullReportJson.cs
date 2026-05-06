@@ -16,6 +16,10 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
 
         public string LicenseSummary { get; set; }
 
+        // Compliance scan telemetry — populated by CComplianceTable from
+        // _SecurityComplianceMeta.csv. Stable contract for VIP ingestion.
+        public ComplianceScanMeta ComplianceScan { get; set; }
+
         // Generic sections for other HTML tables
         public Dictionary<string, HtmlSection> Sections { get; set; } = new();
     }
