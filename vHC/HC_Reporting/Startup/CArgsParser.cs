@@ -1,8 +1,11 @@
 ﻿// Copyright (c) 2021, Adam Congdon <adam.congdon2@gmail.com>
 // MIT License
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using VeeamHealthCheck.Functions.Collection.PSCollections;
 using VeeamHealthCheck.Functions.CredsWindow;
@@ -188,6 +191,18 @@ namespace VeeamHealthCheck.Startup
                         CGlobals.ClearStoredCreds = true;
                         CGlobals.Logger.Info("Clear stored credentials flag set", false);
                         break;
+                    case "/silent":
+                        CGlobals.Silent = true;
+                        CGlobals.Logger.Info("Silent (unattended) mode enabled", false);
+                        break;
+                    case "/savecreds":
+                        CGlobals.SaveCredsOnly = true;
+                        CGlobals.Logger.Info("Save-credentials flag set (one-shot interactive seed)", false);
+                        break;
+                    case var _ when a.StartsWith("/credfile=", StringComparison.OrdinalIgnoreCase) && a.Length > "/credfile=".Length:
+                        CGlobals.CredFilePath = this.ParsePath(a);
+                        CGlobals.Logger.Info("Credfile path set: " + CGlobals.CredFilePath, false);
+                        break;
                     case "/pdf":
                         CGlobals.EXPORTPDF = true;
                         break;
@@ -264,6 +279,41 @@ namespace VeeamHealthCheck.Startup
                 && !CGlobals.REMOTEHOST.Equals("localhost", StringComparison.OrdinalIgnoreCase))
             {
                 CGlobals.REMOTEEXEC = true;
+            }
+
+            // ----------------------------------------------------------------
+            // Silent / unattended mode validation and dispatch.
+            //
+            //   /silent + /savecreds -> mutually exclusive, exit 2.
+            //   /savecreds (without /silent) -> run the seed flow and exit 0.
+            //   /credfile=<path> -> load into the in-memory transient cache;
+            //                       composes with /silent. Exit 6 on invalid file.
+            //
+            // The "/silent + no creds source" check is intentionally NOT done
+            // here because at this point the parser does not yet know whether
+            // a stored DPAPI credential exists for the target host. That
+            // exit-2 path is enforced later by CredsHandler / CCollections
+            // when a null credential is returned in silent mode.
+            // ----------------------------------------------------------------
+            int silentValidation = this.ValidateSilentArgs();
+            if (silentValidation != 0)
+            {
+                Environment.Exit(silentValidation);
+            }
+
+            if (CGlobals.SaveCredsOnly)
+            {
+                int saveExit = this.RunSaveCredsFlow();
+                Environment.Exit(saveExit);
+            }
+
+            if (!string.IsNullOrEmpty(CGlobals.CredFilePath))
+            {
+                int credfileExit = this.LoadCredFile(CGlobals.CredFilePath);
+                if (credfileExit != 0)
+                {
+                    Environment.Exit(credfileExit);
+                }
             }
 
             // Now that arguments are parsed, detect VBR version
@@ -380,6 +430,214 @@ namespace VeeamHealthCheck.Startup
                 CGlobals.Logger.Error($"Error parsing import path: {ex.Message}");
                 return null;
             }
+        }
+
+        // ----------------------------------------------------------------
+        // Silent / unattended mode helpers.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Validates the silent-mode flag combinations that the parser can
+        /// determine without further runtime context.
+        ///
+        /// Returns 0 when the combination is valid, or a non-zero exit code
+        /// matching the table in the plan (§Exit Codes). Currently the only
+        /// case enforced here is the mutually-exclusive /silent + /savecreds.
+        /// </summary>
+        internal int ValidateSilentArgs()
+        {
+            if (CGlobals.Silent && CGlobals.SaveCredsOnly)
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.CredsMissing,
+                    "/silent and /savecreds are mutually exclusive.");
+            }
+            return SilentExit.Success;
+        }
+
+        /// <summary>
+        /// Loads a credfile of the form
+        /// <code>{ "host": { "username": "...", "passwordBase64": "..." } }</code>
+        /// into the in-memory transient cache via
+        /// <see cref="CredentialStore.SetTransient"/>. Does not write to disk.
+        ///
+        /// Returns 0 on success, 6 on any malformed/invalid input.
+        /// </summary>
+        internal int LoadCredFile(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.BadCredFile,
+                    "/credfile=<path> invalid: empty path.");
+            }
+
+            // Note: deliberately no separate File.Exists() check here. The
+            // ReadAllText try/catch below covers missing files (and is
+            // race-free vs. a TOCTOU-style check), with a tailored message
+            // when the exception is FileNotFound / DirectoryNotFound.
+
+            string content;
+            try
+            {
+                content = File.ReadAllText(path);
+            }
+            catch (FileNotFoundException ex)
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.BadCredFile,
+                    $"/credfile={path} invalid: file not found ({ex.Message}).");
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.BadCredFile,
+                    $"/credfile={path} invalid: directory not found ({ex.Message}).");
+            }
+            catch (Exception ex)
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.BadCredFile,
+                    $"/credfile={path} invalid: read failure ({ex.Message}).");
+            }
+
+            Dictionary<string, CredFileEntry> parsed;
+            try
+            {
+                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                parsed = JsonSerializer.Deserialize<Dictionary<string, CredFileEntry>>(content, opts);
+            }
+            catch (JsonException ex)
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.BadCredFile,
+                    $"/credfile={path} invalid: JSON parse error ({ex.Message}).");
+            }
+
+            if (parsed == null || parsed.Count == 0)
+            {
+                return SilentExit.FailSilent(
+                    SilentExit.BadCredFile,
+                    $"/credfile={path} invalid: no host entries.");
+            }
+
+            // Username injection prevention: reject characters that could be
+            // weaponized when the username is splatted into a PowerShell
+            // command line later (PSInvoker.BuildVb365Arguments,
+            // CCollections.MfaTestPassed). Quotes/backticks/$/;/newlines
+            // would let a malicious credfile break out of the -Username
+            // argument.
+            char[] forbiddenUsernameChars = new[] { '"', '\'', '`', '$', ';', '\n', '\r' };
+
+            int loaded = 0;
+            foreach (var kvp in parsed)
+            {
+                if (string.IsNullOrWhiteSpace(kvp.Key) || kvp.Value == null
+                    || string.IsNullOrWhiteSpace(kvp.Value.Username)
+                    || string.IsNullOrWhiteSpace(kvp.Value.PasswordBase64))
+                {
+                    return SilentExit.FailSilent(
+                        SilentExit.BadCredFile,
+                        $"/credfile={path} invalid: entry '{kvp.Key}' missing username or passwordBase64.");
+                }
+
+                if (kvp.Value.Username.IndexOfAny(forbiddenUsernameChars) >= 0)
+                {
+                    return SilentExit.FailSilent(
+                        SilentExit.BadCredFile,
+                        $"/credfile={path}: entry '{kvp.Key}' has invalid characters in username.");
+                }
+
+                string plain;
+                try
+                {
+                    plain = Encoding.UTF8.GetString(Convert.FromBase64String(kvp.Value.PasswordBase64));
+                }
+                catch (FormatException)
+                {
+                    return SilentExit.FailSilent(
+                        SilentExit.BadCredFile,
+                        $"/credfile={path} invalid: entry '{kvp.Key}' has non-Base64 passwordBase64.");
+                }
+
+                CredentialStore.SetTransient(kvp.Key, kvp.Value.Username, plain);
+                loaded++;
+            }
+
+            CGlobals.Logger.Info($"[silent] Loaded {loaded} credfile entries into transient cache.", false);
+            return SilentExit.Success;
+        }
+
+        /// <summary>
+        /// One-shot interactive seed flow for /savecreds. Delegates to
+        /// <see cref="CredsHandler.PromptForCredentialsCli"/> (which itself
+        /// calls <see cref="CredentialStore.Set"/> on success), so the seed
+        /// path uses the exact same prompt + persist code path as the
+        /// interactive collector flow. Returns 0 on success, 1 on
+        /// cancel/empty-input/exception.
+        /// </summary>
+        internal int RunSaveCredsFlow()
+        {
+            string host = string.IsNullOrEmpty(CGlobals.REMOTEHOST) ? "localhost" : CGlobals.REMOTEHOST;
+            try
+            {
+                var result = new CredsHandler().PromptForCredentialsCli(host, headerPrefix: "Seed Credentials");
+                if (result == null)
+                {
+                    return SilentExit.GenericFailure;
+                }
+
+                CGlobals.Logger.Info($"[savecreds] Stored credentials for host: {host}", false);
+                return SilentExit.Success;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[savecreds] Error: {ex.Message}");
+                CGlobals.Logger.Error($"savecreds failure: {ex.Message}");
+                return SilentExit.GenericFailure;
+            }
+        }
+
+        /// <summary>
+        /// Test seam: applies the flag-side-effects of the foreach switch
+        /// without invoking any of the run-dispatch behavior (no
+        /// Environment.Exit, no PSInvoker, no GetVbrVersion). The body is a
+        /// minimal mirror of the case branches in <c>ParseAllArgs</c> for
+        /// flags that have unit tests. New flag-only cases that need direct
+        /// unit testing should be added here.
+        /// </summary>
+        internal void ApplyFlagsForTest(string[] testArgs)
+        {
+            const string credfilePrefix = "/credfile=";
+            foreach (var a in testArgs)
+            {
+                switch (a)
+                {
+                    case "/silent":
+                        CGlobals.Silent = true;
+                        break;
+                    case "/savecreds":
+                        CGlobals.SaveCredsOnly = true;
+                        break;
+                    default:
+                        if (a.StartsWith(credfilePrefix, StringComparison.OrdinalIgnoreCase)
+                            && a.Length > credfilePrefix.Length)
+                        {
+                            CGlobals.CredFilePath = this.ParsePath(a);
+                        }
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Shape of one host entry inside the JSON credfile loaded by
+        /// /credfile=<path>.
+        /// </summary>
+        private class CredFileEntry
+        {
+            public string Username { get; set; }
+            public string PasswordBase64 { get; set; }
         }
 
         private int Run(string targetDir)

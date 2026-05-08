@@ -63,6 +63,42 @@ CONTINUOUS MONITORING:
   /monitor:status   Show current monitor installation and last-run status
   /monitor:disable  Remove the scheduled task (keeps config and files)
 
+UNATTENDED / SILENT MODE:
+  /silent           Master ""never prompt, fail fast"" flag. Suppresses GUI
+                    dialogs, console password prompts, and PowerShell
+                    Get-Credential calls. Required for unattended (Task
+                    Scheduler / fleet) execution. Pairs with /savecreds-seeded
+                    DPAPI credentials or a /credfile= entry for the host.
+  /savecreds        One-shot interactive seed. Prompts for user/password and
+                    stores them via DPAPI (CurrentUser scope) for the host
+                    given by /host= (defaults to localhost). Exits 0 when
+                    done. Mutually exclusive with /silent.
+  /credfile=<path>  Load a JSON credfile of the form
+                    {""<host>"": {""username"": ""..."", ""passwordBase64"": ""...""}}
+                    into the in-memory transient cache. Composes with /silent.
+                    Does NOT persist to DPAPI.
+
+  Conflict rules:
+    /silent + /savecreds            -> exit 2 (mutually exclusive)
+    /silent alone, no creds source  -> exit 2 (creds missing)
+    /credfile= without /silent      -> valid; takes precedence over DPAPI store
+
+  Exit codes (silent mode):
+    0  Success
+    1  Generic failure (existing behavior)
+    2  Creds missing or flag conflict
+    3  Authentication failed
+    4  Account is MFA-enabled (unsupported for unattended VBR)
+    5  Host unreachable
+    6  /credfile= invalid (malformed JSON, missing fields, bad Base64)
+    7  No Veeam product detected and no /host= provided
+
+  Worked example (Task Scheduler / 20-server fleet):
+    Seed once on each server as the service account:
+      VeeamHealthCheck.exe /savecreds /host=localhost
+    Then schedule:
+      VeeamHealthCheck.exe /run /vbr /silent /scrub:true /outdir=D:\vHC-Reports
+
 EXAMPLES:
   VeeamHealthCheck.exe /run
   VeeamHealthCheck.exe /run /days:30 /lite /pdf

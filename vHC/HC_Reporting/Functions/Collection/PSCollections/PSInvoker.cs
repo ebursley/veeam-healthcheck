@@ -836,21 +836,62 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
             var scriptFile = this.vb365Script;
             this.UnblockFile(scriptFile);
 
-            string serverArg = CGlobals.REMOTEEXEC ? $" -VBOServerFqdnOrIp \"{CGlobals.REMOTEHOST}\"" : "";
+            // Build the argument string (with credentials, when needed) and a
+            // separate masked variant for logging so the password never lands
+            // in any log file. Mirrors the VBR pattern at VbrConfigStartInfo.
+            string args = this.BuildVb365Arguments(out string safeArgs);
 
             var startInfo = new ProcessStartInfo()
             {
                 FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptFile}\" -ReportingIntervalDays \"{CGlobals.ReportDays}\"{serverArg}",
+                Arguments = args,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
             this.log.Info("[PS] Starting VB365 Collection Powershell process", false);
-            this.log.Info("[PS] [ARGS]: " + startInfo.Arguments, false);
+            this.log.Info("[PS] [ARGS]: " + safeArgs, false);
             var result = Process.Start(startInfo);
             this.log.Info("[PS] Process started with ID: " + result.Id.ToString(), false);
             result.WaitForExit();
             this.log.Info("[PS] VB365 collection complete!", false);
+        }
+
+        /// <summary>
+        /// Assembles the PowerShell argument string for the VB365 collection
+        /// script. When VB365 collection is remote (REMOTEEXEC), the call
+        /// fetches credentials via <see cref="CredsHandler"/> and appends
+        /// <c>-Username "..." -PasswordBase64 "..."</c> matching the
+        /// VBR pattern. The <paramref name="safeArgs"/> output replaces the
+        /// password with <c>****</c> for safe logging.
+        /// </summary>
+        internal string BuildVb365Arguments(out string safeArgs)
+        {
+            string scriptFile = this.vb365Script;
+            string serverArg = CGlobals.REMOTEEXEC ? $" -VBOServerFqdnOrIp \"{CGlobals.REMOTEHOST}\"" : string.Empty;
+
+            string baseArgs =
+                $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptFile}\" " +
+                $"-ReportingIntervalDays \"{CGlobals.ReportDays}\"{serverArg}";
+
+            string args = baseArgs;
+            safeArgs = baseArgs;
+
+            // Credentials are only needed for remote VB365 collection; local
+            // VB365 uses the current Windows session.
+            bool needsCredentials = CGlobals.REMOTEEXEC;
+            if (needsCredentials)
+            {
+                CredsHandler ch = new();
+                var creds = ch.GetCreds();
+                if (creds != null)
+                {
+                    string passwordBase64 = CredentialHelper.EncodePasswordToBase64(creds.Value.Password);
+                    args += $" -Username \"{creds.Value.Username}\" -PasswordBase64 \"{passwordBase64}\"";
+                    safeArgs += $" -Username \"{creds.Value.Username}\" -PasswordBase64 \"****\"";
+                }
+            }
+
+            return args;
         }
 
         private void UnblockFile(string file)

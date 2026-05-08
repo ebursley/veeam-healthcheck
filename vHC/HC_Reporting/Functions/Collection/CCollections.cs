@@ -270,6 +270,13 @@ namespace VeeamHealthCheck.Functions.Collection
             if (creds == null)
             {
                 CGlobals.Logger.Error("Credentials required for remote execution but not provided.");
+                if (CGlobals.Silent)
+                {
+                    string host = string.IsNullOrEmpty(CGlobals.REMOTEHOST) ? "localhost" : CGlobals.REMOTEHOST;
+                    SilentExit.ExitSilent(
+                        SilentExit.CredsMissing,
+                        $"No credentials for host '{host}'. Seed with /savecreds or supply /credfile=.");
+                }
                 return false;
             }
 
@@ -358,6 +365,25 @@ namespace VeeamHealthCheck.Functions.Collection
                         CGlobals.Logger.Error(userMsg, false);
                         CGlobals.UserFacingError = userMsg;
                     }
+                    // MFA detected — must be checked BEFORE the generic auth-failed branch
+                    // because TestMfa.ps1 emits an MFA-specific signal that we want to map
+                    // to exit 4 in silent mode (vs. exit 3 for generic auth failure).
+                    else if (stdErr.Contains("MFA-enabled", StringComparison.OrdinalIgnoreCase) ||
+                             stdErr.Contains("Unable to connect to the server with MFA-enabled user account", StringComparison.OrdinalIgnoreCase) ||
+                             stdErr.Contains("IsMfaEnabled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string userMsg = $"Account is MFA-enabled for remote VBR server: {CGlobals.REMOTEHOST}\n\n" +
+                                       $"MFA is not supported for unattended VBR connections.\n" +
+                                       $"Use a non-MFA service account.";
+                        CGlobals.Logger.Error(userMsg, false);
+                        CGlobals.UserFacingError = userMsg;
+                        if (CGlobals.Silent)
+                        {
+                            SilentExit.ExitSilent(
+                                SilentExit.MfaUnsupported,
+                                "Account is MFA-enabled. MFA is not supported for unattended VBR connections. Use a service account.");
+                        }
+                    }
                     // Invalid credentials
                     else if (stdErr.Contains("Access is denied", StringComparison.OrdinalIgnoreCase) ||
                              stdErr.Contains("authentication failed", StringComparison.OrdinalIgnoreCase) ||
@@ -370,6 +396,12 @@ namespace VeeamHealthCheck.Functions.Collection
                                        $"3. Account is not MFA-enabled (MFA not supported for remote connections)";
                         CGlobals.Logger.Error(userMsg, false);
                         CGlobals.UserFacingError = userMsg;
+                        if (CGlobals.Silent)
+                        {
+                            SilentExit.ExitSilent(
+                                SilentExit.AuthFailed,
+                                $"Authentication failed for host '{CGlobals.REMOTEHOST}'. Verify stored credentials.");
+                        }
                     }
                     // Network connectivity issues
                     else if (stdErr.Contains("unable to connect", StringComparison.OrdinalIgnoreCase) ||
@@ -384,6 +416,12 @@ namespace VeeamHealthCheck.Functions.Collection
                                        $"4. VBR service is running on the remote server";
                         CGlobals.Logger.Error(userMsg, false);
                         CGlobals.UserFacingError = userMsg;
+                        if (CGlobals.Silent)
+                        {
+                            SilentExit.ExitSilent(
+                                SilentExit.HostUnreachable,
+                                $"Cannot reach host '{CGlobals.REMOTEHOST}'. Check network/firewall/VBR service.");
+                        }
                     }
                     else
                     {
