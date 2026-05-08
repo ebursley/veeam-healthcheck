@@ -335,9 +335,8 @@ namespace VhcXTests
         public void HelpMenu_ContainsSilentModeExitCodes()
         {
             string help = CMessages.helpMenu;
-            // Spot-check that 0..7 are documented in the help section.
-            Assert.Contains("Unattended", help);
-            Assert.Contains("Exit", help);
+            Assert.Contains("UNATTENDED", help);
+            Assert.Contains("Exit codes", help);
         }
     }
 }
