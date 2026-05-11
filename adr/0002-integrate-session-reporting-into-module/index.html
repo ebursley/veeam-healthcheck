@@ -1,0 +1,882 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Generate comprehensive configuration reports for your Veeam environment in minutes.">
+      
+      
+      
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0002-integrate-session-reporting-into-module/">
+      
+      
+      
+      
+      <link rel="icon" href="../../images/health-check-icon.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.25">
+    
+    
+      
+        <title>ADR 0002: Integrate Session Reporting into vHC-VbrConfig Module - Veeam Health Check</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="light-green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0002-integrate-session-reporting-into-vhc-vbrconfig-module" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Veeam Health Check" class="md-header__button md-logo" aria-label="Veeam Health Check" data-md-component="logo">
+      
+  <img src="../../images/health-check-icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Veeam Health Check
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0002: Integrate Session Reporting into vHC-VbrConfig Module
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="light-green"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/VeeamHub/veeam-healthcheck" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VeeamHub/veeam-healthcheck
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../features/" class="md-tabs__link">
+        
+  
+    
+  
+  Features
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../timeline/" class="md-tabs__link">
+        
+  
+    
+  
+  Feature Timeline
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Veeam Health Check" class="md-nav__button md-logo" aria-label="Veeam Health Check" data-md-component="logo">
+      
+  <img src="../../images/health-check-icon.png" alt="logo">
+
+    </a>
+    Veeam Health Check
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/VeeamHub/veeam-healthcheck" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VeeamHub/veeam-healthcheck
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../timeline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Timeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Context and Problem Statement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision Drivers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Considered Options
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision Outcome
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consequences
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pros-and-cons-of-the-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pros and Cons of the Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pros and Cons of the Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-integrate-into-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 1: Integrate into Module
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-keep-separate-processes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 2: Keep Separate Processes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-cache-pre-processed-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option 3: Cache Pre-processed Output
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Implementation Overview
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#powershell-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      PowerShell Changes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      C# Changes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cleanup
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-and-next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation and Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0002-integrate-session-reporting-into-module.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="adr-0002-integrate-session-reporting-into-vhc-vbrconfig-module">ADR 0002: Integrate Session Reporting into vHC-VbrConfig Module<a class="headerlink" href="#adr-0002-integrate-session-reporting-into-vhc-vbrconfig-module" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Superseded in part by:</strong> ADR 0004 (unified <code>GetTaskSessions()</code> path replaces the two-path architecture described in Implementation Overview below)</li>
+<li><strong>Date:</strong> 2026-02-26</li>
+<li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
+<li><strong>Consulted:</strong> GitHub Copilot</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>The current architecture in <code>PSInvoker.cs</code> spawns three separate OS processes sequentially to collect data:</p>
+<ol>
+<li><code>Get-VBRConfig.ps1</code> runs the <code>vHC-VbrConfig</code> module and attempts to cache session data via <code>Export-VhcSessionCache</code> → <code>Export-Clixml</code>.</li>
+<li><code>Get-VeeamSessionReport.ps1</code> (or <code>Version13</code> variant) attempts to read that cache and produce <code>VeeamSessionReport.csv</code>.</li>
+</ol>
+<p><strong>The Problem:</strong> <code>Export-Clixml</code>/<code>Import-Clixml</code> always produces <code>Deserialized.*</code> objects — property-bag snapshots that retain values but lose all .NET methods. Both session report scripts depend on method calls (<code>GetTaskSessions()</code>, <code>Logger.GetLog()</code>) that do not exist on deserialized objects. Because these are separate OS processes, there is no mechanism to pass live objects between them.</p>
+<p>As a result:
+- <code>SessionCache.xml</code> is functionally useless for these scripts (always falls back to DB query).
+- Two separate VBR connections are opened and closed per run.
+- Sessions are queried from the database twice (once by each process).
+- Dead code and a misleading cache file persist in the repository.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Performance:</strong> Reduce the overhead of spawning multiple <code>powershell.exe</code> instances and opening multiple VBR connections.</li>
+<li><strong>Data Integrity:</strong> Maintain "live" .NET objects with functional methods throughout the collection lifecycle.</li>
+<li><strong>Maintainability:</strong> Align with the ongoing refactor to move logic into the unified <code>vHC-VbrConfig</code> module.</li>
+<li><strong>Simplicity:</strong> Eliminate misleading or non-functional cache files (<code>SessionCache.xml</code>).</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Integrate session report into the vHC-VbrConfig module (Recommended)</strong></li>
+<li><strong>Keep separate processes and disable caching</strong></li>
+<li><strong>Cache pre-processed output (CSV/JSON) instead of raw objects</strong></li>
+</ol>
+<h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
+<p>Chosen option: <strong>Option 1</strong>, because it is the only path that solves the fundamental memory boundary issue while improving performance and aligning with long-term architectural goals.</p>
+<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Good:</strong> Sessions are fetched once and shared via <code>$script:</code> scope; no serialization is required.</li>
+<li><strong>Good:</strong> Eliminates an entire OS process spawn and a second VBR login/logout cycle.</li>
+<li><strong>Good:</strong> <code>SessionCache.xml</code> and its read/write logic are removed entirely, eliminating dead code.</li>
+<li><strong>Good:</strong> <code>PSInvoker.cs</code> currently routes to the V13 script only when <code>VBRMAJORVERSION == 13</code>; the new module function uses <code>&gt;= 13</code>, which is correct for future VBR versions (v14+). This is a bug fix bundled into the refactor.</li>
+<li><strong>Bad:</strong> Requires non-trivial refactoring of ~470 lines of PowerShell across two standalone scripts.</li>
+<li><strong>Bad:</strong> Requires a small breaking change in <code>PSInvoker.cs</code> to remove the secondary script invocations.</li>
+<li><strong>Bad:</strong> All sessions for the report interval are now held as live .NET objects in-process. For large deployments this may be significant; <code>$script:AllBackupSessions</code> must be nulled after <code>Get-VhcSessionReport</code> completes to release memory.</li>
+<li><strong>Neutral:</strong> Detection of VBR version (V13 vs. standard) moves from C# branching logic into the PowerShell module, using the existing <code>Get-VhcMajorVersion</code> function already called in <code>Get-VBRConfig.ps1</code>.</li>
+<li><strong>Neutral:</strong> <code>Invoke-VhcCollector</code> wrapping means a session report failure is non-fatal (missing CSV), which is the same behaviour as the current standalone script. The <code>Get-VhcSessionReport</code> function must guard against a null/empty <code>$script:AllBackupSessions</code> explicitly.</li>
+</ul>
+<hr />
+<h2 id="pros-and-cons-of-the-options">Pros and Cons of the Options<a class="headerlink" href="#pros-and-cons-of-the-options" title="Permanent link">&para;</a></h2>
+<h3 id="option-1-integrate-into-module">Option 1: Integrate into Module<a class="headerlink" href="#option-1-integrate-into-module" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Pros:</strong> Best performance; shared in-memory state; removes redundant code; single VBR connection per run.</li>
+<li><strong>Cons:</strong> High initial effort; requires small C# modification; regression risk without Pester test coverage.</li>
+</ul>
+<h3 id="option-2-keep-separate-processes">Option 2: Keep Separate Processes<a class="headerlink" href="#option-2-keep-separate-processes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Pros:</strong> Lowest risk; no C# changes needed.</li>
+<li><strong>Cons:</strong> Misses performance gains; leaves dead code and misleading files in the repo; continues inefficient VBR connection pattern.</li>
+</ul>
+<h3 id="option-3-cache-pre-processed-output">Option 3: Cache Pre-processed Output<a class="headerlink" href="#option-3-cache-pre-processed-output" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Pros:</strong> Achieves "single query" goal without merging scripts.</li>
+<li><strong>Cons:</strong> Introduces tight coupling via file schema; adds complexity to a "cache contract" rather than simplifying the codebase.</li>
+</ul>
+<hr />
+<h2 id="implementation-overview">Implementation Overview<a class="headerlink" href="#implementation-overview" title="Permanent link">&para;</a></h2>
+<h3 id="powershell-changes">PowerShell Changes<a class="headerlink" href="#powershell-changes" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Modify <code>Export-VhcSessionCache</code>:</strong> Change it to store live session objects in <code>$script:AllBackupSessions</code> instead of serialising to XML. Remove the <code>Export-Clixml</code> call and the <code>SessionCache.xml</code> output entirely. Rename to <code>Get-VhcBackupSessions</code> to reflect its new role as a collector, not an exporter.</p>
+</li>
+<li>
+<p><strong>Create <code>Get-VhcSessionReport</code></strong> (new Public module function):</p>
+</li>
+<li>Reads <code>$script:AllBackupSessions</code> populated by <code>Get-VhcBackupSessions</code>.</li>
+<li>Calls <code>.GetTaskSessions()</code> on each session for all VBR versions (see ADR 0004 — the
+     originally planned two-path architecture was superseded after live testing revealed the
+     <code>&gt;=13</code> session-level path produced per-job-run rows instead of per-VM rows).</li>
+<li>
+<p>Writes <code>VeeamSessionReport.csv</code> to <code>$script:ReportPath</code>.</p>
+</li>
+<li>
+<p><strong>Update <code>Get-VBRConfig.ps1</code> orchestrator:</strong></p>
+</li>
+<li>Replace the <code>SessionCache</code> collector step with <code>Get-VhcBackupSessions</code>.</li>
+<li>
+<p>Add a <code>SessionReport</code> collector step calling <code>Get-VhcSessionReport</code>.</p>
+</li>
+<li>
+<p><strong>Update <code>vHC-VbrConfig.psm1</code>:</strong> Dot-source <code>Get-VhcSessionReport.ps1</code>; remove dot-source of <code>Export-VhcSessionCache.ps1</code> (or rename).</p>
+</li>
+</ol>
+<h3 id="c-changes">C# Changes<a class="headerlink" href="#c-changes" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>PSInvoker.cs</code>:</strong></li>
+<li>Remove <code>vbrSessionScript</code> and <code>vbrSessionScriptVersion13</code> fields.</li>
+<li>Remove <code>VbrSessionStartInfo()</code> private method.</li>
+<li>Remove the <code>this.ExecutePsScript(this.VbrSessionStartInfo())</code> call from <code>RunVbrConfigCollect()</code>.</li>
+<li>Remove <code>UnblockFile</code> calls for the two session scripts.</li>
+</ol>
+<h3 id="cleanup">Cleanup<a class="headerlink" href="#cleanup" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Delete</strong> <code>vHC/HC_Reporting/Tools/Scripts/HealthCheck/VBR/Get-VeeamSessionReport.ps1</code> and <code>Get-VeeamSessionReportVersion13.ps1</code>.</li>
+<li><strong>Delete</strong> <code>SessionCache.xml</code> from the repository root (it is runtime data, not source).</li>
+<li><strong>Delete</strong> <code>Export-VhcSessionCache.ps1</code> (replaced by <code>Get-VhcBackupSessions.ps1</code>).</li>
+</ol>
+<hr />
+<h2 id="validation-and-next-steps">Validation and Next Steps<a class="headerlink" href="#validation-and-next-steps" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Implement <code>Get-VhcBackupSessions</code> and <code>Get-VhcSessionReport</code> in the module.</li>
+<li>Wire both into <code>Get-VBRConfig.ps1</code>.</li>
+<li>Modify <code>PSInvoker.cs</code> to remove the session script process invocations.</li>
+<li>Perform an end-to-end test on a VBR environment (both v12 and v13 if available).</li>
+<li>Remove old standalone scripts and <code>SessionCache.xml</code>.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.081f42fc.min.js"></script>
+      
+    
+  </body>
+</html>

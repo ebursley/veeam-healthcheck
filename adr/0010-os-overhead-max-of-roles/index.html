@@ -1,0 +1,1088 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Generate comprehensive configuration reports for your Veeam environment in minutes.">
+      
+      
+      
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0010-os-overhead-max-of-roles/">
+      
+      
+      
+      
+      <link rel="icon" href="../../images/health-check-icon.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.25">
+    
+    
+      
+        <title>ADR 0010: OS Overhead as Max-of-Roles Rather Than Additive Sum - Veeam Health Check</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="light-green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0010-os-overhead-as-max-of-roles-rather-than-additive-sum" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Veeam Health Check" class="md-header__button md-logo" aria-label="Veeam Health Check" data-md-component="logo">
+      
+  <img src="../../images/health-check-icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Veeam Health Check
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0010: OS Overhead as Max-of-Roles Rather Than Additive Sum
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="light-green"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/VeeamHub/veeam-healthcheck" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VeeamHub/veeam-healthcheck
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../features/" class="md-tabs__link">
+        
+  
+    
+  
+  Features
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../timeline/" class="md-tabs__link">
+        
+  
+    
+  
+  Feature Timeline
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Veeam Health Check" class="md-nav__button md-logo" aria-label="Veeam Health Check" data-md-component="logo">
+      
+  <img src="../../images/health-check-icon.png" alt="logo">
+
+    </a>
+    Veeam Health Check
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/VeeamHub/veeam-healthcheck" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VeeamHub/veeam-healthcheck
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../timeline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Timeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Context and Problem Statement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision Drivers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Considered Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Considered Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-flat-constant-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option A — Flat constant (rejected)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-additive-per-role-sum-originalcurrent-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option B — Additive per-role sum (original/current) (rejected)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-max-of-active-role-overheads-independently-for-cpu-and-ram-chosen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option C — Max of active role overheads, independently for CPU and RAM (chosen)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#threshold-correction-repooscpu-1-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Threshold correction: RepoOSCPU 1 → 2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sizing-guide-validation-v13011071" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sizing guide validation (v13.0.1.1071)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-limitation-repogwrampertask-conflates-repo-and-gateway-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Known limitation: RepoGwRAMPerTask conflates repo and gateway tasks
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consequences
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#amendments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Amendments
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Amendments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#2026-03-12-quantify-ram-under-estimation-vs-veeam-docs-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-03-12 — Quantify RAM under-estimation vs Veeam docs formula
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2026-03-12-extend-max-of-roles-to-backupserver-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      2026-03-12 — Extend max-of-roles to BackupServer role
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0010-os-overhead-max-of-roles.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="adr-0010-os-overhead-as-max-of-roles-rather-than-additive-sum">ADR 0010: OS Overhead as Max-of-Roles Rather Than Additive Sum<a class="headerlink" href="#adr-0010-os-overhead-as-max-of-roles-rather-than-additive-sum" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-03-11</li>
+<li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
+<li><strong>Consulted:</strong> GitHub Copilot; Veeam Help Center sizing docs (v13.0.1.1071)</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p><code>Get-VhciServerOsOverhead</code> returns the fixed CPU and RAM overhead that
+<code>Invoke-VhcConcurrencyAnalysis</code> subtracts from a server's available resources
+before calculating <code>SuggestedTasks</code>. Prior to this change, the function
+<strong>summed</strong> each active role's overhead:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Repo/GW active  → +1 CPU, +4 GB
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>VP Proxy active → +2 CPU, +2 GB
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>GP Proxy active → +2 CPU, +4 GB
+</code></pre></div>
+<p>A server hosting all three roles was charged 5 CPU + 10 GB of overhead before
+any task-based requirements were considered. On an 8-core/16 GB backup server
+(which also doubles as a proxy/repo host in small environments), the combined
+fixed overhead of OS roles plus the Backup Server's own 4-CPU/8-GB reservation
+exceeded available resources, driving <code>SuggestedTasks</code> to 0 via
+<code>EnsureNonNegative</code> clamping — even though the server was actively running 14
+concurrent tasks.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Correctness:</strong> The OS runs once per server. Stacking per-role overhead
+  multiples the same physical constraint.</li>
+<li><strong>Veeam sizing guide alignment:</strong> The original script comments read "2 CPU
+  core per OS Vi and Hv", "2 CPU core per OS General Purpose Proxy", "1 CPU
+  core per OS Repository/Gateway". "Per OS [role type]" describes the minimum
+  server configuration <em>for a server running that role</em>, not a per-role-install
+  surcharge. The Veeam sizing docs confirm this: each role lists a single
+  minimum CPU/RAM figure that represents the service-layer floor for a server
+  of that type.</li>
+<li><strong>JeOS note:</strong> Veeam's own documentation states that "Component hardware
+  requirements must be added to the Veeam JeOS system requirements." JeOS is
+  the OS base (2 cores, 8 GB). Role requirements sit on top of that base as
+  per-role service overhead — they do not themselves stack additively when
+  multiple roles share a host.</li>
+<li><strong>Actionability of output:</strong> <code>SuggestedTasks</code> clamped to 0 is not a useful
+  signal when the underlying cause is formula overflow rather than genuine
+  resource exhaustion.</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-flat-constant-rejected">Option A — Flat constant (rejected)<a class="headerlink" href="#option-a-flat-constant-rejected" title="Permanent link">&para;</a></h3>
+<p>Use a single fixed overhead (e.g. 2 CPU, 4 GB) for all servers regardless of
+which roles are active.</p>
+<p><strong>Rejected.</strong> Loses the role-type specificity that the sizing guide provides.
+A pure GP Proxy server has a different service floor than a pure repository
+server; a flat value cannot express both accurately.</p>
+<h3 id="option-b-additive-per-role-sum-originalcurrent-rejected">Option B — Additive per-role sum (original/current) (rejected)<a class="headerlink" href="#option-b-additive-per-role-sum-originalcurrent-rejected" title="Permanent link">&para;</a></h3>
+<p>Sum overhead for every active role, as the original <code>Get-VBRConfig.ps1</code> did.</p>
+<p><strong>Rejected.</strong> Over-counts on multi-role servers. The Veeam sizing guide's
+per-role figures are minimums for a server <em>of that type</em>, not independent
+charges that compound when roles coexist. The additive model causes
+<code>SuggestedTasks</code> to clamp to 0 on otherwise functional under-resourced servers
+rather than reporting a meaningful positive suggestion.</p>
+<h3 id="option-c-max-of-active-role-overheads-independently-for-cpu-and-ram-chosen">Option C — Max of active role overheads, independently for CPU and RAM (chosen)<a class="headerlink" href="#option-c-max-of-active-role-overheads-independently-for-cpu-and-ram-chosen" title="Permanent link">&para;</a></h3>
+<p>For each active role, compute that role's CPU and RAM overhead. The server's
+total overhead is the maximum CPU seen across any active role, and the maximum
+RAM seen across any active role. CPU and RAM are maxed independently because
+the role with the highest CPU floor need not be the same as the role with the
+highest RAM floor.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">$cpu</span> <span class="p">=</span> <span class="no">[Math]</span><span class="p">::</span><span class="n">Max</span><span class="p">(</span><span class="nv">$cpu</span><span class="p">,</span> <span class="nv">$Thresholds</span><span class="p">.</span><span class="n">RepoOSCPU</span><span class="p">)</span>   <span class="c"># 2</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nv">$ram</span> <span class="p">=</span> <span class="no">[Math]</span><span class="p">::</span><span class="n">Max</span><span class="p">(</span><span class="nv">$ram</span><span class="p">,</span> <span class="nv">$Thresholds</span><span class="p">.</span><span class="n">RepoOSRAM</span><span class="p">)</span>   <span class="c"># 4 GB</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nv">$cpu</span> <span class="p">=</span> <span class="no">[Math]</span><span class="p">::</span><span class="n">Max</span><span class="p">(</span><span class="nv">$cpu</span><span class="p">,</span> <span class="nv">$Thresholds</span><span class="p">.</span><span class="n">VpProxyOSCPU</span><span class="p">)</span> <span class="c"># 2</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">$ram</span> <span class="p">=</span> <span class="no">[Math]</span><span class="p">::</span><span class="n">Max</span><span class="p">(</span><span class="nv">$ram</span><span class="p">,</span> <span class="nv">$Thresholds</span><span class="p">.</span><span class="n">VpProxyOSRAM</span><span class="p">)</span> <span class="c"># 2 GB</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c"># → cpu=2, ram=4  (not cpu=4, ram=6)</span>
+</code></pre></div>
+<p><strong>Accepted.</strong></p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Option C. <code>Get-VhciServerOsOverhead</code> replaces <code>+=</code> with <code>[Math]::Max()</code> for
+both CPU and RAM. The return signature <code>@{ CPU = [int]; RAM = [int] }</code> is
+unchanged; all callers in <code>Invoke-VhcConcurrencyAnalysis</code> are unaffected.</p>
+<h3 id="threshold-correction-repooscpu-1-2">Threshold correction: <code>RepoOSCPU</code> 1 → 2<a class="headerlink" href="#threshold-correction-repooscpu-1-2" title="Permanent link">&para;</a></h3>
+<p>The Veeam Gateway Server sizing page specifies a 2-core minimum. Repositories
+and gateways share the <code>RepoOSCPU</code> / <code>RepoOSRAM</code> keys in <code>VbrConfig.json</code>
+(they use a combined condition in <code>Get-VhciServerOsOverhead</code>). Since the
+gateway requires 2 cores as its floor, <code>RepoOSCPU</code> is updated from 1 to 2 to
+reflect the higher of the two role requirements.</p>
+<h3 id="sizing-guide-validation-v13011071">Sizing guide validation (v13.0.1.1071)<a class="headerlink" href="#sizing-guide-validation-v13011071" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VpProxyOSCPU</code></td>
+<td>2</td>
+<td>VMware Proxy: 2 cores minimum</td>
+</tr>
+<tr>
+<td><code>VpProxyOSRAM</code></td>
+<td>2</td>
+<td>VMware Proxy: 2 GB RAM base</td>
+</tr>
+<tr>
+<td><code>VpProxyCPUPerTask</code></td>
+<td>0.5</td>
+<td>VMware Proxy: +1 core per 2 tasks</td>
+</tr>
+<tr>
+<td><code>VpProxyRAMPerTask</code></td>
+<td>1</td>
+<td>VMware Proxy: +1 GB per task</td>
+</tr>
+<tr>
+<td><code>GpProxyOSCPU</code></td>
+<td>2</td>
+<td>GP Proxy: 2 cores minimum</td>
+</tr>
+<tr>
+<td><code>GpProxyOSRAM</code></td>
+<td>4</td>
+<td>GP Proxy: 4 GB RAM base (NAS/unstructured)</td>
+</tr>
+<tr>
+<td><code>GpProxyCPUPerTask</code></td>
+<td>2</td>
+<td>GP Proxy: 2 cores required per additional task</td>
+</tr>
+<tr>
+<td><code>GpProxyRAMPerTask</code></td>
+<td>4</td>
+<td>GP Proxy: 4 GB per concurrent task (NAS/unstructured)</td>
+</tr>
+<tr>
+<td><code>RepoOSCPU</code></td>
+<td><strong>2</strong></td>
+<td>Gateway: 2 cores minimum (corrected from 1)</td>
+</tr>
+<tr>
+<td><code>RepoOSRAM</code></td>
+<td>4</td>
+<td>Repo: 4 GB base; Gateway: 4 GB base</td>
+</tr>
+</tbody>
+</table>
+<h3 id="known-limitation-repogwrampertask-conflates-repo-and-gateway-tasks">Known limitation: <code>RepoGwRAMPerTask</code> conflates repo and gateway tasks<a class="headerlink" href="#known-limitation-repogwrampertask-conflates-repo-and-gateway-tasks" title="Permanent link">&para;</a></h3>
+<p><code>RepoGwRAMPerTask</code> is currently set to 1 GB, which is correct for standard
+backup repositories (Veeam specifies 1 GB RAM per concurrently processed
+machine disk). However, the Veeam Gateway Server sizing page specifies <strong>4 GB
+RAM per concurrent machine, file share, or object storage source</strong> for gateways
+serving NAS/object/cloud workloads.</p>
+<p>The current code applies a single <code>RepoGwRAMPerTask</code> value to both
+<code>TotalRepoTasks</code> and <code>TotalGWTasks</code> in <code>Invoke-VhcConcurrencyAnalysis</code>. Fixing
+this under-estimate for gateway tasks requires splitting the shared key into
+separate <code>RepoRAMPerTask</code> and <code>GwRAMPerTask</code> keys, with corresponding logic
+changes in <code>Get-VhciServerOsOverhead</code>, <code>Invoke-VhcConcurrencyAnalysis</code>, and
+<code>VbrConfig.json</code> key validation. This is deferred to a future ADR.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Good:</strong> Matches the original script's intent — "per OS [role type]" denotes
+  a per-server service floor, not a per-role-installed surcharge.</li>
+<li><strong>Good:</strong> Multi-role servers produce meaningful <code>SuggestedTasks</code> values
+  instead of 0 caused by overflow clamping.</li>
+<li><strong>Good:</strong> <code>RepoOSCPU</code> now aligns with Veeam's published gateway minimum.</li>
+<li><strong>Good:</strong> Single-role servers are completely unaffected by the aggregation
+  change — <code>max(x)</code> with one value equals <code>x</code>.</li>
+<li>
+<p><strong>Neutral:</strong> <code>RequiredCores</code> / <code>RequiredRAM</code> calculations in
+  <code>Invoke-VhcConcurrencyAnalysis</code> remain additive by design — overhead per
+  role is legitimately additive for sizing <em>requirements</em>; only the
+  <code>SuggestedTasks</code> overhead path changes.</p>
+</li>
+<li>
+<p><strong>Bad:</strong> Under-estimates fixed RAM overhead on multi-role servers that
+  combine roles with a 4 GB OS base (GP Proxy, Repo/GW). Specifically:
+  may under-report by up to <strong>(N−1) × 2 GB</strong> relative to the Veeam docs
+  "subtract 2 GB from each but one role" formula. See Amendment 2026-03-12
+  for full analysis. Accepted trade-off: the delta is bounded and the
+  max-of-roles approach avoids clamping <code>SuggestedTasks</code> to 0 on
+  multi-role servers.</p>
+</li>
+</ul>
+<h2 id="amendments">Amendments<a class="headerlink" href="#amendments" title="Permanent link">&para;</a></h2>
+<h3 id="2026-03-12-quantify-ram-under-estimation-vs-veeam-docs-formula">2026-03-12 — Quantify RAM under-estimation vs Veeam docs formula<a class="headerlink" href="#2026-03-12-quantify-ram-under-estimation-vs-veeam-docs-formula" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger:</strong> External review noted that the Veeam limitations page
+(<a href="https://helpcenter.veeam.com/docs/vbr/userguide/system_requirements_limitations.html">system_requirements_limitations.html</a>)
+describes a different model for all-in-one installations:</p>
+<blockquote>
+<p>"For all-in-one installations, you can subtract 2 GB of memory resources
+from each but one role. These 2 GB are allotted to the OS itself, assuming
+each component is installed on the dedicated server."</p>
+</blockquote>
+<p>This is an <strong>additive-minus-deduction</strong> model:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Total base RAM = Σ(role base RAM) − 2 GB × (N − 1)
+</code></pre></div>
+<p><strong>Divergence from max-of-roles:</strong></p>
+<p>The two models agree only when all active roles share the same 2 GB OS base
+(e.g. VP Proxy only). They diverge when roles with a 4 GB base
+(<code>GpProxyOSRAM</code>, <code>RepoOSRAM</code>) are co-installed:</p>
+<table>
+<thead>
+<tr>
+<th>Active roles</th>
+<th>Docs model</th>
+<th>Max-of-roles</th>
+<th>Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VP Proxy only (2 GB base)</td>
+<td>2 GB</td>
+<td>2 GB</td>
+<td>0</td>
+</tr>
+<tr>
+<td>VP Proxy + Repo (2 + 4 GB)</td>
+<td>4 GB</td>
+<td>4 GB</td>
+<td>0</td>
+</tr>
+<tr>
+<td>VP Proxy + Repo + GP Proxy (2 + 4 + 4 GB)</td>
+<td>6 GB</td>
+<td>4 GB</td>
+<td><strong>−2 GB</strong></td>
+</tr>
+<tr>
+<td>Repo + GP Proxy (4 + 4 GB)</td>
+<td>6 GB</td>
+<td>4 GB</td>
+<td><strong>−2 GB</strong></td>
+</tr>
+</tbody>
+</table>
+<p>In general, this implementation may <strong>under-report fixed RAM overhead by up
+to (N−1) × 2 GB</strong> on multi-role servers that combine roles with a 4 GB OS
+base.</p>
+<p><strong>Why max-of-roles is retained (deliberate simplification):</strong></p>
+<p>Implementing the docs formula correctly would require distinguishing the
+"OS share" (always 2 GB, the deductible component) from the "service
+minimum" (role-specific non-deductible floor) within each role's base value.
+The current threshold keys (<code>GpProxyOSRAM</code>, <code>RepoOSRAM</code>) encode the full
+role base, not the OS share alone. Splitting them would require new threshold
+keys, updated validation, and corresponding logic changes across
+<code>Get-VhciServerOsOverhead</code>, <code>Invoke-VhcConcurrencyAnalysis</code>, and
+<code>VbrConfig.json</code>.</p>
+<p>The max-of-roles model is retained as a deliberate simplification. The
+under-estimate is bounded — at most 2 GB per additional 4 GB-base role
+beyond the first — which is small relative to per-task RAM requirements
+(4 GB per GP Proxy task, 1 GB per repo task). Implementing the full docs
+formula is deferred unless Veeam clarifies that the "subtract 2 GB" rule
+applies to the full role base rather than solely the OS layer.</p>
+<p><strong>No code changes in this amendment.</strong> The "Bad" consequence entry above
+is updated to reflect this quantification.</p>
+<h3 id="2026-03-12-extend-max-of-roles-to-backupserver-role">2026-03-12 — Extend max-of-roles to BackupServer role<a class="headerlink" href="#2026-03-12-extend-max-of-roles-to-backupserver-role" title="Permanent link">&para;</a></h3>
+<p><strong>Trigger:</strong> Code review of <code>Invoke-VhcConcurrencyAnalysis</code> identified that the
+backup server row was handled by a separate additive block after the overhead
+calculation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c"># old code</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nv">$overhead</span> <span class="p">=</span> <span class="nb">Get-VhciServerOsOverhead</span> <span class="p">...</span>   <span class="c"># e.g. 4 GB (max of VP Proxy, Repo, GP Proxy)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nv">$RequiredCores</span> <span class="p">+=</span> <span class="nv">$BSCPUReq</span>                <span class="c"># e.g. +8 → 10 total fixed CPU</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nv">$RequiredRAM</span>   <span class="p">+=</span> <span class="nv">$BSRAMReq</span>                <span class="c"># e.g. +16 → 20 total fixed RAM</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nv">$SuggestedTasksByCores</span> <span class="p">-=</span> <span class="nv">$BSCPUReq</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="nv">$SuggestedTasksByRAM</span>   <span class="p">-=</span> <span class="nv">$BSRAMReq</span>
+</code></pre></div>
+<p><strong>Double-count:</strong> The BackupServer requirement (8 cores / 16 GB for v13) is a
+<em>total</em> figure representing the sizing floor for a server running the VBR
+service. It implicitly includes the same OS layer that <code>Get-VhciServerOsOverhead</code>
+already accounts for via the per-role overhead. Adding <code>$BSCPUReq</code> / <code>$BSRAMReq</code>
+on top of <code>$overhead.CPU</code> / <code>$overhead.RAM</code> charges the shared OS twice on backup
+server rows.</p>
+<p><strong>Fix:</strong> Extend the max-of-roles principle already established in this ADR.
+Introduce <code>$fixedCPU</code> / <code>$fixedRAM</code> computed as <code>Max(overhead, BS requirement)</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">$fixedCPU</span> <span class="p">=</span> <span class="nv">$overhead</span><span class="p">.</span><span class="n">CPU</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">$fixedRAM</span> <span class="p">=</span> <span class="nv">$overhead</span><span class="p">.</span><span class="n">RAM</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">if</span> <span class="p">(</span><span class="nv">$serverName</span> <span class="o">-eq</span> <span class="nv">$BackupServerName</span><span class="p">)</span> <span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="nv">$fixedCPU</span> <span class="p">=</span> <span class="no">[Math]</span><span class="p">::</span><span class="n">Max</span><span class="p">(</span><span class="nv">$fixedCPU</span><span class="p">,</span> <span class="nv">$BSCPUReq</span><span class="p">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="nv">$fixedRAM</span> <span class="p">=</span> <span class="no">[Math]</span><span class="p">::</span><span class="n">Max</span><span class="p">(</span><span class="nv">$fixedRAM</span><span class="p">,</span> <span class="nv">$BSRAMReq</span><span class="p">)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">}</span>
+</code></pre></div>
+<p>The separate additive <code>if ($serverName -eq $BackupServerName)</code> block is removed
+entirely. <code>$fixedCPU</code> / <code>$fixedRAM</code> replace <code>$overhead.CPU</code> / <code>$overhead.RAM</code>
+in all four dependent calculations (<code>$RequiredCores</code>, <code>$RequiredRAM</code>,
+<code>$SuggestedTasksByCores</code>, <code>$SuggestedTasksByRAM</code>).</p>
+<p><strong>Numerical impact (lab-m01: 8 cores / 15 GB, v13 BS + VP proxy + Repo + GP proxy):</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Role OS overhead</td>
+<td>max(2,2,2) = <strong>2 CPU</strong>, max(2,4,4) = <strong>4 GB</strong></td>
+<td>same</td>
+</tr>
+<tr>
+<td>Fixed CPU</td>
+<td>2 + 8 = <strong>10</strong></td>
+<td>max(2, 8) = <strong>8</strong></td>
+</tr>
+<tr>
+<td>Fixed RAM</td>
+<td>4 + 16 = <strong>20</strong></td>
+<td>max(4, 16) = <strong>16</strong></td>
+</tr>
+<tr>
+<td>Required Cores</td>
+<td>task_based + 10</td>
+<td>task_based + 8 (−2)</td>
+</tr>
+<tr>
+<td>Required RAM (GB)</td>
+<td>task_based + 20</td>
+<td>task_based + 16 (−4)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.081f42fc.min.js"></script>
+      
+    
+  </body>
+</html>
