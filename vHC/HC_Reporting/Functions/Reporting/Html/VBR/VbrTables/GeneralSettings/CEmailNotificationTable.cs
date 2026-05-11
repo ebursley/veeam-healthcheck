@@ -47,13 +47,19 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
                         s += "<tr>";
 
                         string smtpServer = (string)(item.smtpserver ?? "");
+                        string fromAddr = (string)(item.from ?? "");
+                        string toAddr = (string)(item.to ?? "");
                         if (scrub)
+                        {
                             smtpServer = CGlobals.Scrubber.ScrubItem(smtpServer, ScrubItemType.Server);
+                            fromAddr = CGlobals.Scrubber.ScrubItem(fromAddr, ScrubItemType.Item);
+                            toAddr = CGlobals.Scrubber.ScrubItem(toAddr, ScrubItemType.Item);
+                        }
 
                         s += this.form.TableData((string)(item.isenabled ?? ""), string.Empty);
                         s += this.form.TableData(smtpServer, string.Empty);
-                        s += this.form.TableData((string)(item.from ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.to ?? ""), string.Empty);
+                        s += this.form.TableData(fromAddr, string.Empty);
+                        s += this.form.TableData(toAddr, string.Empty);
                         s += this.form.TableData((string)(item.notifyonsuccess ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.notifyonwarning ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.notifyonerror ?? ""), string.Empty);
