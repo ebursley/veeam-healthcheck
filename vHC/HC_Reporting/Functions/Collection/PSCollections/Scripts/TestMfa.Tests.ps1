@@ -108,6 +108,9 @@ Describe 'Resolve-VeeamConsolePath' {
 
     Context 'T5: Mount Service probe rejects UNC InstallationPath' {
         BeforeEach {
+            # Write-Error is non-terminating in production; override Pester's EAP=Stop
+            $ErrorActionPreference = 'Continue'
+
             Mock Get-ItemProperty -ParameterFilter {
                 $Path -eq 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication' -and
                 $Name -eq 'CorePath'
@@ -159,6 +162,9 @@ Describe 'Resolve-VeeamConsolePath' {
 
     Context 'T6: Mount Service probe adds candidate to attempted list when Console sibling missing' {
         BeforeEach {
+            # Write-Error is non-terminating in production; override Pester's EAP=Stop
+            $ErrorActionPreference = 'Continue'
+
             Mock Get-ItemProperty -ParameterFilter {
                 $Path -eq 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication' -and
                 $Name -eq 'CorePath'
@@ -239,6 +245,9 @@ Describe 'Resolve-VeeamConsolePath' {
 
     Context 'T8: Every probe fails — returns null with all candidates listed' {
         BeforeEach {
+            # Write-Error is non-terminating in production; override Pester's EAP=Stop
+            $ErrorActionPreference = 'Continue'
+
             Mock Get-ItemProperty -ParameterFilter {
                 $Path -eq 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication' -and
                 $Name -eq 'CorePath'
@@ -286,6 +295,9 @@ Describe 'Resolve-VeeamConsolePath' {
 
     Context 'T9: Attempted-path ordering matches probe ordering' {
         BeforeEach {
+            # Write-Error is non-terminating in production; override Pester's EAP=Stop
+            $ErrorActionPreference = 'Continue'
+
             Mock Get-ItemProperty -ParameterFilter {
                 $Path -eq 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication' -and
                 $Name -eq 'CorePath'
