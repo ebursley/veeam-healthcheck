@@ -147,7 +147,13 @@ function Get-VhcJob {
             # IsScheduleEnabled reflects whether the job itself is active, not whether it has a schedule
             @{n = 'IsJobEnabled';                  e = { $Job.IsScheduleEnabled } },
             # RunManually = True means the job is enabled but has no schedule configured (runs on demand only)
-            @{n = 'IsScheduleDisabled';            e = { $Job.Options.JobOptions.RunManually } }
+            @{n = 'IsScheduleDisabled';            e = { $Job.Options.JobOptions.RunManually } },
+            @{n = 'Platform';                      e = {
+                $key = if ($Job.Name) { $Job.Name.ToLowerInvariant() } else { '' }
+                if ($script:PlatformMap -and $script:PlatformMap.ContainsKey($key)) {
+                    $script:PlatformMap[$key]
+                } else { '' }
+            }}
 
         $AllJobs.Add($JobDetails) | Out-Null
     }

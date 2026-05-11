@@ -73,7 +73,7 @@ $requiredThresholds = @(
     'CdpProxyRAM','CdpProxyCPU',
     'BackupServerCPU_v12','BackupServerRAM_v12','BackupServerCPU_v13','BackupServerRAM_v13',
     'SqlRAMMin','SqlCPUMin',
-    'CompliancePollMaxSeconds','CompliancePollIntervalSeconds'
+    'CompliancePollMaxSeconds','ComplianceHeartbeatSeconds'
 )
 foreach ($key in $requiredThresholds) {
     if ($null -eq $config.Thresholds.$key) {
@@ -191,6 +191,13 @@ if ($RescanHosts) {
     Write-Host "[Get-VBRConfig] Rescanning all hosts - this may take several minutes..."
     Rescan-VBREntity -AllHosts -Wait
 }
+
+# ---------------------------------------------------------------------------
+# Platform map: build host->platform lookup once before server/job collectors.
+# Uses Get-VhciPlatformMap (exported helper). Stored on $script:PlatformMap so
+# Get-VhcServer and Get-VhcJob can read it via the calculated Platform property.
+# ---------------------------------------------------------------------------
+$script:PlatformMap = Get-VhciPlatformMap -VBRVersion $VBRVersion
 
 # ---------------------------------------------------------------------------
 # Task 4: User roles and server collection

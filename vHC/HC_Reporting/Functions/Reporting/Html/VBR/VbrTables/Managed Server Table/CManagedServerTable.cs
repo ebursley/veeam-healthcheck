@@ -44,7 +44,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Managed_Server
            form.TableHeader(VbrLocalizationHelper.ManSrv8, VbrLocalizationHelper.ManSrv8TT, 9) +
            form.TableHeader(VbrLocalizationHelper.ManSrv9, VbrLocalizationHelper.ManSrv9TT, 10) +
            form.TableHeader(VbrLocalizationHelper.ManSrv10, VbrLocalizationHelper.ManSrv10TT, 11) +
-           form.TableHeader(VbrLocalizationHelper.ManSrv11, VbrLocalizationHelper.ManSrv11TT, 12);
+           form.TableHeader(VbrLocalizationHelper.ManSrv11, VbrLocalizationHelper.ManSrv11TT, 12) +
+           form.TableHeader("Platform", CHtmlTablesHelper.PlatformColumnTooltip, 13);
             s += form.TableHeaderEnd();
             s += form.TableBodyStart();
 
@@ -94,6 +95,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Managed_Server
                     }
 
                     s += form.TableData(d.IsUnavailable.ToString(), string.Empty);
+                    s += form.TableData(d.Platform ?? string.Empty, string.Empty);
                     s += "</tr>";
                 }
             }
@@ -109,7 +111,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Managed_Server
             try
             {
                 var list = df.ServerXmlFromCsv(scrub);
-                List<string> headers = new() { "Name", "Cores", "Ram", "Type", "OsInfo", "ApiVersion", "ProtectedVms", "NotProtectedVms", "TotalVms", "IsProxy", "IsRepo", "IsWan", "IsUnavailable" };
+                List<string> headers = new() { "Name", "Cores", "Ram", "Type", "OsInfo", "ApiVersion", "ProtectedVms", "NotProtectedVms", "TotalVms", "IsProxy", "IsRepo", "IsWan", "IsUnavailable", "Platform" };
                 List<List<string>> rows = list.Select(d => new List<string>
                 {
                     d.Name,
@@ -125,6 +127,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Managed_Server
                     d.IsRepo ? "True" : "False",
                     d.IsWan ? "True" : "False",
                     d.IsUnavailable.ToString(),
+                    d.Platform ?? "",
                 }).ToList();
                 SetSection("managedServers", headers, rows, summary);
             }

@@ -165,6 +165,21 @@ namespace VhcXTests.Functions.Reporting.CsvHandlers
         }
 
         /// <summary>
+        /// Generate a sample _SecurityComplianceMeta.csv with the given duration and status.
+        /// </summary>
+        public static string GenerateMetaSample(double durationSeconds = 267.4, string status = "Completed")
+        {
+            var startedAt   = "2026-05-06T08:58:20.0000000Z";
+            var completedAt = "2026-05-06T09:02:47.4000000Z";
+            var lines = new List<string>
+            {
+                @"""ScanStartedAt"",""ScanCompletedAt"",""ScanDurationSeconds"",""ScanStatus""",
+                $@"""{startedAt}"",""{completedAt}"",""{durationSeconds}"",""{status}"""
+            };
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>
         /// Save a generated sample to a file
         /// </summary>
         public static void SaveSampleToFile(string directoryPath, string fileName, string content)

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Xunit;
 
 namespace VhcXTests.Integration
@@ -1099,7 +1101,7 @@ $requiredThresholds = @(
     'CdpProxyRAM','CdpProxyCPU',
     'BackupServerCPU_v12','BackupServerRAM_v12','BackupServerCPU_v13','BackupServerRAM_v13',
     'SqlRAMMin','SqlCPUMin',
-    'CompliancePollMaxSeconds','CompliancePollIntervalSeconds'
+    'CompliancePollMaxSeconds','ComplianceHeartbeatSeconds'
 )
 foreach ($key in $requiredThresholds) {{
     if ($null -eq $config.Thresholds.$key) {{
@@ -1139,6 +1141,41 @@ exit 0
             {
                 if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, recursive: true);
             }
+        }
+
+        // Regression for live-run failure on 2026-05-07 where Get-VhciPlatformMap
+        // landed in Public/ but was missing from the .psd1 FunctionsToExport list.
+        // The .psd1 manifest filters whatever the .psm1 exports, so a Public/ script
+        // omitted from FunctionsToExport is silently unavailable to importers.
+        [Fact]
+        public void VhcVbrConfigManifest_FunctionsToExport_CoversAllPublicScripts()
+        {
+            var projectRoot = Path.GetFullPath(Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..", "HC_Reporting"));
+            var moduleRoot = Path.Combine(
+                projectRoot, "Tools", "Scripts", "HealthCheck", "VBR", "vHC-VbrConfig");
+            var manifestPath = Path.Combine(moduleRoot, "vHC-VbrConfig.psd1");
+            var publicDir = Path.Combine(moduleRoot, "Public");
+
+            Assert.True(File.Exists(manifestPath), $"Manifest not found: {manifestPath}");
+            Assert.True(Directory.Exists(publicDir), $"Public dir not found: {publicDir}");
+
+            var publicBaseNames = Directory.EnumerateFiles(publicDir, "*.ps1")
+                .Select(Path.GetFileNameWithoutExtension)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToHashSet(StringComparer.Ordinal);
+
+            var manifestText = File.ReadAllText(manifestPath);
+
+            var missing = publicBaseNames
+                .Where(name => !manifestText.Contains($"'{name}'"))
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToList();
+
+            Assert.True(missing.Count == 0,
+                "vHC-VbrConfig.psd1 FunctionsToExport must list every Public/*.ps1 base name. " +
+                $"Missing: {string.Join(", ", missing)}");
         }
     }
 }

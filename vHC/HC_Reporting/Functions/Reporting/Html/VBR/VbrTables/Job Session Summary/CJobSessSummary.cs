@@ -60,6 +60,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             List<double> avgBackupSizes = new();
             List<double> maxBackupSize = new();
             List<double> maxDataSizes = new();
+            List<double> avgDedupRatios = new();
+            List<double> avgCompressRatios = new();
             List<int> successRates = new();
             double totalSessions = 0;
             double totalFailedSessions = 0;
@@ -168,47 +170,33 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                         info.ItemCount = vmNames.Distinct().Count();
                         totalProtectedInstances = totalProtectedInstances + vmNames.Distinct().Count();
 
-                        info = SetBackupDataSizes(info, dataSize, backupSize, info.UsedVmSizeTB);
+                        info = SetBackupDataSizes(info, dataSize, backupSize, info.UsedVmSizeTB,
+                            thisSession.DedupRatios, thisSession.CompressionRatios);
 
                         avgDataSizes.Add(info.AvgDataSize);
                         avgBackupSizes.Add(info.AvgBackupSize);
                         maxDataSizes.Add(info.MaxDataSize);
                         maxBackupSize.Add(info.MaxBackupSize);
+                        avgDedupRatios.Add(info.AvgDedupRatio);
+                        avgCompressRatios.Add(info.AvgCompressionRatio);
 
-                        if (info.AvgBackupSize != 0 && info.AvgDataSize != 0)
+                        // Compute DCR from incremental-only sessions / source VM size
+                        var incrData = thisSession.IncrementalDataSize;
+                        double avgIncrDataTB = incrData.Count > 0 ? incrData.Average() / 1024 : 0;
+
+                        if (avgIncrDataTB > 0 && info.UsedVmSizeTB > 0)
                         {
-                            if (info.AvgDataSize > info.UsedVmSizeTB)
-                            {
-                                if (info.MaxDataSize > 0)
-                                {
-                                    info.AvgChangeRate = Math.Round(info.AvgDataSize / info.MaxDataSize * 100, 2);
-                                }
-                                else
-                                {
-                                    info.AvgChangeRate = 0;
-                                }
-
-                                avgRates.Add(info.AvgChangeRate);
-                            }
-                            else
-                            {
-                                if (info.UsedVmSizeTB > 0)
-                                {
-                                    info.AvgChangeRate = Math.Round(info.AvgDataSize / info.UsedVmSizeTB * 100, 2);
-                                }
-                                else
-                                {
-                                    info.AvgChangeRate = 0;
-                                }
-
-                                avgRates.Add(info.AvgChangeRate);
-                            }
+                            info.AvgChangeRate = Math.Round(avgIncrDataTB / info.UsedVmSizeTB * 100, 2);
+                        }
+                        else if (avgIncrDataTB > 0 && info.MaxDataSize > 0)
+                        {
+                            info.AvgChangeRate = Math.Round(avgIncrDataTB / info.MaxDataSize * 100, 2);
                         }
                         else
                         {
-                            info.AvgBackupSize = 0;
-                            avgRates.Add(0);
+                            info.AvgChangeRate = 0;
                         }
+                        avgRates.Add(info.AvgChangeRate);
 
                         outList.Add(info);
                     }
@@ -228,7 +216,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             sendBack = helper.ReturnList(outList, scrub, scrubber);
 
             outList.Add(helper.SessionSummaryStats(totalSessions, totalFailedSessions, totalRetries, totalProtectedInstances,
-                avgBackupSizes, avgDataSizes, maxBackupSize, avgRates, maxDataSizes));
+                avgBackupSizes, avgDataSizes, maxBackupSize, avgRates, maxDataSizes,
+                avgDedupRatios, avgCompressRatios));
 
             // sendBack.Add(helper.SessionSummaryStats(totalSessions, totalFailedSessions, totalRetries, totalProtectedInstances, 
             //    avgBackupSizes, avgDataSizes, maxBackupSize, avgRates, maxDataSizes));
@@ -237,7 +226,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             return outList;
         }
 
-        private static CJobSummaryTypes SetBackupDataSizes(CJobSummaryTypes info, List<double> dataSize, List<double> backupSize, double MaxDataSizeGB)
+        private static CJobSummaryTypes SetBackupDataSizes(CJobSummaryTypes info, List<double> dataSize, List<double> backupSize, double MaxDataSizeGB,
+            List<double> dedupRatios, List<double> compressionRatios)
         {
             if (backupSize.Count != 0)
             {
@@ -268,6 +258,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                 info.MaxDataSize = 0;
                 info.AvgDataSize = 0;
             }
+
+            // Dedup/compression averages
+            if (dedupRatios.Count > 0)
+                info.AvgDedupRatio = Math.Round(dedupRatios.Average(), 2);
+            if (compressionRatios.Count > 0)
+                info.AvgCompressionRatio = Math.Round(compressionRatios.Average(), 2);
 
             return info;
         }

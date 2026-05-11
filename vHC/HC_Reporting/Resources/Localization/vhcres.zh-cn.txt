@@ -110,11 +110,13 @@ NavTaskConLink = 虚拟机并发
 
 
 #License table
+LicAutoUpdateTT = 是否启用了许可证自动更新？
 LicCcTT = 是否启用了Cloud Connect？
 LicExpTT = 许可证到期日期
 LicTblLicTo = 授权给
 LicSupExpTT = 支持有效期
 LicTableHeader = 许可证摘要
+LicTblAutoUpdate = 自动更新
 LicTblCc = Cloud Connect 已启用
 LicTblEdition = 	版本
 LicTblExpDate = 过期日期
@@ -576,6 +578,10 @@ Jss14 = 平均等待时间 (dd.hh:mm:ss)
 Jss14TT = 平均持续时间作业正在等待可用资源
 Jss15 = 作业类型
 Jss15TT = 作业类型
+Jss16 = Avg Dedup Ratio
+Jss16TT = Average deduplication ratio across backup sessions
+Jss17 = Avg Compress Ratio
+Jss17TT = Average compression ratio across backup sessions
 JssSum0 = 此表旨在详细说明过去 7 天内各个作业的近期历史记录。
 JssNote0subhdr = 等待资源/作业会话长度问题：
 JssNote1 = • 将作业安排在不同的时间段开始将有助于分配资源并防止作业等待可用资源的瓶颈。 （例如，不要将所有工作安排在晚上 8:00 开始，而是在 8:00 开始一个工作，另一个在 8:30 开始，另一个在 9:00 开始。）

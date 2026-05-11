@@ -4,36 +4,36 @@ function Get-VhciObjectStorageRepos {
     <#
     .Synopsis
         Collects object storage repository configuration (name, type, bucket/container,
-        region, endpoint, account display name — never passwords).
+        region, endpoint, account display name - never passwords).
         Exports _ObjectStorageRepos.csv.
 
         Valid Type enum values (VBR 13, Get-VBRObjectStorageRepository -Type):
-          AmazonS3           — AWS S3
-          AmazonS3Compatible — S3-compatible (MinIO, Ceph, IBM, on-prem, etc.)
-          AzureBlob          — Azure Blob Storage
-          AzureDataBox       — Azure Data Box
-          GoogleCloudStorage — Google Cloud Storage
-          Wasabi             — Wasabi Cloud Storage
-          DataCloudVault     — Veeam Data Cloud Vault
-          ElevenEleven       — 11:11 Cloud Object Storage
+          AmazonS3           - AWS S3
+          AmazonS3Compatible - S3-compatible (MinIO, Ceph, IBM, on-prem, etc.)
+          AzureBlob          - Azure Blob Storage
+          AzureDataBox       - Azure Data Box
+          GoogleCloudStorage - Google Cloud Storage
+          Wasabi             - Wasabi Cloud Storage
+          DataCloudVault     - Veeam Data Cloud Vault
+          ElevenEleven       - 11:11 Cloud Object Storage
 
         Note: AzureArchive is returned by Get-VBRArchiveObjectStorageRepository (separate cmdlet).
         IBM Cloud is handled through AmazonS3Compatible in VBR 13.
 
         Property paths verified against VBR 13 docs and community examples:
           AmazonS3 / AmazonS3Compatible / Wasabi:
-            Bucket name  → .AmazonS3Folder.Bucket.Name   [docs + forum confirmed]
-            Region       → .AmazonS3Folder.Bucket.Region  [forum confirmed]
-            Folder name  → [string]$repo.AmazonS3Folder   [forum confirmed]
-            Endpoint     → .ServicePoint (S3Compatible only, top-level property)
+            Bucket name  -> .AmazonS3Folder.Bucket.Name   [docs + forum confirmed]
+            Region       -> .AmazonS3Folder.Bucket.Region  [forum confirmed]
+            Folder name  -> [string]$repo.AmazonS3Folder   [forum confirmed]
+            Endpoint     -> .ServicePoint (S3Compatible only, top-level property)
           AzureBlob / AzureDataBox:
-            Container    → .AzureBlobFolder.Container.Name [docs confirmed: VBRAzureBlobFolder]
-            Folder name  → [string]$repo.AzureBlobFolder
-            Endpoint     → .AzureBlobFolder.Container.StorageAccount (service point)
+            Container    -> .AzureBlobFolder.Container.Name [docs confirmed: VBRAzureBlobFolder]
+            Folder name  -> [string]$repo.AzureBlobFolder
+            Endpoint     -> .AzureBlobFolder.Container.StorageAccount (service point)
           GoogleCloudStorage:
-            Bucket name  → .Folder.Bucket.Name            [docs confirmed: VBRGoogleCloudFolder]
-            Region       → .Folder.Bucket.Region
-            Folder name  → [string]$repo.Folder
+            Bucket name  -> .Folder.Bucket.Name            [docs confirmed: VBRGoogleCloudFolder]
+            Region       -> .Folder.Bucket.Region
+            Folder name  -> [string]$repo.Folder
           DataCloudVault / ElevenEleven:
             Reflection probe (proprietary types, limited PS exposure)
 
@@ -60,12 +60,12 @@ function Get-VhciObjectStorageRepos {
             $connType = "$($repo.ConnectionType)"
             $gateway  = ($repo.GatewayServer.Name -join '; ')
 
-            # ── Provider-specific property routing ──────────────────────────────
+            # -- Provider-specific property routing ------------------------------
             # Property paths verified against VBR 13 helpcenter docs and Veeam
             # community forum examples (forums.veeam.com/powershell-f26/t98760).
             switch ($typeName) {
 
-                # ── AWS S3 ────────────────────────────────────────────────────
+                # -- AWS S3 ----------------------------------------------------
                 # Add/Set cmdlet uses -AmazonS3Folder <VBRAmazonS3Folder>
                 # Bucket and region live under .AmazonS3Folder.Bucket (VBRAmazonS3Bucket)
                 'AmazonS3' {
@@ -74,9 +74,9 @@ function Get-VhciObjectStorageRepos {
                     $folder = [string]$repo.AmazonS3Folder
                 }
 
-                # ── S3-Compatible (MinIO, Ceph, IBM, on-prem, etc.) ───────────
+                # -- S3-Compatible (MinIO, Ceph, IBM, on-prem, etc.) -----------
                 # Same VBRAmazonS3Folder pattern; endpoint is the service point URL.
-                # ServicePoint may be top-level or on the connection — check both.
+                # ServicePoint may be top-level or on the connection - check both.
                 'AmazonS3Compatible' {
                     $bucket = $repo.AmazonS3Folder.Bucket.Name
                     $region = $repo.AmazonS3Folder.Bucket.Region
@@ -86,7 +86,7 @@ function Get-VhciObjectStorageRepos {
                     }
                 }
 
-                # ── Wasabi Cloud Storage ───────────────────────────────────────
+                # -- Wasabi Cloud Storage ---------------------------------------
                 # Type enum is 'Wasabi' (not 'WasabiCloud'). Uses same AmazonS3Folder
                 # pattern as S3Compatible since Wasabi is S3-protocol compatible.
                 'Wasabi' {
@@ -95,7 +95,7 @@ function Get-VhciObjectStorageRepos {
                     $folder = [string]$repo.AmazonS3Folder
                 }
 
-                # ── Azure Blob Storage ────────────────────────────────────────
+                # -- Azure Blob Storage ----------------------------------------
                 # Add cmdlet uses -AzureBlobFolder <VBRAzureBlobFolder>
                 # Container lives under .AzureBlobFolder.Container
                 'AzureBlob' {
@@ -106,7 +106,7 @@ function Get-VhciObjectStorageRepos {
                     }
                 }
 
-                # ── Azure Data Box ─────────────────────────────────────────────
+                # -- Azure Data Box ---------------------------------------------
                 # Same VBRAzureBlobFolder pattern as AzureBlob.
                 'AzureDataBox' {
                     $bucket = $repo.AzureBlobFolder.Container.Name
@@ -116,7 +116,7 @@ function Get-VhciObjectStorageRepos {
                     }
                 }
 
-                # ── Google Cloud Storage ───────────────────────────────────────
+                # -- Google Cloud Storage ---------------------------------------
                 # Add cmdlet uses -Folder <VBRGoogleCloudFolder> (property is 'Folder')
                 'GoogleCloudStorage' {
                     $bucket = $repo.Folder.Bucket.Name
@@ -124,7 +124,7 @@ function Get-VhciObjectStorageRepos {
                     $folder = [string]$repo.Folder
                 }
 
-                # ── Veeam Data Cloud Vault ────────────────────────────────────
+                # -- Veeam Data Cloud Vault ------------------------------------
                 # Proprietary type; limited PS property exposure. Probe via reflection.
                 'DataCloudVault' {
                     Write-LogFile "ObjectStorageRepos: DataCloudVault repo '$($repo.Name)' - probing via Get-Member" -LogLevel "INFO"
@@ -133,7 +133,7 @@ function Get-VhciObjectStorageRepos {
                     $region = Get-VhciObjStoreProp $repo @('Region','RegionId','RegionType')
                 }
 
-                # ── 11:11 Cloud Object Storage ────────────────────────────────
+                # -- 11:11 Cloud Object Storage --------------------------------
                 'ElevenEleven' {
                     Write-LogFile "ObjectStorageRepos: ElevenEleven repo '$($repo.Name)' - probing via Get-Member" -LogLevel "INFO"
                     $bucket = Get-VhciObjStoreProp $repo @('BucketName','Bucket','Container','ContainerName')
@@ -142,7 +142,7 @@ function Get-VhciObjectStorageRepos {
                 }
 
                 Default {
-                    # Unrecognized type — full reflection probe.
+                    # Unrecognized type - full reflection probe.
                     # WARN so field SEs know to report new provider types for explicit support.
                     Write-LogFile "ObjectStorageRepos: unrecognized Type '$typeName' on repo '$($repo.Name)' - probing via Get-Member" -LogLevel "WARN"
                     foreach ($m in ($repo | Get-Member -MemberType Property | Select-Object -ExpandProperty Name)) {
@@ -157,7 +157,7 @@ function Get-VhciObjectStorageRepos {
                 }
             }
 
-            # ── Account / credential display name (never expose password) ───────
+            # -- Account / credential display name (never expose password) -------
             foreach ($prop in @('Account','Credentials','CloudCredentials')) {
                 if ($repo.PSObject.Properties[$prop] -and $null -ne $repo.$prop) {
                     $account = "$($repo.$prop.Name)"

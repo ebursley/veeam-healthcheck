@@ -110,11 +110,13 @@ NavTaskConLink = 虛擬機並行
 
 
 #License table
+LicAutoUpdateTT = 是否啟用了許可證自動更新？
 LicCcTT = 是否啟用了Cloud Connect？
 LicExpTT = 許可證到期日期
 LicTblLicTo = 授權給
 LicSupExpTT = 支援有效期
 LicTableHeader = 許可證摘要
+LicTblAutoUpdate = 自動更新
 LicTblCc = Cloud Connect 已啟用
 LicTblEdition = 	版本
 LicTblExpDate = 過期日期
@@ -576,6 +578,10 @@ Jss14 = 平均等待時間 (dd.hh:mm:ss)
 Jss14TT = 平均持續時間作業正在等待可用資源
 Jss15 = 作業類型
 Jss15TT = 作業類型
+Jss16 = Avg Dedup Ratio
+Jss16TT = Average deduplication ratio across backup sessions
+Jss17 = Avg Compress Ratio
+Jss17TT = Average compression ratio across backup sessions
 JssSum0 = 此表格詳細說明過去 7 天內各個作業的近期歷史記錄。
 JssNote0subhdr = 等資源源/作業會話長度問題：
 JssNote1 = • 將作業安排在不同的時間段開始將有助於分配資源並防止作業等待可用資源的瓶頸。 （例如，不要將所有工作安排在晚上 8:00 開始，而是在 8:00 開始一個工作，另一個在 8:30 開始，另一個在 9:00 開始。）

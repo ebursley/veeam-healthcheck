@@ -85,6 +85,16 @@ namespace VeeamHealthCheck.Shared
         public static bool RunningWithoutAdmin = false;
         public static bool RescanHosts = false;
 
+        // Unattended / silent execution flags. See plan: VHC Silent / Unattended Execution.
+        // Silent = true means "never prompt, fail fast"; suppresses GUI dialogs, console
+        // password prompts, and any PowerShell Get-Credential. Required for unattended runs.
+        public static bool Silent = false;
+        // Path to a JSON credfile loaded by /credfile=<path>. When set, the file's
+        // contents are loaded into CredentialStore via SetTransient (in-memory only).
+        public static string CredFilePath = null;
+        // True when /savecreds was supplied; the parser runs the seed flow and exits.
+        public static bool SaveCredsOnly = false;
+
         // Security Values
         public static bool IsMfaEnabled = false;
 

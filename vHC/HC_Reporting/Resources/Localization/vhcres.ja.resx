@@ -276,6 +276,9 @@
   <data name="NavTaskConLink" xml:space="preserve">
     <value>VMの同時実行性</value>
   </data>
+  <data name="LicAutoUpdateTT" xml:space="preserve">
+    <value>ライセンスの自動更新は有効ですか？</value>
+  </data>
   <data name="LicCcTT" xml:space="preserve">
     <value>Cloud Connectは有効になっていますか？</value>
   </data>
@@ -290,6 +293,9 @@
   </data>
   <data name="LicTableHeader" xml:space="preserve">
     <value>ライセンスの概要</value>
+  </data>
+  <data name="LicTblAutoUpdate" xml:space="preserve">
+    <value>自動更新</value>
   </data>
   <data name="LicTblCc" xml:space="preserve">
     <value>クラウドコネクト対応</value>
@@ -1550,6 +1556,18 @@
   </data>
   <data name="Jss15TT" xml:space="preserve">
     <value>職種</value>
+  </data>
+  <data name="Jss16" xml:space="preserve">
+    <value>Avg Dedup Ratio</value>
+  </data>
+  <data name="Jss16TT" xml:space="preserve">
+    <value>Average deduplication ratio across backup sessions</value>
+  </data>
+  <data name="Jss17" xml:space="preserve">
+    <value>Avg Compress Ratio</value>
+  </data>
+  <data name="Jss17TT" xml:space="preserve">
+    <value>Average compression ratio across backup sessions</value>
   </data>
   <data name="JssSum0" xml:space="preserve">
     <value>この表は、過去7日間の個々の仕事の最近の履歴を詳しく説明することを目的としています。</value>

@@ -25,6 +25,7 @@
         'Get-VhcUserRoles',
         'Get-VhcVbrInfo',
         'Get-VhcWanAccelerator',
+        'Get-VhciPlatformMap',
         'Initialize-VhcModule',
         'Invoke-VhcCollector',
         'Invoke-VhcConcurrencyAnalysis',

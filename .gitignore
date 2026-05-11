@@ -389,3 +389,5 @@ vHC/Plans/
 docs/
 entities.json
 mempalace.yaml
+MEMORY/
+SESSION_HANDOFF.md

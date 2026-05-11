@@ -146,11 +146,38 @@ public static class CredentialStore
 
     public static void Set(string server, string username, string password)
     {
+        SetCache(server, username, password);
+        PersistCacheToDisk();
+    }
+
+    /// <summary>
+    /// Stores credentials in the in-memory cache only — does NOT write to the
+    /// DPAPI-encrypted creds.json on disk. Used by the /credfile= loader to
+    /// populate transient credentials for the lifetime of the current process
+    /// without leaving anything behind on disk.
+    /// </summary>
+    public static void SetTransient(string server, string username, string password)
+    {
+        SetCache(server, username, password);
+    }
+
+    /// <summary>
+    /// Internal: encrypt and place a credential in the in-memory cache.
+    /// Does not touch disk.
+    /// </summary>
+    private static void SetCache(string server, string username, string password)
+    {
         var enc = ProtectedData.Protect(
             Encoding.UTF8.GetBytes(password), null, DataProtectionScope.CurrentUser);
         _cache[server] = (username, enc);
+    }
 
-        // Convert to serializable dictionary
+    /// <summary>
+    /// Internal: serialize the in-memory cache to the on-disk creds.json.
+    /// Only Set() (and not SetTransient) calls this.
+    /// </summary>
+    private static void PersistCacheToDisk()
+    {
         var serializable = _cache.ToDictionary(
             kvp => kvp.Key,
             kvp => new CredentialRecord

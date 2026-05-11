@@ -21,7 +21,9 @@ param (
     [string]$VBOServerFqdnOrIp = "",
     [switch]$PersistParams = $false,
     [switch]$Debug = $false,
-    [switch]$DebugProfiling = $false
+    [switch]$DebugProfiling = $false,
+    [string]$Username = "",
+    [string]$PasswordBase64 = ""
 )
 enum LogLevel {
     TRACE
@@ -719,11 +721,18 @@ Write-LogFile -LogLevel INFO -Message ("System Memory: " + [Math]::Round($memory
 Import-Module -Name Veeam.Archiver.PowerShell,Veeam.Exchange.PowerShell,Veeam.SharePoint.PowerShell,Veeam.Teams.PowerShell
 if ($global:SETTINGS.VBOServerFqdnOrIp -ne "localhost") {
     if ($null -eq $global:VBO_SERVER_CREDS) {
-        $global:VBO_SERVER_CREDS = Get-Credential -Message "Enter authorized VBO credentials for '$($global:SETTINGS.VBOServerFqdnOrIp)':"
+        if ($Username -and $PasswordBase64) {
+            $plain = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($PasswordBase64))
+            $sec   = ConvertTo-SecureString $plain -AsPlainText -Force
+            $global:VBO_SERVER_CREDS = New-Object System.Management.Automation.PSCredential($Username, $sec)
+            Remove-Variable plain
+        } else {
+            Write-Error "VB365 remote collection requires -Username and -PasswordBase64 in unattended mode." -ErrorAction Stop
+        }
     }
-    Connect-VBOServer -Server $global:SETTINGS.VBOServerFqdnOrIp -Credential $global:VBO_SERVER_CREDS -ErrorAction Stop;
+    Connect-VBOServer -Server $global:SETTINGS.VBOServerFqdnOrIp -Credential $global:VBO_SERVER_CREDS -ErrorAction Stop
 } else {
-    Connect-VBOServer -Server localhost -ErrorAction Stop;
+    Connect-VBOServer -Server localhost -ErrorAction Stop
 }
 
 Lap "Ready to collect"

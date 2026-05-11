@@ -54,6 +54,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         t += this.form.TableData(stu.AvgDataSize.ToString(), VbrLocalizationHelper.Jss9);
                         t += this.form.TableData(stu.MaxDataSize.ToString(), VbrLocalizationHelper.Jss10);
                         t += this.form.TableData(stu.AvgChangeRate.ToString(), VbrLocalizationHelper.Jss11);
+                        t += this.form.TableData(stu.AvgDedupRatio > 0 ? stu.AvgDedupRatio.ToString() + "x" : "", VbrLocalizationHelper.Jss16);
+                        t += this.form.TableData(stu.AvgCompressionRatio > 0 ? stu.AvgCompressionRatio.ToString() + "x" : "", VbrLocalizationHelper.Jss17);
                         t += this.form.TableData(stu.WaitCount.ToString(), VbrLocalizationHelper.Jss12);
                         t += this.form.TableData(stu.MaxWait, VbrLocalizationHelper.Jss13);
                         t += this.form.TableData(stu.AvgWait, VbrLocalizationHelper.Jss14);
@@ -90,7 +92,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
-                List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
+                List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "AvgDedupRatio", "AvgCompressRatio", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
                 List<List<string>> rows = stuff.Select(stu => new List<string>
                 {
                     stu.JobName,
@@ -107,6 +109,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                     stu.AvgDataSize.ToString(),
                     stu.MaxDataSize.ToString(),
                     stu.AvgChangeRate.ToString(),
+                    stu.AvgDedupRatio > 0 ? stu.AvgDedupRatio.ToString() + "x" : "",
+                    stu.AvgCompressionRatio > 0 ? stu.AvgCompressionRatio.ToString() + "x" : "",
                     stu.WaitCount.ToString(),
                     stu.MaxWait,
                     stu.AvgWait,
@@ -174,6 +178,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         double totalAvgDataSize = 0;
                         double totalMaxDataSize = 0;
                         double totalAvgChangeRate = 0;
+                        double weightedChangeRateSum = 0;
+                        double totalDedupRatioSum = 0;
+                        double totalCompressRatioSum = 0;
+                        int dedupCount = 0;
+                        int compressCount = 0;
                         int totalWaitCount = 0;
 
                         foreach (var stu in res)
@@ -213,6 +222,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                                 t += this.form.TableData(stu.AvgDataSize.ToString(), VbrLocalizationHelper.Jss9);
                                 t += this.form.TableData(stu.MaxDataSize.ToString(), VbrLocalizationHelper.Jss10);
                                 t += this.form.TableData(stu.AvgChangeRate.ToString(), VbrLocalizationHelper.Jss11);
+                                t += this.form.TableData(stu.AvgDedupRatio > 0 ? stu.AvgDedupRatio.ToString() + "x" : "", VbrLocalizationHelper.Jss16);
+                                t += this.form.TableData(stu.AvgCompressionRatio > 0 ? stu.AvgCompressionRatio.ToString() + "x" : "", VbrLocalizationHelper.Jss17);
                                 t += this.form.TableData(stu.WaitCount.ToString(), VbrLocalizationHelper.Jss12);
                                 t += this.form.TableData(stu.MaxWait, VbrLocalizationHelper.Jss13);
                                 t += this.form.TableData(stu.AvgWait, VbrLocalizationHelper.Jss14);
@@ -232,6 +243,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                                 totalMaxBackupSize += stu.MaxBackupSize;
                                 totalAvgDataSize += stu.AvgDataSize;
                                 totalMaxDataSize += stu.MaxDataSize;
+                                weightedChangeRateSum += stu.AvgChangeRate * stu.MaxDataSize;
+                                if (stu.AvgDedupRatio > 0) { totalDedupRatioSum += stu.AvgDedupRatio; dedupCount++; }
+                                if (stu.AvgCompressionRatio > 0) { totalCompressRatioSum += stu.AvgCompressionRatio; compressCount++; }
 
                                 totalWaitCount += stu.WaitCount;
                             }
@@ -244,16 +258,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         }
 
                         // clean up totals:
-                        double successPercent = (totalSessionCount - (double)totalFails + totalRetries) / totalSessionCount * 100;
+                        double successPercent = 0;
+                        if (totalSessionCount > 0)
+                        {
+                            successPercent = (totalSessionCount - (double)totalFails) / totalSessionCount * 100;
+                        }
                         totalSuccessRate = (double)Math.Round(successPercent, 2);
-                        if (totalAvgDataSize == 0 && totalMaxDataSize == 0)
-                        {
-                            totalAvgChangeRate = 0;
-                        }
-                        else
-                        {
-                            totalAvgChangeRate = Math.Round(totalAvgDataSize / totalMaxDataSize * 100, 2);
-                        }
+                        totalAvgChangeRate = totalMaxDataSize > 0
+                            ? Math.Round(weightedChangeRateSum / totalMaxDataSize, 2) : 0;
 
                         // add totals line:
                         if (!skipTotals)
@@ -273,12 +285,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             totalRow += this.form.TableData(Math.Round(totalMaxBackupSize, 2).ToString(), string.Empty);
                             totalRow += this.form.TableData(Math.Round(totalAvgDataSize, 2).ToString(), string.Empty);
                             totalRow += this.form.TableData(Math.Round(totalMaxDataSize, 2).ToString(), string.Empty);
-                            if (totalAvgChangeRate == double.NaN)
-                            {
-                                totalAvgChangeRate = 0;
-                            }
-
                             totalRow += this.form.TableData(totalAvgChangeRate.ToString(), string.Empty);
+                            totalRow += this.form.TableData(dedupCount > 0 ? Math.Round(totalDedupRatioSum / dedupCount, 2).ToString() + "x" : "", string.Empty);
+                            totalRow += this.form.TableData(compressCount > 0 ? Math.Round(totalCompressRatioSum / compressCount, 2).ToString() + "x" : "", string.Empty);
                             totalRow += this.form.TableData(totalWaitCount.ToString(), string.Empty);
                             totalRow += this.form.TableData(string.Empty, string.Empty);
                             totalRow += this.form.TableData(string.Empty, string.Empty);
@@ -311,7 +320,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
                 var ordered = stuff.OrderBy(stu => stu.JobName).ToList();
-                List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
+                List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "AvgDedupRatio", "AvgCompressRatio", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
                 List<List<string>> rows = ordered.Select(stu => new List<string>
                 {
                     stu.JobName,
@@ -328,6 +337,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                     stu.AvgDataSize.ToString(),
                     stu.MaxDataSize.ToString(),
                     stu.AvgChangeRate.ToString(),
+                    stu.AvgDedupRatio > 0 ? stu.AvgDedupRatio.ToString() + "x" : "",
+                    stu.AvgCompressionRatio > 0 ? stu.AvgCompressionRatio.ToString() + "x" : "",
                     stu.WaitCount.ToString(),
                     stu.MaxWait,
                     stu.AvgWait,
@@ -363,6 +374,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 double totalAvgDataSize = 0;
                 double totalMaxDataSize = 0;
                 double totalAvgChangeRate = 0;
+                double weightedChangeRateSum = 0;
+                double totalDedupRatioSum = 0;
+                double totalCompressRatioSum = 0;
+                int dedupCount = 0;
+                int compressCount = 0;
                 int totalWaitCount = 0;
 
                 foreach (var stu in offloadJobs)
@@ -386,6 +402,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         t += this.form.TableData(stu.AvgDataSize.ToString(), VbrLocalizationHelper.Jss9);
                         t += this.form.TableData(stu.MaxDataSize.ToString(), VbrLocalizationHelper.Jss10);
                         t += this.form.TableData(stu.AvgChangeRate.ToString(), VbrLocalizationHelper.Jss11);
+                        t += this.form.TableData(stu.AvgDedupRatio > 0 ? stu.AvgDedupRatio.ToString() + "x" : "", VbrLocalizationHelper.Jss16);
+                        t += this.form.TableData(stu.AvgCompressionRatio > 0 ? stu.AvgCompressionRatio.ToString() + "x" : "", VbrLocalizationHelper.Jss17);
                         t += this.form.TableData(stu.WaitCount.ToString(), VbrLocalizationHelper.Jss12);
                         t += this.form.TableData(stu.MaxWait, VbrLocalizationHelper.Jss13);
                         t += this.form.TableData(stu.AvgWait, VbrLocalizationHelper.Jss14);
@@ -405,6 +423,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         totalMaxBackupSize += stu.MaxBackupSize;
                         totalAvgDataSize += stu.AvgDataSize;
                         totalMaxDataSize += stu.MaxDataSize;
+                        weightedChangeRateSum += stu.AvgChangeRate * stu.MaxDataSize;
+                        if (stu.AvgDedupRatio > 0) { totalDedupRatioSum += stu.AvgDedupRatio; dedupCount++; }
+                        if (stu.AvgCompressionRatio > 0) { totalCompressRatioSum += stu.AvgCompressionRatio; compressCount++; }
 
                         totalWaitCount += stu.WaitCount;
                     }
@@ -417,10 +438,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 }
 
                 // clean up totals:
-                double successPercent = (totalSessionCount - (double)totalFails + totalRetries) / totalSessionCount * 100;
+                double successPercent = 0;
+                if (totalSessionCount > 0)
+                {
+                    successPercent = (totalSessionCount - (double)totalFails) / totalSessionCount * 100;
+                }
                 totalSuccessRate = (double)Math.Round(successPercent, 2);
-
-                totalAvgChangeRate = Math.Round(totalAvgDataSize / totalMaxDataSize * 100, 2);
+                totalAvgChangeRate = totalMaxDataSize > 0
+                    ? Math.Round(weightedChangeRateSum / totalMaxDataSize, 2) : 0;
 
                 // add totals line:
                 string totalRow = string.Empty;
@@ -439,6 +464,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 totalRow += this.form.TableData(Math.Round(totalAvgDataSize, 2).ToString(), string.Empty);
                 totalRow += this.form.TableData(Math.Round(totalMaxDataSize, 2).ToString(), string.Empty);
                 totalRow += this.form.TableData(totalAvgChangeRate.ToString(), string.Empty);
+                totalRow += this.form.TableData(dedupCount > 0 ? Math.Round(totalDedupRatioSum / dedupCount, 2).ToString() + "x" : "", string.Empty);
+                totalRow += this.form.TableData(compressCount > 0 ? Math.Round(totalCompressRatioSum / compressCount, 2).ToString() + "x" : "", string.Empty);
                 totalRow += this.form.TableData(totalWaitCount.ToString(), string.Empty);
                 totalRow += this.form.TableData(string.Empty, string.Empty);
                 totalRow += this.form.TableData(string.Empty, string.Empty);
@@ -473,7 +500,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             s += this.form.TableHeader(VbrLocalizationHelper.Jss8, VbrLocalizationHelper.Jss8TT);
             s += this.form.TableHeader(VbrLocalizationHelper.Jss9, VbrLocalizationHelper.Jss9TT);
             s += this.form.TableHeader(VbrLocalizationHelper.Jss10, "Used size of all objects in job.");
-            s += this.form.TableHeader(VbrLocalizationHelper.Jss11, "Avg Data Size divided by Max Data Size (average processed data divided by total consumed size of all VMs in the job)");
+            s += this.form.TableHeader(VbrLocalizationHelper.Jss11, "Average incremental data size divided by source VM size (weighted average for totals)");
+            s += this.form.TableHeader(VbrLocalizationHelper.Jss16, VbrLocalizationHelper.Jss16TT);
+            s += this.form.TableHeader(VbrLocalizationHelper.Jss17, VbrLocalizationHelper.Jss17TT);
             s += this.form.TableHeader(VbrLocalizationHelper.Jss12, VbrLocalizationHelper.Jss12TT);
             s += this.form.TableHeader(VbrLocalizationHelper.Jss13, "Max Waits (dd:hh:mm:ss)");
             s += this.form.TableHeader(VbrLocalizationHelper.Jss14, "Avg Waits (dd:hh:mm:ss)");

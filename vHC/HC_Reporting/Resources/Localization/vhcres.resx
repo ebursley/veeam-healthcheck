@@ -294,6 +294,9 @@
   <data name="NavTaskConLink" xml:space="preserve">
     <value>VM Concurrency</value>
   </data>
+  <data name="LicAutoUpdateTT" xml:space="preserve">
+    <value>Is license auto-update enabled?</value>
+  </data>
   <data name="LicCcTT" xml:space="preserve">
     <value>Is Cloud Connect enabled?</value>
   </data>
@@ -308,6 +311,9 @@
   </data>
   <data name="LicTableHeader" xml:space="preserve">
     <value>License Summary</value>
+  </data>
+  <data name="LicTblAutoUpdate" xml:space="preserve">
+    <value>Auto Update</value>
   </data>
   <data name="LicTblCc" xml:space="preserve">
     <value>Cloud Connect Enabled</value>
@@ -1577,6 +1583,18 @@
   </data>
   <data name="Jss15TT" xml:space="preserve">
     <value>Job Type</value>
+  </data>
+  <data name="Jss16" xml:space="preserve">
+    <value>Avg Dedup Ratio</value>
+  </data>
+  <data name="Jss16TT" xml:space="preserve">
+    <value>Average deduplication ratio across backup sessions</value>
+  </data>
+  <data name="Jss17" xml:space="preserve">
+    <value>Avg Compress Ratio</value>
+  </data>
+  <data name="Jss17TT" xml:space="preserve">
+    <value>Average compression ratio across backup sessions</value>
   </data>
   <data name="JssSum0" xml:space="preserve">
     <value>This table is meant to detail the recent history of individual jobs over the last 7 or 30 days depending on specified period during collection.</value>

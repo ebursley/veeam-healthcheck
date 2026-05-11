@@ -26,8 +26,8 @@
     "BackupServerRAM_v13": 16,
     "SqlRAMMin": 2,
     "SqlCPUMin": 1,
-    "CompliancePollMaxSeconds": 45,
-    "CompliancePollIntervalSeconds": 3
+    "CompliancePollMaxSeconds": 600,
+    "ComplianceHeartbeatSeconds": 15
   },
   "SecurityComplianceRuleNames": {
     "WindowsScriptHostDisabled": "Windows Script Host is disabled",

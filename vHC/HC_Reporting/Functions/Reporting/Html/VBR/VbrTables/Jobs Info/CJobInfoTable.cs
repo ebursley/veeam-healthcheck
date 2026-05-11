@@ -30,6 +30,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
 
         private static bool JobTypeSupportsAaip(string jobType) => AaipSupportedJobTypes.Contains(jobType);
 
+        // Job types that carry a platform string (external infrastructure / plug-in jobs)
+        private static readonly HashSet<string> PlatformJobTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "VmbApiPolicyTempJob",   // Plug-in backup jobs (Proxmox VE, Nutanix AHV, etc.)
+        };
+
+        private static bool JobTypeHasPlatform(string jobType) => PlatformJobTypes.Contains(jobType);
+
         public CJobInfoTable() { }
 
         public string Render(bool scrub)
@@ -243,6 +251,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                                 row += job.GuestFSIndexingEnabled == "True" ? this.form.TableData(this.form.True, string.Empty) : this.form.TableData(this.form.False, string.Empty);
                             }
 
+                            // Platform column - only for job types that carry a platform string
+                            if (JobTypeHasPlatform(jType))
+                            {
+                                row += this.form.TableData(job.Platform ?? string.Empty, string.Empty);
+                            }
+
                             row += "</tr>";
 
                             s += row;
@@ -358,7 +372,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             {
                 CCsvParser csvparser = new();
                 var source = csvparser.JobCsvParser().ToList();
-                List<string> headers = new() { "JobName", "RepoName", "SourceSizeGB", "OnDiskGB", "RetentionScheme", "RetainDays", "Encrypted", "JobType", "CompressionLevel", "BlockSize", "GfsEnabled", "GfsDetails", "ActiveFullEnabled", "SyntheticFullEnabled", "BackupChainType", "IndexingEnabled", "AAIPEnabled", "VSSEnabled", "VSSIgnoreErrors", "GuestFSIndexing" };
+                List<string> headers = new() { "JobName", "RepoName", "SourceSizeGB", "OnDiskGB", "RetentionScheme", "RetainDays", "Encrypted", "JobType", "CompressionLevel", "BlockSize", "GfsEnabled", "GfsDetails", "ActiveFullEnabled", "SyntheticFullEnabled", "BackupChainType", "IndexingEnabled", "AAIPEnabled", "VSSEnabled", "VSSIgnoreErrors", "GuestFSIndexing", "Platform" };
                 List<List<string>> rows = new();
 
                 foreach (var job in source)
@@ -425,6 +439,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         job.VSSEnabled?.ToString() ?? "",
                         job.VSSIgnoreErrors?.ToString() ?? "",
                         job.GuestFSIndexingEnabled?.ToString() ?? "",
+                        job.Platform ?? "",
                     });
                 }
 
@@ -470,6 +485,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 s += this.form.TableHeader("AAIP Enabled", "Enable application-aware processing checkbox in job settings");
                 s += this.form.TableHeader("VSS Ignore Errors", "Continue backup if VSS errors occur");
                 s += this.form.TableHeader("Guest FS Indexing", "Guest file system indexing enabled for file-level restore");
+            }
+
+            bool showPlatformColumn = jobType != null && JobTypeHasPlatform(jobType);
+            if (showPlatformColumn)
+            {
+                s += this.form.TableHeader("Platform", CHtmlTablesHelper.PlatformColumnTooltip);
             }
 
             s += this.form.TableHeaderEnd();
