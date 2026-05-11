@@ -1,0 +1,61 @@
+site_name: Veeam Health Check
+site_description: Generate comprehensive configuration reports for your Veeam environment in minutes.
+site_url: https://veeamhub.github.io/veeam-healthcheck/
+repo_url: https://github.com/VeeamHub/veeam-healthcheck
+repo_name: VeeamHub/veeam-healthcheck
+edit_uri: edit/master/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: green
+      accent: light green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: green
+      accent: light green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  logo: images/health-check-icon.png
+  favicon: images/health-check-icon.png
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Features: features.md
+  - Changelog: changelog.md
+  - Feature Timeline: timeline.md
+  - Architecture: architecture/index.md
+  - Contributing: contributing.md

@@ -1,0 +1,103 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "ChangeLog.md"
+      - "requirements-docs.txt"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  REPO_URL: https://github.com/VeeamHub/veeam-healthcheck
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install MkDocs dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Sync changelog from ChangeLog.md
+        run: |
+          { printf '# Changelog\n\n> This page is auto-synced from [ChangeLog.md](${{ env.REPO_URL }}/blob/master/ChangeLog.md) on every push to `master`.\n\n'; cat ChangeLog.md; } > docs/changelog.md
+
+      - name: Generate feature timeline from git log
+        run: |
+          python3 - <<'EOF'
+          import subprocess
+          import re
+          import os
+          from collections import defaultdict
+
+          repo_url = os.environ["REPO_URL"]
+
+          result = subprocess.run(
+              ["git", "log", "--pretty=format:%H|%ai|%s", "--no-merges"],
+              capture_output=True,
+              text=True,
+          )
+
+          entries_by_month = defaultdict(list)
+          feat_pattern = re.compile(r"^feat(?:\(.*?\))?:\s*(.+)$", re.IGNORECASE)
+
+          for line in result.stdout.splitlines():
+              parts = line.split("|", 2)
+              if len(parts) != 3:
+                  continue
+              sha, date_str, subject = parts
+              month = date_str[:7]
+              m = feat_pattern.match(subject.strip())
+              if m:
+                  description = m.group(1).strip()
+                  entries_by_month[month].append((sha[:7], description))
+
+          lines = ["# Feature Timeline", ""]
+          lines.append("> Auto-generated from `feat:` commits. Updated on every push to `master`.")
+          lines.append("")
+
+          if not entries_by_month:
+              lines.append("*No feature commits found yet.*")
+          else:
+              for month in sorted(entries_by_month.keys(), reverse=True):
+                  lines.append(f"## {month}")
+                  lines.append("")
+                  for short_sha, desc in entries_by_month[month]:
+                      commit_url = f"{repo_url}/commit/{short_sha}"
+                      lines.append(f"- [{desc}]({commit_url})")
+                  lines.append("")
+
+          with open("docs/timeline.md", "w", encoding="utf-8") as f:
+              f.write("\n".join(lines))
+
+          total = sum(len(v) for v in entries_by_month.values())
+          print(f"Generated timeline: {total} features across {len(entries_by_month)} months")
+          EOF
+        env:
+          REPO_URL: ${{ env.REPO_URL }}
+
+      - name: Build and deploy to GitHub Pages
+        run: mkdocs gh-deploy --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
