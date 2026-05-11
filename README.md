@@ -14,11 +14,13 @@
   <a href="https://github.com/VeeamHub/veeam-healthcheck/releases/latest"><img src="https://img.shields.io/github/v/release/VeeamHub/veeam-healthcheck?label=Latest%20Release" alt="Latest Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/VeeamHub/veeam-healthcheck" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/.NET-8.0-blue" alt=".NET 8.0">
+  <a href="https://veeamhub.github.io/veeam-healthcheck/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-green" alt="Documentation"></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/VeeamHub/veeam-healthcheck/releases/latest"><strong>Download Latest Release</strong></a> &nbsp;&middot;&nbsp;
   <a href="https://htmlpreview.github.io/?https://github.com/VeeamHub/veeam-healthcheck/blob/master/SAMPLE/Veeam%20Health%20Check%20Report_VBR_anon_2024.11.01.101304.html"><strong>View Sample Report</strong></a> &nbsp;&middot;&nbsp;
+  <a href="https://veeamhub.github.io/veeam-healthcheck/"><strong>Documentation</strong></a> &nbsp;&middot;&nbsp;
   <a href="https://github.com/VeeamHub/veeam-healthcheck/issues/new/choose"><strong>Report an Issue</strong></a>
 </p>
 
