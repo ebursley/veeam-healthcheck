@@ -39,6 +39,7 @@ function Resolve-VeeamConsolePath {
         }
     }
     catch {
+        Write-Verbose "Registry Value probe missed: $($_.Exception.Message)"
         # Registry key or value absent — continue to next probe
     }
 
