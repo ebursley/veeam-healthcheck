@@ -51,7 +51,7 @@ function Resolve-VeeamConsolePath {
         $VeeamConsoleProduct = Get-CimInstance -ClassName "CIM_Product" | Where-Object Name -Match "Veeam Backup & Replication Console"
         $ConsoleRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' + $VeeamConsoleProduct.IdentifyingNumber
         $candidatePath = (Get-ItemProperty -Path $ConsoleRegPath -Name 'InstallLocation' -ErrorAction Stop).InstallLocation
-        if ($candidatePath --match '^[A-Za-z]:\\') {
+        if ($candidatePath -match '^[A-Za-z]:\\') {
             # need to refactor this into a common function.
             $installRoot = & $getParent $candidatePath
             $candidate   = "$installRoot\Console"
