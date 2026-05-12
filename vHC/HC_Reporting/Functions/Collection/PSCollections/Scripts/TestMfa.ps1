@@ -43,6 +43,29 @@ function Resolve-VeeamConsolePath {
         # Registry key or value absent — continue to next probe
     }
 
+    # Registry above is not authoritave when using remote console machines to run the health check
+    # The reason for this is that the CorePath key is not installed with the console even if it
+    # is installed to a different drive. This probe checks the machine for if the console is
+    # installed and infers the registry path from this.
+    try {
+        $VeeamConsoleProduct = Get-CimInstance -ClassName "CIM_Product" | Where-Object Name -Match "Veeam Backup & Replication Console"
+        $ConsoleRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' + $VeeamConsoleProduct.IdentifyingNumber
+        $candidatePath = (Get-ItemProperty -Path $ConsoleRegPath -Name 'InstallLocation' -ErrorAction Stop).InstallLocation
+        if ($candidatePath --match '^[A-Za-z]:\\') {
+            # need to refactor this into a common function.
+            $installRoot = & $getParent $candidatePath
+            $candidate   = "$installRoot\Console"
+            $attempted.Add($candidate)
+            if (Test-Path $candidate) {
+                return $candidate
+            }
+        }
+    }
+    catch {
+        Write-Verbose "WMI Product list probe missed: $($_.Exception.Message)"
+        # if probe fails.
+    }
+
     # Mount Service registry probe — authoritative for non-default installs
     # InstallationPath points to the Backup\ directory; Console is its sibling
     try {
@@ -58,7 +81,7 @@ function Resolve-VeeamConsolePath {
         }
     }
     catch {
-        Write-Verbose "Mount Service registry probe missed: $($_.Exception.Message)"
+        Write-Host "Mount Service registry probe missed: $($_.Exception.Message)"
     }
 
     # Fall back to standard environment-variable paths
