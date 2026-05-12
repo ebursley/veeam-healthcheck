@@ -53,8 +53,7 @@ function Resolve-VeeamConsolePath {
         $candidatePath = (Get-ItemProperty -Path $ConsoleRegPath -Name 'InstallLocation' -ErrorAction Stop).InstallLocation
         if ($candidatePath -match '^[A-Za-z]:\\') {
             # need to refactor this into a common function.
-            $installRoot = & $getParent $candidatePath
-            $candidate   = "$installRoot\Console"
+            $candidate   = "$candidatePath\Console"
             $attempted.Add($candidate)
             if (Test-Path $candidate) {
                 Write-Verbose "I found it via wmi"
