@@ -88,7 +88,6 @@ if ($MyInvocation.InvocationName -ne '.') {
         $env:PSModulePath = "$veeamConsolePath;$env:PSModulePath"
 
         Write-Verbose "Attempting to import Veeam.Backup.PowerShell module..."
-        Import-Module Veeam.Backup.PowerShell -Force -WarningAction Ignore
         Write-Host "[VERBOSE] Attempting to import Veeam.Backup.PowerShell module..."
         Import-Module Veeam.Backup.PowerShell -Force -WarningAction Ignore
         Write-Host "[VERBOSE] Module imported. Attempting to connect to VBR Server: $Server with user $Username."
