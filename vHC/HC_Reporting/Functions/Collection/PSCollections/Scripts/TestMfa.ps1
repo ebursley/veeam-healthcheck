@@ -57,6 +57,7 @@ function Resolve-VeeamConsolePath {
             $candidate   = "$installRoot\Console"
             $attempted.Add($candidate)
             if (Test-Path $candidate) {
+                Write-Verbose "I found it via wmi"
                 return $candidate
             }
         }
