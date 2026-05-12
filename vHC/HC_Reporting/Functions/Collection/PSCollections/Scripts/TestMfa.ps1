@@ -48,12 +48,11 @@ function Resolve-VeeamConsolePath {
     # is installed to a different drive. This probe checks the machine for if the console is
     # installed and infers the registry path from this.
     try {
-        $VeeamConsoleProduct = Get-CimInstance -ClassName "CIM_Product" | Where-Object Name -Match "Veeam Backup & Replication Console"
-        $ConsoleRegPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\' + $VeeamConsoleProduct.IdentifyingNumber
-        $candidatePath = (Get-ItemProperty -Path $ConsoleRegPath -Name 'InstallLocation' -ErrorAction Stop).InstallLocation
-        if ($candidatePath -match '^[A-Za-z]:\\') {
+        $VeeamConsolePackage = Get-Package -Name "Veeam Backup & Replication Console"
+        $packagePath = $VeeamConsolePackage.FullPath
+        if ($packagePath -match '^[A-Za-z]:\\') {
             # need to refactor this into a common function.
-            $candidate   = $candidatePath + "Console"
+            $candidate   = $packagePath + "Console"
             $attempted.Add($candidate)
             if (Test-Path $candidate) {
                 return $candidate
