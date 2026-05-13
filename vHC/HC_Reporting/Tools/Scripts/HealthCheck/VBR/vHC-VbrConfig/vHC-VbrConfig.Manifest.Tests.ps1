@@ -27,7 +27,7 @@ BeforeAll {
     $script:Manifest   = Import-PowerShellDataFile -Path $script:PsdPath
 
     # Enumerate Public function names (file base names without .ps1 extension).
-    # Exclude *.Tests.ps1 files — they live in Public/ alongside the functions but
+    # Exclude *.Tests.ps1 files - they live in Public/ alongside the functions but
     # are not module members and should not appear in FunctionsToExport.
     $script:PublicFiles = @(Get-ChildItem -Path $script:PublicPath -Filter '*.ps1' -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notlike '*.Tests.ps1' } |

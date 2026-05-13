@@ -692,7 +692,10 @@ $script:LogPath  = '{tmpDir}'
 $script:LogLevel = 'ERROR'
 
 # Stub VBR cmdlets - no Veeam install required.
-# Get-VBRBackupSession returns empty; Get-VBRComputerBackupJobSession returns one agent session.
+# Get-VBRJob returns empty (no VM/Copy jobs to iterate); Get-VBRBackupSession is
+# therefore never called via -Job; Get-VBRComputerBackupJobSession returns one
+# agent session so the assertion below validates the agent-session fallback path.
+function Get-VBRJob {{ return @() }}
 function Get-VBRBackupSession {{ return @() }}
 function Get-VBRComputerBackupJobSession {{
     return @([pscustomobject]@{{ Name = 'Agent Job'; CreationTime = (Get-Date) }})
@@ -1161,7 +1164,10 @@ exit 0
             Assert.True(File.Exists(manifestPath), $"Manifest not found: {manifestPath}");
             Assert.True(Directory.Exists(publicDir), $"Public dir not found: {publicDir}");
 
+            // Exclude *.Tests.ps1 — Pester test files live next to the functions they
+            // exercise but do not define exported functions of their own.
             var publicBaseNames = Directory.EnumerateFiles(publicDir, "*.ps1")
+                .Where(p => !p.EndsWith(".Tests.ps1", StringComparison.OrdinalIgnoreCase))
                 .Select(Path.GetFileNameWithoutExtension)
                 .Where(n => !string.IsNullOrEmpty(n))
                 .ToHashSet(StringComparer.Ordinal);
