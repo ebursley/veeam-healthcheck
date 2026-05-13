@@ -1,5 +1,11 @@
 # Pull Request Template
 
+> [!IMPORTANT]
+> **All pull requests must target the `dev` branch, not `master`.**
+> `master` is the release branch; changes flow `dev` → `master` via release PRs only.
+> If you opened this PR against `master` by mistake, change the base branch to `dev` in the dropdown above (no need to close and reopen).
+> See [CONTRIBUTING.md → Branching strategy](../blob/dev/CONTRIBUTING.md#branching-strategy) for details.
+
 By contributing, you agree that your contributions will be licensed under the projects original open source license.
 
 ## Description
