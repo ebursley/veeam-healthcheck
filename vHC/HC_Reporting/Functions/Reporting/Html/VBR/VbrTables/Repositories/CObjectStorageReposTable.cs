@@ -46,10 +46,18 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Repositories
                 {
                     foreach (var item in data)
                     {
+                        // Cast to IDictionary<string,object> + TryGetValue so a row missing a
+                        // column (CsvHelper FastDynamicObject quirk on header-only / partial
+                        // CSVs) does not throw RuntimeBinderException. Matches the safe
+                        // pattern in CUserRolesTable.
+                        var row = (IDictionary<string, object>)item;
+                        string Get(string key) =>
+                            row.TryGetValue(key, out var v) ? (string)(v ?? "") : "";
+
                         s += "<tr>";
 
-                        string name = (string)(item.Name ?? "");
-                        string account = (string)(item.Account ?? "");
+                        string name = Get("Name");
+                        string account = Get("Account");
                         if (scrub)
                         {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
@@ -57,14 +65,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Repositories
                         }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
-                        s += this.form.TableData((string)(item.Type ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.Bucket ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.Folder ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.Region ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.Endpoint ?? ""), string.Empty);
+                        s += this.form.TableData(Get("Type"), string.Empty);
+                        s += this.form.TableData(Get("Bucket"), string.Empty);
+                        s += this.form.TableData(Get("Folder"), string.Empty);
+                        s += this.form.TableData(Get("Region"), string.Empty);
+                        s += this.form.TableData(Get("Endpoint"), string.Empty);
                         s += this.form.TableData(account, string.Empty);
-                        s += this.form.TableData((string)(item.ConnectionType ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.Gateway ?? ""), string.Empty);
+                        s += this.form.TableData(Get("ConnectionType"), string.Empty);
+                        s += this.form.TableData(Get("Gateway"), string.Empty);
 
                         s += "</tr>";
                     }
