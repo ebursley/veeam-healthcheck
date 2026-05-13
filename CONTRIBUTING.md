@@ -15,6 +15,24 @@ Please note we have a [Code of Conduct](#code-of-conduct). Please follow it in a
 
 We use GitHub's Issue Tracker to track bugs/feature Requests. Report a bug or feature request by [opening a new issue](https://github.com/VeeamHub/{repo-name}/issues/new/choose). It's that easy!
 
+## Branching strategy
+
+This repository uses a `dev` → `master` release flow:
+
+- **`master`** — release branch. Protected. Updated only by maintainers via release PRs from `dev`. Do not open PRs directly against `master`.
+- **`dev`** — integration branch. **All contributor PRs target `dev`.**
+- **Feature branches** — branch off `dev`, open your PR back into `dev`.
+
+To target `dev` from the command line:
+
+```sh
+gh pr create --base dev --title "..." --body "..."
+```
+
+If you accidentally opened a PR against `master`, you can change the base branch to `dev` in the GitHub UI ("Edit" next to the title → change base) — no need to close and reopen. Maintainers may also retarget your PR for you.
+
+PRs to `master` will appear stuck (mergeability "blocked") because `master`'s required `build-and-test` check only runs on push events, not on PRs. Targeting `dev` avoids this entirely.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the projects original open source license.

@@ -26,7 +26,12 @@ if ([string]::IsNullOrEmpty($ReportPath)) {
  $csv2FilePath = 'output2.csv'
  
  #get file info and set empty containers.
- $content = Get-Content $logsPath
+ if (Test-Path -LiteralPath $logsPath) {
+     $content = Get-Content -LiteralPath $logsPath
+ } else {
+     Write-Verbose "VMC.log not found at $logsPath - skipping unstructured/NAS section parsing"
+     $content = @()
+ }
  $sections = @()
  $currentSection = @()
  $capturing = $false

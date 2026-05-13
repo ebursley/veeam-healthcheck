@@ -39,7 +39,29 @@ function Resolve-VeeamConsolePath {
         }
     }
     catch {
+        Write-Verbose "Registry Value probe missed: $($_.Exception.Message)"
         # Registry key or value absent — continue to next probe
+    }
+
+    # Registry above is not authoritave when using remote console machines to run the health check.
+    # The reason for this is that the CorePath key is not installed with the console even if it
+    # is installed to a different drive. This probe checks the machine for if the console is
+    # installed and infers the registry path from this.
+    try {
+        $VeeamConsolePackage = Get-Package -Name "Veeam Backup & Replication Console"
+        $packagePath = $VeeamConsolePackage.FullPath
+        if ($packagePath -match '^[A-Za-z]:\\') {
+            # need to refactor this into a common function.
+            $candidate   = $packagePath + "Console"
+            $attempted.Add($candidate)
+            if (Test-Path $candidate) {
+                return $candidate
+            }
+        }
+    }
+    catch {
+        Write-Verbose "Get-Package list probe missed: $($_.Exception.Message)"
+        # if probe fails.
     }
 
     # Mount Service registry probe — authoritative for non-default installs
@@ -88,7 +110,6 @@ if ($MyInvocation.InvocationName -ne '.') {
         $env:PSModulePath = "$veeamConsolePath;$env:PSModulePath"
 
         Write-Verbose "Attempting to import Veeam.Backup.PowerShell module..."
-        Import-Module Veeam.Backup.PowerShell -Force -WarningAction Ignore
         Write-Host "[VERBOSE] Attempting to import Veeam.Backup.PowerShell module..."
         Import-Module Veeam.Backup.PowerShell -Force -WarningAction Ignore
         Write-Host "[VERBOSE] Module imported. Attempting to connect to VBR Server: $Server with user $Username."

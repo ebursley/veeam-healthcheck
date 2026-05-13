@@ -2,36 +2,44 @@
 // MIT License
 using System;
 using System.Data.SqlClient;
-using System.Security.Principal;
 using VeeamHealthCheck.Shared;
 
 namespace VeeamHealthCheck.Functions.Collection.DB
 {
-    class CDbAccessor
+    internal class CDbAccessor
     {
-        private string connectionString;
+        // Injection seam: tests supply a pre-configured CRegReader; production code
+        // leaves this null so SimpleConnectionBuilder() creates a real one.
+        // This is the lightest possible seam — no ctor overload required.
+        internal CRegReader RegReader { get; set; } = null;
+
+        // Warning sink: defaults to CGlobals.Logger.Warning so production behaviour
+        // is unchanged. Tests can substitute a recording lambda to assert ISC-16/17
+        // without touching the static logger.
+        internal Action<string> WarningSink { get; set; } = msg => CGlobals.Logger.Warning(msg);
 
         public string DbAccessorString()
         {
-            var b = this.StringBuilder();
-            this.connectionString = b.ConnectionString;
-            return b.ConnectionString;
+            return this.StringBuilder().ConnectionString;
         }
 
-        private SqlConnectionStringBuilder StringBuilder()
+        internal SqlConnectionStringBuilder StringBuilder()
         {
             SqlConnectionStringBuilder builder = this.SimpleConnectionBuilder();
             return builder;
         }
 
-        private SqlConnectionStringBuilder SimpleConnectionBuilder()
+        internal SqlConnectionStringBuilder SimpleConnectionBuilder()
         {
             SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(GetConnectionString());
             builder.Remove("Initial Catalog");
 
-            // builder["Server"] = server;
-            CRegReader reg = new CRegReader();
-            reg.GetDbInfo();
+            // Use injected CRegReader if provided (test seam), otherwise create a real one.
+            CRegReader reg = this.RegReader ?? new CRegReader();
+            if (this.RegReader == null)
+            {
+                reg.GetDbInfo();
+            }
             string host = reg.HostString;
             string db = reg.DbString;
             if (host == null || db == null)
@@ -49,30 +57,32 @@ namespace VeeamHealthCheck.Functions.Collection.DB
             // CGlobals.DBHOSTNAME = host;
             builder["Database"] = db;
 
-            if (this.TestConnection())
-                return builder;
-            else
+            // Pre-flight test against the just-built connection string. If it fails we
+            // still return the builder so CQueries can log per-query failures inline;
+            // the warning surfaces the most common cause up front so it's obvious in the
+            // log: the user running vHC lacks db_datareader on the Veeam config DB.
+            if (!this.TestConnection(builder.ConnectionString))
             {
-                var cred = WindowsIdentity.GetCurrent();
-                builder.UserID = cred.User.ToString();
-                builder.Password = cred.Token.ToString();
-                return builder;
+                this.WarningSink(
+                    "SQL connection pre-flight failed. If subsequent queries log 'Login failed', " +
+                    "the user running vHC needs db_datareader on the Veeam config database, " +
+                    "or vHC should be run under the VBR service account.");
             }
+            return builder;
         }
 
-        private bool TestConnection()
+        internal bool TestConnection(string connectionString)
         {
             try
             {
-                SqlConnection sqlConnection = new SqlConnection(this.connectionString);
-                using var connection = sqlConnection;
-                using SqlCommand command = new SqlCommand("select @@version", connection);
+                using var connection = new SqlConnection(connectionString);
+                using var command = new SqlCommand("select @@version", connection);
                 connection.Open();
                 return true;
             }
             catch (Exception e)
             {
-                CGlobals.Logger.Warning("Sql Test Connection Failed: " + e.Message);
+                this.WarningSink("Sql Test Connection Failed: " + e.Message);
                 return false;
             }
         }
