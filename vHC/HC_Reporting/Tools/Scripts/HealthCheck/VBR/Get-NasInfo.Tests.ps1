@@ -27,7 +27,7 @@ Describe 'Get-NasInfo VMC.log existence guard' {
             Mock Test-Path -MockWith { $false } -ParameterFilter {
                 $LiteralPath -eq 'C:\ProgramData\Veeam\Backup\Utils\VMC.log'
             }
-            # Get-Content should never be called for the VMC.log path — no ParameterFilter so
+            # Get-Content should never be called for the VMC.log path - no ParameterFilter so
             # any call (positional or named) is counted. Before the fix the script calls
             # Get-Content $logsPath unconditionally; after the fix with path absent it is skipped.
             Mock Get-Content -MockWith { @() }

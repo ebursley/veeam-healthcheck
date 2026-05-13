@@ -3,7 +3,7 @@
 #
 # Retrospective TDD for commit 59e2621 on dev.
 # All Veeam SDK cmdlets are stubbed as global no-ops so the suite runs on macOS
-# without a VBR installation — same pattern used in TestMfa.Tests.ps1.
+# without a VBR installation - same pattern used in TestMfa.Tests.ps1.
 #
 # Red-phase strategy:
 #   ISC-2: temporarily revert to single-call pattern in production code.
@@ -166,14 +166,14 @@ Describe 'ISC-3: Mid-iteration throw logs WARNING with job name and message, doe
 
     It 'still returns sessions from the non-failing jobs' {
         $result = @(Get-VhcBackupSessions -ReportInterval 7)
-        # GoodJob and GoodJob2 each return 1 session; BadJob throws — so we expect 2
+        # GoodJob and GoodJob2 each return 1 session; BadJob throws - so we expect 2
         ($result | Where-Object { $_.JobName -eq 'GoodJob'  }).Count | Should -Be 1
         ($result | Where-Object { $_.JobName -eq 'GoodJob2' }).Count | Should -Be 1
     }
 }
 
 # ---------------------------------------------------------------------------
-# ISC-4  Cutoff filter — older sessions excluded, newer included
+# ISC-4  Cutoff filter - older sessions excluded, newer included
 # ---------------------------------------------------------------------------
 Describe 'ISC-4: Cutoff filter excludes sessions older than ReportInterval' {
 
@@ -277,7 +277,7 @@ Describe 'ISC-6: Agent block runs exactly once; agent sessions concatenated with
 }
 
 # ---------------------------------------------------------------------------
-# ISC-7  Return shape — flat array, not nested ArrayList
+# ISC-7  Return shape - flat array, not nested ArrayList
 # ---------------------------------------------------------------------------
 Describe 'ISC-7: Return value is a flat [object[]], not a nested ArrayList' {
 
@@ -304,7 +304,7 @@ Describe 'ISC-7: Return value is a flat [object[]], not a nested ArrayList' {
         $result.GetType().Name | Should -Be 'Object[]'
     }
 
-    It 'returns a flat (non-nested) array — no element is itself an array or ArrayList' {
+    It 'returns a flat (non-nested) array - no element is itself an array or ArrayList' {
         $result = @(Get-VhcBackupSessions -ReportInterval 7)
         foreach ($item in $result) {
             $item | Should -Not -BeOfType [System.Collections.ArrayList]
