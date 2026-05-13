@@ -6,27 +6,40 @@ using VeeamHealthCheck.Shared;
 
 namespace VeeamHealthCheck.Functions.Collection.DB
 {
-    class CDbAccessor
+    internal class CDbAccessor
     {
+        // Injection seam: tests supply a pre-configured CRegReader; production code
+        // leaves this null so SimpleConnectionBuilder() creates a real one.
+        // This is the lightest possible seam — no ctor overload required.
+        internal CRegReader RegReader { get; set; } = null;
+
+        // Warning sink: defaults to CGlobals.Logger.Warning so production behaviour
+        // is unchanged. Tests can substitute a recording lambda to assert ISC-16/17
+        // without touching the static logger.
+        internal Action<string> WarningSink { get; set; } = msg => CGlobals.Logger.Warning(msg);
+
         public string DbAccessorString()
         {
             return this.StringBuilder().ConnectionString;
         }
 
-        private SqlConnectionStringBuilder StringBuilder()
+        internal SqlConnectionStringBuilder StringBuilder()
         {
             SqlConnectionStringBuilder builder = this.SimpleConnectionBuilder();
             return builder;
         }
 
-        private SqlConnectionStringBuilder SimpleConnectionBuilder()
+        internal SqlConnectionStringBuilder SimpleConnectionBuilder()
         {
             SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(GetConnectionString());
             builder.Remove("Initial Catalog");
 
-            // builder["Server"] = server;
-            CRegReader reg = new CRegReader();
-            reg.GetDbInfo();
+            // Use injected CRegReader if provided (test seam), otherwise create a real one.
+            CRegReader reg = this.RegReader ?? new CRegReader();
+            if (this.RegReader == null)
+            {
+                reg.GetDbInfo();
+            }
             string host = reg.HostString;
             string db = reg.DbString;
             if (host == null || db == null)
@@ -50,7 +63,7 @@ namespace VeeamHealthCheck.Functions.Collection.DB
             // log: the user running vHC lacks db_datareader on the Veeam config DB.
             if (!this.TestConnection(builder.ConnectionString))
             {
-                CGlobals.Logger.Warning(
+                this.WarningSink(
                     "SQL connection pre-flight failed. If subsequent queries log 'Login failed', " +
                     "the user running vHC needs db_datareader on the Veeam config database, " +
                     "or vHC should be run under the VBR service account.");
@@ -58,7 +71,7 @@ namespace VeeamHealthCheck.Functions.Collection.DB
             return builder;
         }
 
-        private bool TestConnection(string connectionString)
+        internal bool TestConnection(string connectionString)
         {
             try
             {
@@ -69,7 +82,7 @@ namespace VeeamHealthCheck.Functions.Collection.DB
             }
             catch (Exception e)
             {
-                CGlobals.Logger.Warning("Sql Test Connection Failed: " + e.Message);
+                this.WarningSink("Sql Test Connection Failed: " + e.Message);
                 return false;
             }
         }
