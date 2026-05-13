@@ -106,6 +106,7 @@ jobs:
           | T8 | All probes fail — returns null, error lists all candidates |
           | T9 | Attempted-path ordering: CorePath → MountSvc → PF → PF(x86) |
           | T10 | Dot-source guard — Connect-VBRServer not invoked on dot-source |
+          | T11 | CorePath absent, Get-Package finds path |
 
           > Full NUnit XML results available in the **pester-results-${{ github.run_number }}** artifact.
           "@
