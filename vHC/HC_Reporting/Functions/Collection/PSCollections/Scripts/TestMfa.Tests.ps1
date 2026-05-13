@@ -360,5 +360,43 @@ Describe 'Resolve-VeeamConsolePath' {
             Should -Invoke Connect-VBRServer -Times 0 -Exactly
         }
     }
+
+    Context 'T11: CorePath absent, Get-Package finds path' {
+        BeforeEach {
+            Mock Get-ItemProperty -ParameterFilter {
+                $Path -eq 'HKLM:\SOFTWARE\Veeam\Veeam Backup and Replication' -and
+                $Name -eq 'CorePath'
+            } -MockWith {
+                throw [System.Management.Automation.ItemNotFoundException]::new('not found')
+            }
+
+           # Making fake testing function here to validate testing on platforms other than windows.
+            function Get-Package {
+                param (
+                    $Name
+                )
+                if ($Name -eq "Veeam Backup & Replication Console") {
+                    return [PSCustomObject]@{
+                        Name     = "Veeam Backup & Replication Console"
+                        FullPath = "D:\Program Files\Veeam\Backup and Replication\"
+                    }
+                }
+                else {
+                    return $null
+                }
+            }
+
+            Mock Test-Path -MockWith { $false }
+            Mock Test-Path -ParameterFilter {
+                $Path -eq 'D:\Program Files\Veeam\Backup and Replication\Console'
+            } -MockWith { $true }
+
+        }
+        
+        it 'CorePath is absent but Get-Package returns the console path' {
+            $result = Resolve-VeeamConsolePath
+            $result | Should -Be "D:\Program Files\Veeam\Backup and Replication\Console"
+        }
+    }
 }
 
