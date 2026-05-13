@@ -79,7 +79,7 @@ function Resolve-VeeamConsolePath {
         }
     }
     catch {
-        Write-Host "Mount Service registry probe missed: $($_.Exception.Message)"
+        Write-Verbose "Mount Service registry probe missed: $($_.Exception.Message)"
     }
 
     # Fall back to standard environment-variable paths
