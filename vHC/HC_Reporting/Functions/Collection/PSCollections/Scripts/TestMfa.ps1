@@ -60,7 +60,7 @@ function Resolve-VeeamConsolePath {
         }
     }
     catch {
-        Write-Verbose "WMI Product list probe missed: $($_.Exception.Message)"
+        Write-Verbose "Get-Package list probe missed: $($_.Exception.Message)"
         # if probe fails.
     }
 
