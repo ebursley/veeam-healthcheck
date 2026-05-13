@@ -2,20 +2,15 @@
 // MIT License
 using System;
 using System.Data.SqlClient;
-using System.Security.Principal;
 using VeeamHealthCheck.Shared;
 
 namespace VeeamHealthCheck.Functions.Collection.DB
 {
     class CDbAccessor
     {
-        private string connectionString;
-
         public string DbAccessorString()
         {
-            var b = this.StringBuilder();
-            this.connectionString = b.ConnectionString;
-            return b.ConnectionString;
+            return this.StringBuilder().ConnectionString;
         }
 
         private SqlConnectionStringBuilder StringBuilder()
@@ -49,24 +44,26 @@ namespace VeeamHealthCheck.Functions.Collection.DB
             // CGlobals.DBHOSTNAME = host;
             builder["Database"] = db;
 
-            if (this.TestConnection())
-                return builder;
-            else
+            // Pre-flight test against the just-built connection string. If it fails we
+            // still return the builder so CQueries can log per-query failures inline;
+            // the warning surfaces the most common cause up front so it's obvious in the
+            // log: the user running vHC lacks db_datareader on the Veeam config DB.
+            if (!this.TestConnection(builder.ConnectionString))
             {
-                var cred = WindowsIdentity.GetCurrent();
-                builder.UserID = cred.User.ToString();
-                builder.Password = cred.Token.ToString();
-                return builder;
+                CGlobals.Logger.Warning(
+                    "SQL connection pre-flight failed. If subsequent queries log 'Login failed', " +
+                    "the user running vHC needs db_datareader on the Veeam config database, " +
+                    "or vHC should be run under the VBR service account.");
             }
+            return builder;
         }
 
-        private bool TestConnection()
+        private bool TestConnection(string connectionString)
         {
             try
             {
-                SqlConnection sqlConnection = new SqlConnection(this.connectionString);
-                using var connection = sqlConnection;
-                using SqlCommand command = new SqlCommand("select @@version", connection);
+                using var connection = new SqlConnection(connectionString);
+                using var command = new SqlCommand("select @@version", connection);
                 connection.Open();
                 return true;
             }
