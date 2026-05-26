@@ -40,12 +40,32 @@ namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
 
         private static string ResolveFriendlyType(CJobCsvInfos row)
         {
-            if (!string.IsNullOrEmpty(row.TypeToString))
+            string baseLabel = !string.IsNullOrEmpty(row.TypeToString)
+                ? row.TypeToString
+                : CJobTypesParser.GetJobType(row.JobType);
+
+            if (row.JobType == "EndpointBackup")
             {
-                return row.TypeToString;
+                return ToStandaloneLabel(baseLabel);
             }
 
-            return CJobTypesParser.GetJobType(row.JobType);
+            return baseLabel;
+        }
+
+        private static string ToStandaloneLabel(string baseLabel)
+        {
+            if (string.IsNullOrEmpty(baseLabel))
+            {
+                return "Agent Standalone";
+            }
+
+            const string backupSuffix = " Backup";
+            if (baseLabel.EndsWith(backupSuffix, System.StringComparison.Ordinal))
+            {
+                return baseLabel.Substring(0, baseLabel.Length - backupSuffix.Length) + " Standalone";
+            }
+
+            return baseLabel + " Standalone";
         }
     }
 }

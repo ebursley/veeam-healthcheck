@@ -54,5 +54,57 @@ namespace VhcXTests.Functions.Reporting.DataFormers.AgentJobs
             Assert.Equal("Windows Agent Backup", result.First(r => r.JobName == "Legacy-Agent-01").FriendlyType);
             Assert.Equal("Windows Agent Policy", result.First(r => r.JobName == "Legacy-Agent-02").FriendlyType);
         }
+
+        [Fact]
+        public void Build_StandaloneWindows_ReplacesBackupWithStandalone()
+        {
+            var rows = new List<CJobCsvInfos>
+            {
+                new() { Name = "Standalone-Win", JobType = "EndpointBackup", TypeToString = "Windows Agent Backup" },
+            };
+
+            var result = AgentJobAggregator.Build(rows);
+
+            Assert.Equal("Windows Agent Standalone", result.Single().FriendlyType);
+        }
+
+        [Fact]
+        public void Build_StandaloneLinux_ReplacesBackupWithStandalone()
+        {
+            var rows = new List<CJobCsvInfos>
+            {
+                new() { Name = "Standalone-Lin", JobType = "EndpointBackup", TypeToString = "Linux Agent Backup" },
+            };
+
+            var result = AgentJobAggregator.Build(rows);
+
+            Assert.Equal("Linux Agent Standalone", result.Single().FriendlyType);
+        }
+
+        [Fact]
+        public void Build_StandaloneMac_ReplacesBackupWithStandalone()
+        {
+            var rows = new List<CJobCsvInfos>
+            {
+                new() { Name = "Standalone-Mac", JobType = "EndpointBackup", TypeToString = "Mac Agent Backup" },
+            };
+
+            var result = AgentJobAggregator.Build(rows);
+
+            Assert.Equal("Mac Agent Standalone", result.Single().FriendlyType);
+        }
+
+        [Fact]
+        public void Build_StandaloneTypeToStringNotEndingInBackup_AppendsStandalone()
+        {
+            var rows = new List<CJobCsvInfos>
+            {
+                new() { Name = "Standalone-Unusual", JobType = "EndpointBackup", TypeToString = "Some Other Label" },
+            };
+
+            var result = AgentJobAggregator.Build(rows);
+
+            Assert.Equal("Some Other Label Standalone", result.Single().FriendlyType);
+        }
     }
 }
