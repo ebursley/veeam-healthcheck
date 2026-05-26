@@ -170,10 +170,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 // them separate ("Windows Agent Backup Jobs" vs "Windows Agent Standalone
                 // Jobs", etc.).
                 var annotated = stuff
-                    .Select(s => new
+                    .Select(sess => new
                     {
-                        Session = s,
-                        FriendlyType = this.ResolveSessionType(agentJobsByName, s.JobName, s.JobType),
+                        Session = sess,
+                        FriendlyType = this.ResolveSessionType(agentJobsByName, sess.JobName, sess.JobType),
                     })
                     .ToList();
 
