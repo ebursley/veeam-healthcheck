@@ -61,6 +61,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.DataFormers
                     return "Enterprise Database Plugin";
                 case "SapBackintBackup":
                     return "Enterprise Database Plugin";
+                case "EpAgentBackup":
+                    return "Windows Agent Backup";
+                case "EpAgentPolicy":
+                    return "Windows Agent Policy";
                 case "EpAgentManagement":
                     return "Agent Backup";
                 case "ELinuxPhysical":
