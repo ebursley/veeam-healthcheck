@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
+using VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs;
 using VeeamHealthCheck.Functions.Reporting.DataTypes;
 using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
 using VeeamHealthCheck.Functions.Reporting.Html.Shared;
@@ -22,6 +23,27 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
 
         public CJobSessionSummaryTable() { }
 
+        private Dictionary<string, AgentJobRecord> BuildAgentJobsByName()
+        {
+            return this.df.AgentJobs
+                .ToDictionary(
+                    a => a.JobName ?? string.Empty,
+                    a => a,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        private string ResolveSessionType(
+            Dictionary<string, AgentJobRecord> agentJobsByName,
+            string jobName,
+            string rawJobType)
+        {
+            if (agentJobsByName.TryGetValue(jobName ?? string.Empty, out var record))
+            {
+                return record.FriendlyType;
+            }
+            return CJobTypesParser.GetJobType(rawJobType);
+        }
+
         public string RenderFlat(bool scrub)
         {
             this.log.Info("Adding Job Session Summary Table");
@@ -32,6 +54,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
+                var agentJobsByName = this.BuildAgentJobsByName();
 
                 foreach (var stu in stuff)
                 {
@@ -65,7 +88,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             this.log.Debug("Job Type = " + stu.JobType);
                         }
 
-                        string jobType = CJobTypesParser.GetJobType(stu.JobType);
+                        string jobType = this.ResolveSessionType(agentJobsByName, stu.JobName, stu.JobType);
                         t += this.form.TableData(jobType, VbrLocalizationHelper.Jss15);
 
                         t += "</tr>";
@@ -92,6 +115,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
+                var agentJobsByNameJson = this.BuildAgentJobsByName();
                 List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "AvgDedupRatio", "AvgCompressRatio", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
                 List<List<string>> rows = stuff.Select(stu => new List<string>
                 {
@@ -114,7 +138,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                     stu.WaitCount.ToString(),
                     stu.MaxWait,
                     stu.AvgWait,
-                    CJobTypesParser.GetJobType(stu.JobType),
+                    this.ResolveSessionType(agentJobsByNameJson, stu.JobName, stu.JobType),
                 }).ToList();
                 CHtmlTables.SetSectionPublic("jobSessionSummary", headers, rows, summary);
             }
@@ -138,35 +162,44 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 var source = csvparser.JobCsvParser().ToList();
                 source.OrderBy(x => x.Name);
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
-                var jobTypes = stuff.Select(x => x.JobType).Distinct().ToList();
+                var agentJobsByName = this.BuildAgentJobsByName();
+
+                // Annotate each session with its FriendlyType, then group by that label.
+                // Managed and standalone agents share session-level JobType (EEndPoint) and
+                // would otherwise collapse into one section; grouping by FriendlyType keeps
+                // them separate ("Windows Agent Backup Jobs" vs "Windows Agent Standalone
+                // Jobs", etc.).
+                var annotated = stuff
+                    .Select(s => new
+                    {
+                        Session = s,
+                        FriendlyType = this.ResolveSessionType(agentJobsByName, s.JobName, s.JobType),
+                    })
+                    .ToList();
+
+                var sessionGroups = annotated
+                    .GroupBy(x => x.FriendlyType ?? string.Empty)
+                    .ToList();
 
                 List<CJobSummaryTypes> OffloadJobs = new();
 
                 try
                 {
-                    foreach (var jType in jobTypes)
+                    foreach (var grp in sessionGroups)
                     {
                         if (CGlobals.DEBUG)
                         {
-                            this.log.Debug("Job Type = " + jType);
+                            this.log.Debug("Job Type = " + grp.Key);
                         }
 
                         bool skipTotals = false;
-                        var jobType = jType;
+                        string sectionHeader = string.IsNullOrEmpty(grp.Key) ? "Summary of All" : grp.Key;
+                        string sectionSlug = sectionHeader.ToLower().Replace(" ", "-");
 
-                        if (string.IsNullOrEmpty(jType))
-                        {
-                            jobType = "Summary of All";
-                        }
-
-                        var realType = CJobTypesParser.GetJobType(jobType);
-
-                        string sectionHeader = realType ?? "Summary of All";
-
-                        string jobTable = this.form.SectionStartWithButton("jobTable-" + realType.ToLower().Replace(" ", "-"), sectionHeader + " Jobs", string.Empty);
+                        string jobTable = this.form.SectionStartWithButton("jobTable-" + sectionSlug, sectionHeader + " Jobs", string.Empty);
                         s += jobTable;
                         s += this.SetJobSessionsHeaders();
-                        var res = stuff.Where(x => x.JobType == jobType).ToList();
+                        var res = grp.Select(x => x.Session).ToList();
 
                         int totalItemsCount = 0;
                         double totalSessionCount = 0;
@@ -198,10 +231,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                                 skipTotals = true;
                             }
 
-                            if (stu.JobType != jobType && stu.JobName != "Totals")
-                            {
-                                continue;
-                            }
+                            // No JobType filter needed — sessions are already grouped by FriendlyType.
 
                             try
                             {
@@ -227,7 +257,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                                 t += this.form.TableData(stu.WaitCount.ToString(), VbrLocalizationHelper.Jss12);
                                 t += this.form.TableData(stu.MaxWait, VbrLocalizationHelper.Jss13);
                                 t += this.form.TableData(stu.AvgWait, VbrLocalizationHelper.Jss14);
-                                string jt = CJobTypesParser.GetJobType(stu.JobType);
+                                string jt = this.ResolveSessionType(agentJobsByName, stu.JobName, stu.JobType);
                                 t += this.form.TableData(jt, VbrLocalizationHelper.Jss15);
 
                                 t += "</tr>";
@@ -320,6 +350,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
                 var ordered = stuff.OrderBy(stu => stu.JobName).ToList();
+                var agentJobsByNameJson = this.BuildAgentJobsByName();
                 List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "AvgDedupRatio", "AvgCompressRatio", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
                 List<List<string>> rows = ordered.Select(stu => new List<string>
                 {
@@ -342,7 +373,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                     stu.WaitCount.ToString(),
                     stu.MaxWait,
                     stu.AvgWait,
-                    CJobTypesParser.GetJobType(stu.JobType),
+                    this.ResolveSessionType(agentJobsByNameJson, stu.JobName, stu.JobType),
                 }).ToList();
                 CHtmlTables.SetSectionPublic("jobSessionSummaryByJob", headers, rows, summary);
             }
