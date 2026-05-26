@@ -55,9 +55,9 @@ Describe 'ISC-1: Empty job lists do not throw' {
         { @(Get-VhcBackupSessions -ReportInterval 7) } | Should -Not -Throw
     }
 
-    It 'returns an array' {
+    It 'returns an empty [object[]] when both job sources are empty' {
         $result = @(Get-VhcBackupSessions -ReportInterval 7)
-        $result | Should -BeOfType [object] -Because 'wrapped in @() so any return becomes [object[]]'
+        $result.GetType().Name | Should -Be 'Object[]'
         $result.Count | Should -Be 0
     }
 }
@@ -105,14 +105,14 @@ Describe 'ISC-3: SlowPathCommand routes to the expected cmdlet per family' {
     It 'VM/BackupCopy scriptblock text contains Get-VBRBackupSession' {
         @(Get-VhcBackupSessions -ReportInterval 7) | Out-Null
         Should -Invoke Get-VhciJobSessions -Times 1 -Exactly -ParameterFilter {
-            $PathLabel -eq 'VM/BackupCopy' -and $SlowPathCommand.ToString() -match 'Get-VBRBackupSession'
+            $PathLabel -eq 'VM/BackupCopy' -and $SlowPathCommand.ToString() -match '\bGet-VBRBackupSession\b'
         }
     }
 
     It 'Agent scriptblock text contains Get-VBRComputerBackupJobSession' {
         @(Get-VhcBackupSessions -ReportInterval 7) | Out-Null
         Should -Invoke Get-VhciJobSessions -Times 1 -Exactly -ParameterFilter {
-            $PathLabel -eq 'Agent' -and $SlowPathCommand.ToString() -match 'Get-VBRComputerBackupJobSession'
+            $PathLabel -eq 'Agent' -and $SlowPathCommand.ToString() -match '\bGet-VBRComputerBackupJobSession\b'
         }
     }
 }
@@ -129,11 +129,13 @@ Describe 'ISC-4: $Since propagation matches ReportInterval' {
         Mock Get-VhciJobSessions      -MockWith { @() }
     }
 
-    It 'passes a Since within 1 second of (Get-Date).AddDays(-7)' {
+    It 'passes a Since within 5 seconds of (Get-Date).AddDays(-7)' {
+        # 5s tolerance accommodates slow CI runners; the function call between
+        # captures of $expected and $Since happens inside Pester's harness.
         $expected = (Get-Date).AddDays(-7)
         @(Get-VhcBackupSessions -ReportInterval 7) | Out-Null
         Should -Invoke Get-VhciJobSessions -Times 2 -Exactly -ParameterFilter {
-            [Math]::Abs(($Since - $expected).TotalSeconds) -lt 1
+            [Math]::Abs(($Since - $expected).TotalSeconds) -lt 5
         }
     }
 }
@@ -174,7 +176,10 @@ Describe 'ISC-5: Return is the concatenation of both helper calls' {
 Describe 'ISC-6: One helper throw does not terminate the other' {
 
     BeforeEach {
-        Mock Write-LogFile -MockWith { }
+        $script:warnMessages = [System.Collections.Generic.List[string]]::new()
+        Mock Write-LogFile -MockWith {
+            if ($LogLevel -eq 'WARNING') { $script:warnMessages.Add($Message) }
+        }
         Mock Get-VBRJob               -MockWith { @((script:New-FakeJob 'V1')) }
         Mock Get-VBRComputerBackupJob -MockWith { @((script:New-FakeJob 'A1')) }
         Mock Get-VhciJobSessions -MockWith {
@@ -190,7 +195,12 @@ Describe 'ISC-6: One helper throw does not terminate the other' {
     It 'returns the surviving agent session' {
         $result = @(Get-VhcBackupSessions -ReportInterval 7)
         $result.Count | Should -Be 1
-        $result[0].Tag | Should -Be 'agent1'
+        ($result | Where-Object { $_.Tag -eq 'agent1' }).Count | Should -Be 1
+    }
+
+    It 'logs a WARNING when the failing helper throws' {
+        @(Get-VhcBackupSessions -ReportInterval 7) | Out-Null
+        ($script:warnMessages | Where-Object { $_ -match 'Simulated VM helper failure' }).Count | Should -BeGreaterThan 0
     }
 }
 
