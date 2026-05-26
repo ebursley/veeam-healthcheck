@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
+using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
 
 namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
 {
@@ -32,8 +33,19 @@ namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
                 {
                     JobName = r.Name,
                     JobType = r.JobType,
+                    FriendlyType = ResolveFriendlyType(r),
                 })
                 .ToList();
+        }
+
+        private static string ResolveFriendlyType(CJobCsvInfos row)
+        {
+            if (!string.IsNullOrEmpty(row.TypeToString))
+            {
+                return row.TypeToString;
+            }
+
+            return CJobTypesParser.GetJobType(row.JobType);
         }
     }
 }
