@@ -65,6 +65,8 @@ Post-process `CJobSummaryTypes` rows in `CJobSessionSummaryTable` to merge paren
 
 Modify `CJobSessSummary.JobSessionSummaryToXml` to detect parent/child pairs by `" - "` prefix match (consistent with ADR 0016's session-type lookup), then for each parent that has children: aggregate **only the children's sessions** under the parent's name and skip the orchestrator's no-data sessions entirely. Drop the children's rows from output. Add a `SessionStats(IEnumerable<string>)` overload to the helper so the aggregation can span multiple names.
 
+The dispatch is on the name pattern, not on `JobType`, so any future VBR job type that produces matching `<Parent>` + `<Parent> - <Child>` sessions would be caught automatically. A defensive guard limits the rollup to parents whose own sessions all have zero `DataSize`/`BackupSize` — preventing data loss on an unverified job type that happens to share the naming but carries real data on the parent session. On the current dev VBR, only managed agent policies use this pattern; the guard is a hedge against unknown future job types.
+
 **Pros:**
 - Single row per policy, matching `jobInfo`.
 - `AvgChangeRate` math becomes correct automatically because the row's identity is the parent name, so `_Jobs.csv` lookup populates `UsedVmSizeTB` correctly and the children's `IncrementalDataSize` is divided by the parent's source size.
@@ -106,6 +108,18 @@ public SessionStats SessionStats(IEnumerable<string> jobNames)
 // CJobSessSummary.JobSessionSummaryToXml — parent/child detection + selective aggregation
 var allNames = helper.JobNameList().Distinct().ToList();
 var nameSet = new HashSet<string>(allNames.Where(n => n != null), StringComparer.Ordinal);
+
+// One pass to mark which names have ANY data-bearing session in the window.
+// Used by the defensive guard below: skip rollup if the parent's sessions carry data.
+var namesWithData = new HashSet<string>(StringComparer.Ordinal);
+foreach (var session in helper.JobSessionInfoList())
+{
+    if (session.Name != null && (session.DataSize > 0 || session.BackupSize > 0))
+    {
+        namesWithData.Add(session.Name);
+    }
+}
+
 var parentToChildren = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 var childNames = new HashSet<string>(StringComparer.Ordinal);
 foreach (var name in allNames)
@@ -115,6 +129,8 @@ foreach (var name in allNames)
     if (delim <= 0) continue;
     var prefix = name.Substring(0, delim);
     if (!nameSet.Contains(prefix)) continue;
+    // Defensive: only roll up when the parent has no data-bearing sessions.
+    if (namesWithData.Contains(prefix)) continue;
     childNames.Add(name);
     if (!parentToChildren.TryGetValue(prefix, out var list))
     {
@@ -159,6 +175,7 @@ Orphan parents — a parent name with no children visible in the window, e.g. a 
 - Orphan parents (deleted jobs with lingering orchestrator sessions) still display the orchestrator's all-zero metrics. Acceptable because there are no children to roll up and dropping the orphan would lose visibility of stale state.
 - Couples session aggregation to Veeam's `" - "` delimiter convention (same coupling already accepted by ADR 0016).
 - A policy job that ran but produced no per-VM sessions in the window (zero protected machines, or all machines excluded) will render as an orphan-style parent row with the orchestrator's zero data. Indistinguishable from a deleted job at that point; both should be rare.
+- A hypothetical future VBR job type with data-bearing parent + children that follows the same naming pattern would bypass the rollup (the defensive `namesWithData` guard skips it) and render both rows separately. This is safer than the alternative (silently dropping the parent's data) at the cost of leaving such a job's rendering unimproved.
 
 ### Negative
 - The aggregation set excludes orchestrator sessions, so `SessionCount` reflects the number of per-VM backup attempts rather than the number of policy invocations. A user expecting "how many times did the policy fire?" may need to look elsewhere (event log, parent session count in raw DB). The rendered metric is arguably more useful operationally but worth flagging.

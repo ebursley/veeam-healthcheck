@@ -74,8 +74,26 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             // children. Render one row per parent by detecting these pairs and aggregating
             // the children's sessions under the parent's name. Standalone jobs and orphan
             // parents (no children visible in window) are unaffected.
+            //
+            // The rollup is dispatched on a name pattern (not on JobType), so any future VBR
+            // job type that produces matching <Parent> + <Parent> - <Child> sessions would be
+            // caught automatically. Defensive guard below limits the rollup to parents whose
+            // own sessions all have zero DataSize/BackupSize — preventing data loss on an
+            // unverified job type that happens to share the naming but carries real data on
+            // the parent session.
             var allNames = helper.JobNameList().Distinct().ToList();
             var nameSet = new HashSet<string>(allNames.Where(n => n != null), StringComparer.Ordinal);
+
+            // One pass to mark which names have ANY data-bearing session in the window.
+            var namesWithData = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var session in helper.JobSessionInfoList())
+            {
+                if (session.Name != null && (session.DataSize > 0 || session.BackupSize > 0))
+                {
+                    namesWithData.Add(session.Name);
+                }
+            }
+
             var parentToChildren = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             var childNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var name in allNames)
@@ -85,6 +103,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                 if (delim <= 0) continue;
                 var prefix = name.Substring(0, delim);
                 if (!nameSet.Contains(prefix)) continue;
+                // Defensive: only roll up when the parent has no data-bearing sessions.
+                // If the parent carries real data, leave parent and child as separate rows
+                // rather than risk silently dropping the parent's metrics for some job type
+                // that doesn't follow the policy-orchestrator pattern.
+                if (namesWithData.Contains(prefix)) continue;
                 childNames.Add(name);
                 if (!parentToChildren.TryGetValue(prefix, out var list))
                 {
