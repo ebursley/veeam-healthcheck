@@ -176,3 +176,108 @@ Describe 'GJS-5: Slow path filters by CreationTime > $Since' {
         $result[0].CreationTime | Should -BeGreaterThan (Get-Date).AddDays(-7)
     }
 }
+
+# ---------------------------------------------------------------------------
+# GJS-4  Fast path, mid-iteration throw -> WARNING logged with job name and
+#                                          message; other jobs still processed
+# ---------------------------------------------------------------------------
+Describe 'GJS-4: Fast path mid-iteration throw is contained' {
+
+    BeforeEach {
+        $script:warnMessages = [System.Collections.Generic.List[string]]::new()
+        Mock Write-LogFile -MockWith {
+            if ($LogLevel -eq 'WARNING') { $script:warnMessages.Add($Message) }
+        }
+        Mock Test-VhciCBackupSessionFastPath -MockWith { $true }
+
+        $script:goodJob  = script:New-FakeJob 'GoodJob'
+        $script:badJob   = script:New-FakeJob 'BadJob'
+        $script:goodJob2 = script:New-FakeJob 'GoodJob2'
+
+        Mock Invoke-VhciCBackupSessionFetch -MockWith {
+            if ($JobId -eq $script:badJob.Id) { throw 'Simulated fetch failure' }
+            @(script:New-FakeSession -CreationTime (Get-Date).AddHours(-1) -JobName 'X')
+        }
+    }
+
+    It 'does not throw when one job''s fetch fails' {
+        { @(Get-VhciJobSessions -Jobs @($script:goodJob, $script:badJob, $script:goodJob2) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand { } -PathLabel 'VM/BackupCopy') } |
+            Should -Not -Throw
+    }
+
+    It 'logs a WARNING containing the failing job name' {
+        @(Get-VhciJobSessions -Jobs @($script:goodJob, $script:badJob, $script:goodJob2) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand { } -PathLabel 'VM/BackupCopy') | Out-Null
+        ($script:warnMessages | Where-Object { $_ -match 'BadJob' }).Count | Should -BeGreaterThan 0
+    }
+
+    It 'logs a WARNING containing the exception message' {
+        @(Get-VhciJobSessions -Jobs @($script:goodJob, $script:badJob, $script:goodJob2) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand { } -PathLabel 'VM/BackupCopy') | Out-Null
+        ($script:warnMessages | Where-Object { $_ -match 'Simulated fetch failure' }).Count | Should -BeGreaterThan 0
+    }
+
+    It 'still returns sessions from the other two jobs' {
+        $result = @(Get-VhciJobSessions -Jobs @($script:goodJob, $script:badJob, $script:goodJob2) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand { } -PathLabel 'VM/BackupCopy')
+        $result.Count | Should -Be 2
+    }
+}
+
+# ---------------------------------------------------------------------------
+# GJS-6  Slow-path scriptblock throws -> WARNING logged; returns @()
+# ---------------------------------------------------------------------------
+Describe 'GJS-6: Slow-path scriptblock failure logs WARNING and returns empty' {
+
+    BeforeEach {
+        $script:warnMessages = [System.Collections.Generic.List[string]]::new()
+        Mock Write-LogFile -MockWith {
+            if ($LogLevel -eq 'WARNING') { $script:warnMessages.Add($Message) }
+        }
+        Mock Test-VhciCBackupSessionFastPath -MockWith { $false }
+        $script:slowSb = { throw 'Simulated cmdlet failure' }
+    }
+
+    It 'does not throw' {
+        { @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy') } |
+            Should -Not -Throw
+    }
+
+    It 'logs a WARNING with the exception message' {
+        @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy') | Out-Null
+        ($script:warnMessages | Where-Object { $_ -match 'Simulated cmdlet failure' }).Count | Should -BeGreaterThan 0
+    }
+
+    It 'returns an empty array' {
+        $result = @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy')
+        $result.Count | Should -Be 0
+    }
+}
+
+# ---------------------------------------------------------------------------
+# GJS-7  Empty $Jobs + fast path -> zero fetch calls, returns empty
+# ---------------------------------------------------------------------------
+Describe 'GJS-7: Empty $Jobs + fast path returns empty without calling fetch' {
+
+    BeforeEach {
+        Mock Write-LogFile -MockWith { }
+        Mock Test-VhciCBackupSessionFastPath -MockWith { $true }
+        Mock Invoke-VhciCBackupSessionFetch -MockWith { throw 'Should not be called' }
+    }
+
+    It 'never invokes Invoke-VhciCBackupSessionFetch' {
+        @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand { } -PathLabel 'VM/BackupCopy') | Out-Null
+        Should -Invoke Invoke-VhciCBackupSessionFetch -Times 0 -Exactly
+    }
+
+    It 'returns an empty array' {
+        $result = @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand { } -PathLabel 'VM/BackupCopy')
+        $result.Count | Should -Be 0
+    }
+}
