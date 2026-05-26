@@ -68,16 +68,18 @@ Standalone jobs flow through the same `CBackupJob` projection as managed jobs (v
 
 ### `AgentJobAggregator`
 
-Static class with one public entry point:
+Static class with one public entry point that takes the parsed rows directly so the aggregator stays a pure function (easy to unit-test with synthetic `CJobCsvInfos` instances without touching disk):
 
 ```csharp
-public static IReadOnlyList<AgentJobRecord> Build(CCsvParser csv);
+public static IReadOnlyList<AgentJobRecord> Build(IEnumerable<CJobCsvInfos> rows);
 ```
+
+Callers (`CDataFormer.AgentJobs`) materialize the rows via `new CCsvParser().JobCsvParser()` before invoking `Build`.
 
 Behavior:
 
-1. Read `_Jobs.csv` rows via the existing `GetDynamicJobs()` accessor.
-2. Filter rows whose raw `JobType` is in the agent set: `EpAgentBackup`, `EpAgentPolicy`, `EpAgentManagement`, `ELinuxPhysical`, `EndpointBackup`.
+1. Receive the parsed `_Jobs.csv` rows from the caller (typically `CCsvParser.JobCsvParser()` output).
+2. Filter rows whose raw `JobType` is in the agent set (`AgentJobAggregator.AgentJobTypes`): `EpAgentBackup`, `EpAgentPolicy`, `EpAgentManagement`, `ELinuxPhysical`, `EndpointBackup`. This `IReadOnlySet<string>` is exposed as a public static so other components (e.g. `CJobSummaryTable`) can reuse it without duplicating the list.
 3. Map each row to an `AgentJobRecord`, resolving `FriendlyType` per the rule below.
 4. Return the list.
 

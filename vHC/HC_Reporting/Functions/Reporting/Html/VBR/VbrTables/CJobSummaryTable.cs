@@ -12,17 +12,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
 {
     internal class CJobSummaryTable
     {
-        // Agent job types are counted via CDataFormer.AgentJobs grouped by FriendlyType.
-        // They must be excluded from the generic per-type loop to avoid double-counting.
-        private static readonly HashSet<string> AgentJobTypes = new()
-        {
-            "EpAgentBackup",
-            "EpAgentPolicy",
-            "EpAgentManagement",
-            "ELinuxPhysical",
-            "EndpointBackup",
-        };
-
         public CJobSummaryTable() { }
 
         public Dictionary<string, int> JobSummaryTable()
@@ -72,7 +61,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                             continue;
                         }
 
-                        if (AgentJobTypes.Contains(bType))
+                        if (AgentJobAggregator.AgentJobTypes.Contains(bType))
                         {
                             continue;
                         }

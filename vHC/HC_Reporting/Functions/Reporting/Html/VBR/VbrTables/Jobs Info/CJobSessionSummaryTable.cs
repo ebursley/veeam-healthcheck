@@ -186,7 +186,13 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 // would otherwise collapse into one section; grouping by FriendlyType keeps
                 // them separate ("Windows Agent Backup Jobs" vs "Windows Agent Standalone
                 // Jobs", etc.).
+                //
+                // The synthetic "Total" row (JobName="Total", JobType=null) is excluded —
+                // it represents an aggregate across all sessions, not a real session, and
+                // without filtering it would land in the parser-fallback "Other" group and
+                // render as a phantom "Other Jobs" section containing just that summary row.
                 var annotated = stuff
+                    .Where(sess => !string.Equals(sess.JobName, "Total", StringComparison.Ordinal))
                     .Select(sess => new
                     {
                         Session = sess,

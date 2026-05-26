@@ -53,6 +53,22 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 source.OrderBy(x => x.Name);
                 var jobTypes = source.Select(x => x.JobType).Distinct().ToList();
 
+                // Agent rows need the AgentJobs-derived FriendlyType (so standalone shows
+                // "Windows Agent Standalone" rather than the parser's generic "Agent
+                // Backup"). Build two views: one keyed by JobName for per-row cell lookups,
+                // and one keyed by raw JobType for the section heading.
+                var agentJobsByName = this.df.AgentJobs
+                    .ToDictionary(
+                        a => a.JobName ?? string.Empty,
+                        a => a,
+                        System.StringComparer.OrdinalIgnoreCase);
+                var agentFriendlyByJobType = this.df.AgentJobs
+                    .GroupBy(a => a.JobType)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().FriendlyType,
+                        System.StringComparer.OrdinalIgnoreCase);
+
                 try
                 {
                     foreach (var jType in jobTypes)
@@ -62,7 +78,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
 
                         bool useSourceSize = !(jType == "NasBackupCopy" || jType == "Copy");
 
-                        var realType = CJobTypesParser.GetJobType(jType);
+                        string realType = agentFriendlyByJobType.TryGetValue(jType ?? string.Empty, out var agentFriendly)
+                            ? agentFriendly
+                            : CJobTypesParser.GetJobType(jType);
                         string jobTable = this.form.SectionStartWithButton("jobTable-" + jType.ToLower(), realType + " Jobs", string.Empty);
                         s += jobTable;
                         s += this.SetGenericJobTablHeader(useSourceSize, jType);
@@ -153,7 +171,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             row += this.form.TableData(retentionValue, string.Empty);
 
                             row += job.StgEncryptionEnabled == "True" ? this.form.TableData(this.form.True, string.Empty) : this.form.TableData(this.form.False, string.Empty);
-                            var jobType = CJobTypesParser.GetJobType(job.JobType);
+                            string jobType = agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
+                                ? agentRecord.FriendlyType
+                                : CJobTypesParser.GetJobType(job.JobType);
                             row += this.form.TableData(jobType, string.Empty);
 
                             string compressionLevel = string.Empty;

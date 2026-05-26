@@ -11,7 +11,13 @@ namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
     /// </summary>
     public static class AgentJobAggregator
     {
-        private static readonly HashSet<string> AgentJobTypes = new()
+        /// <summary>
+        /// Raw <c>JobType</c> enum strings that identify a Veeam Agent job in
+        /// <c>_Jobs.csv</c>. Consumers (e.g. <c>CJobSummaryTable</c>) reference
+        /// this set when they need to exclude agent rows from a generic
+        /// per-<c>JobType</c> loop, so the agent-type list stays in one place.
+        /// </summary>
+        public static readonly IReadOnlySet<string> AgentJobTypes = new HashSet<string>
         {
             "EpAgentBackup",
             "EpAgentPolicy",
