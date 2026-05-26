@@ -385,6 +385,8 @@ entities.json
 mempalace.yaml
 Plans/
 vHC/Plans/
+!docs/superpowers/plans/
+!docs/superpowers/plans/**
 .playwright-mcp/
 docs/MONITOR_NATIVE_ARCHITECTURE.md
 entities.json
