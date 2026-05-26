@@ -18,14 +18,21 @@ Describe 'Invoke-VhciCBackupSessionFetch' {
         { Invoke-VhciCBackupSessionFetch -JobId ([guid]::NewGuid()) } | Should -Throw
     }
 
-    It 'accepts a [guid] JobId and [datetime] Since' {
-        # We expect this to throw because the static .NET type is not available
-        # in the test environment - but it must throw a "type not found" /
-        # "GetByJobAndTimeRangeWithLog not found" error, NOT a parameter binding error.
-        # That demonstrates the param shape is correct.
-        {
-            try { Invoke-VhciCBackupSessionFetch -JobId ([guid]::NewGuid()) -Since (Get-Date) }
-            catch { }
-        } | Should -Not -Throw
+    It 'accepts [guid] JobId and [datetime] Since without a ParameterBindingException' {
+        # In a non-Veeam environment the static .NET call inside the wrapper
+        # throws because [Veeam.Backup.Core.CBackupSession] is not loaded.
+        # That's expected and tolerated. What we DO want to catch is a
+        # ParameterBindingException, which would mean the parameter names or
+        # types stopped matching what the caller passes - a regression in the
+        # wrapper's contract. The actual argument forwarding to the static
+        # method is verified indirectly by Get-VhciJobSessions' GJS-3 tests via
+        # Pester's Mock - which is the right place for that assertion since
+        # the wrapper is intentionally a Mock seam (see ADR 0018).
+        $err = $null
+        try { Invoke-VhciCBackupSessionFetch -JobId ([guid]::NewGuid()) -Since (Get-Date) }
+        catch { $err = $_ }
+        if ($null -ne $err) {
+            $err.Exception | Should -Not -BeOfType [System.Management.Automation.ParameterBindingException]
+        }
     }
 }
