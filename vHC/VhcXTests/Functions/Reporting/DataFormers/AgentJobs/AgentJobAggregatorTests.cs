@@ -200,5 +200,31 @@ namespace VhcXTests.Functions.Reporting.DataFormers.AgentJobs
 
             Assert.Equal("Reverse Incremental", record.BackupChainType);
         }
+
+        [Fact]
+        public void Build_StandaloneMissingTypeToString_FallsBackToParserThenSubstitutes()
+        {
+            var rows = new List<CJobCsvInfos>
+            {
+                new() { Name = "Legacy-Standalone", JobType = "EndpointBackup", TypeToString = null },
+            };
+
+            var result = AgentJobAggregator.Build(rows);
+
+            Assert.Equal("Agent Standalone", result.Single().FriendlyType);
+        }
+
+        [Fact]
+        public void Build_NullIndexingType_IndexingEnabledFalse()
+        {
+            var rows = new List<CJobCsvInfos>
+            {
+                new() { Name = "NoIndex-Job", JobType = "EpAgentBackup", TypeToString = "Windows Agent Backup", IndexingType = null },
+            };
+
+            var result = AgentJobAggregator.Build(rows);
+
+            Assert.False(result.Single().IndexingEnabled);
+        }
     }
 }

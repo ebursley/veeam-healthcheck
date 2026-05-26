@@ -33,5 +33,12 @@ namespace VhcXTests.Functions.Reporting.Html.DataFormers
             var result = CJobTypesParser.GetJobType("UnknownType123");
             Assert.Equal("UnknownType123", result);
         }
+
+        [Fact]
+        public void GetJobType_EndpointBackup_ReturnsAgentBackup()
+        {
+            var result = CJobTypesParser.GetJobType("EndpointBackup");
+            Assert.Equal("Agent Backup", result);
+        }
     }
 }
