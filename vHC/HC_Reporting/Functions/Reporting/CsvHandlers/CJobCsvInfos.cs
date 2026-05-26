@@ -145,5 +145,9 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
         [Index(42)]
         [Optional]
         public string Platform { get; set; }
+
+        [Index(43)]
+        [Optional]
+        public string TypeToString { get; set; }
     }
 }

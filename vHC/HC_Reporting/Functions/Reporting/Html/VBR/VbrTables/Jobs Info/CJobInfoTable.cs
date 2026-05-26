@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
+using VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs;
 using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
 using VeeamHealthCheck.Functions.Reporting.Html.Shared;
 using VeeamHealthCheck.Html.VBR;
@@ -49,24 +50,69 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 CCsvParser csvparser = new();
-                var source = csvparser.JobCsvParser().ToList();
-                source.OrderBy(x => x.Name);
+                var source = csvparser.JobCsvParser().OrderBy(x => x.Name).ToList();
                 var jobTypes = source.Select(x => x.JobType).Distinct().ToList();
+
+                // Agent rows need the AgentJobs-derived FriendlyType (so standalone shows
+                // "Windows Agent Standalone" rather than the parser's generic "Agent
+                // Backup"). Per-row cell lookups go through agentJobsByName.
+                var agentJobsByName = this.df.AgentJobs
+                    .ToDictionary(
+                        a => a.JobName ?? string.Empty,
+                        a => a,
+                        System.StringComparer.OrdinalIgnoreCase);
+
+                // Build the section list. For non-agent JobTypes there is one section per
+                // raw JobType (existing behavior). For agent JobTypes the rows are split
+                // further by FriendlyType — necessary because EndpointBackup spans Windows,
+                // Linux, and Mac standalone agents which share that raw enum but resolve
+                // to distinct friendly labels. Without this split a mixed-platform estate
+                // would render one section header with rows of multiple platforms under it.
+                var sections = new List<(string JType, string FriendlyType, List<CJobCsvInfos> Rows)>();
+                foreach (var jType in jobTypes)
+                {
+                    var rowsForType = source.Where(x => x.JobType == jType).ToList();
+                    if (jType != null && AgentJobAggregator.AgentJobTypes.Contains(jType))
+                    {
+                        var friendlyGroups = rowsForType
+                            .GroupBy(r => agentJobsByName.TryGetValue(r.Name ?? string.Empty, out var rec)
+                                ? rec.FriendlyType
+                                : CJobTypesParser.GetJobType(jType))
+                            .OrderBy(g => g.Key);
+                        foreach (var fg in friendlyGroups)
+                        {
+                            sections.Add((jType, fg.Key, fg.ToList()));
+                        }
+                    }
+                    else
+                    {
+                        sections.Add((jType, CJobTypesParser.GetJobType(jType), rowsForType));
+                    }
+                }
 
                 try
                 {
-                    foreach (var jType in jobTypes)
+                    foreach (var section in sections)
                     {
+                        var jType = section.JType;
+                        var realType = section.FriendlyType;
                         double tSizeGB = 0;
                         double onDiskTotalGB = 0;
 
                         bool useSourceSize = !(jType == "NasBackupCopy" || jType == "Copy");
 
-                        var realType = CJobTypesParser.GetJobType(jType);
-                        string jobTable = this.form.SectionStartWithButton("jobTable-" + jType.ToLower(), realType + " Jobs", string.Empty);
+                        // Section slugs need to be unique. For agent JobTypes that produced
+                        // multiple FriendlyType subsections, suffix the slug with the
+                        // friendly type so HTML element ids don't collide.
+                        string sectionSlug = (jType ?? "unknown").ToLower();
+                        if (jType != null && AgentJobAggregator.AgentJobTypes.Contains(jType))
+                        {
+                            sectionSlug += "-" + (realType ?? "agent").ToLower().Replace(" ", "-");
+                        }
+                        string jobTable = this.form.SectionStartWithButton("jobTable-" + sectionSlug, realType + " Jobs", string.Empty);
                         s += jobTable;
                         s += this.SetGenericJobTablHeader(useSourceSize, jType);
-                        var res = source.Where(x => x.JobType == jType).ToList();
+                        var res = section.Rows;
                         foreach (var job in res)
                         {
                             double onDiskGB = 0;
@@ -153,7 +199,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             row += this.form.TableData(retentionValue, string.Empty);
 
                             row += job.StgEncryptionEnabled == "True" ? this.form.TableData(this.form.True, string.Empty) : this.form.TableData(this.form.False, string.Empty);
-                            var jobType = CJobTypesParser.GetJobType(job.JobType);
+                            string jobType = agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
+                                ? agentRecord.FriendlyType
+                                : CJobTypesParser.GetJobType(job.JobType);
                             row += this.form.TableData(jobType, string.Empty);
 
                             string compressionLevel = string.Empty;
@@ -375,6 +423,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 List<string> headers = new() { "JobName", "RepoName", "SourceSizeGB", "OnDiskGB", "RetentionScheme", "RetainDays", "Encrypted", "JobType", "CompressionLevel", "BlockSize", "GfsEnabled", "GfsDetails", "ActiveFullEnabled", "SyntheticFullEnabled", "BackupChainType", "IndexingEnabled", "AAIPEnabled", "VSSEnabled", "VSSIgnoreErrors", "GuestFSIndexing", "Platform" };
                 List<List<string>> rows = new();
 
+                var agentJobsByName = this.df.AgentJobs
+                    .ToDictionary(
+                        a => a.JobName ?? string.Empty,
+                        a => a,
+                        System.StringComparer.OrdinalIgnoreCase);
+
                 foreach (var job in source)
                 {
                     string jobName = scrub ? CGlobals.Scrubber.ScrubItem(job.Name, ScrubItemType.Job) : job.Name;
@@ -426,7 +480,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         job.RetentionType == "Cycles" ? "Points" : job.RetentionType,
                         retentionValue,
                         job.StgEncryptionEnabled,
-                        CJobTypesParser.GetJobType(job.JobType),
+                        agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
+                            ? agentRecord.FriendlyType
+                            : CJobTypesParser.GetJobType(job.JobType),
                         compressionLevel,
                         blockSize,
                         gfsEnabled.ToString(),

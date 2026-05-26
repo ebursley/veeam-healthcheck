@@ -7,7 +7,11 @@ function Invoke-VhciJobSubCollectors {
         A single sub-collector failure does not abort the remaining ones.
         Called exclusively by Get-VhcJob. See ADR 0007.
     .Parameter Jobs
-        Array of VBR job objects (from Get-VBRJob). Passed to Get-VhciReplication.
+        Array of VBR job objects. Includes both managed jobs returned by `Get-VBRJob`
+        and standalone agent jobs sourced via `Get-VBRBackup | ?{IsAgentStandaloneJob} |
+        .GetJob()`. Sub-collectors that filter by `JobType` should account for the
+        additional `EpAgentBackup` / `EpAgentPolicy` / `EndpointBackup` values that
+        may appear.
     #>
     [CmdletBinding()]
     param (
