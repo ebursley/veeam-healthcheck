@@ -37,10 +37,27 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             string jobName,
             string rawJobType)
         {
-            if (agentJobsByName.TryGetValue(jobName ?? string.Empty, out var record))
+            string lookupName = jobName ?? string.Empty;
+            if (agentJobsByName.TryGetValue(lookupName, out var record))
             {
                 return record.FriendlyType;
             }
+
+            // Policy jobs emit per-machine child sessions with names like
+            // "<ParentJobName> - <VmFqdn>". Try matching the prefix before
+            // " - " so child sessions resolve to their parent job's
+            // FriendlyType.
+            const string childDelimiter = " - ";
+            int delim = lookupName.IndexOf(childDelimiter, StringComparison.Ordinal);
+            if (delim > 0)
+            {
+                string prefix = lookupName.Substring(0, delim);
+                if (agentJobsByName.TryGetValue(prefix, out var parentRecord))
+                {
+                    return parentRecord.FriendlyType;
+                }
+            }
+
             return CJobTypesParser.GetJobType(rawJobType);
         }
 
