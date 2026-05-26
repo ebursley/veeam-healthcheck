@@ -161,10 +161,18 @@ Describe 'GJS-5: Slow path filters by CreationTime > $Since' {
         }
     }
 
-    It 'returns only sessions newer than $Since' {
+    It 'excludes sessions older than $Since' {
+        # Slow path ignores $Jobs (correct per design); empty job list is fine here.
         $result = @(Get-VhciJobSessions -Jobs @() `
             -Since (Get-Date).AddDays(-7) -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy')
+        # Two sessions are fed in (one 10 days old, one 1 hour old). Only the
+        # 1-hour-old one is within the 7-day window.
         $result.Count | Should -Be 1
+    }
+
+    It 'includes sessions newer than $Since' {
+        $result = @(Get-VhciJobSessions -Jobs @() `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy')
         $result[0].CreationTime | Should -BeGreaterThan (Get-Date).AddDays(-7)
     }
 }

@@ -10,7 +10,10 @@ function Invoke-VhciCBackupSessionFetch {
     .Parameter JobId
         The Veeam job UUID (from CBackupJob.Id).
     .Parameter Since
-        Earliest CreationTime to include (inclusive of microsecond drift).
+        Lower bound CreationTime. Exact-equal boundary behavior is determined
+        by the underlying CBackupSession.GetByJobAndTimeRangeWithLog query;
+        Get-VhciJobSessions documents and tests strict > semantics, so callers
+        should not depend on the exact-equal case.
     .Outputs
         [Veeam.Backup.Core.CBackupSession[]] from the live VBR config database.
     #>
