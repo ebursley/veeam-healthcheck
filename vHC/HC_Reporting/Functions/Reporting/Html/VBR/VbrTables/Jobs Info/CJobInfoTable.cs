@@ -375,6 +375,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                 List<string> headers = new() { "JobName", "RepoName", "SourceSizeGB", "OnDiskGB", "RetentionScheme", "RetainDays", "Encrypted", "JobType", "CompressionLevel", "BlockSize", "GfsEnabled", "GfsDetails", "ActiveFullEnabled", "SyntheticFullEnabled", "BackupChainType", "IndexingEnabled", "AAIPEnabled", "VSSEnabled", "VSSIgnoreErrors", "GuestFSIndexing", "Platform" };
                 List<List<string>> rows = new();
 
+                var agentJobsByName = this.df.AgentJobs
+                    .ToDictionary(
+                        a => a.JobName ?? string.Empty,
+                        a => a,
+                        System.StringComparer.OrdinalIgnoreCase);
+
                 foreach (var job in source)
                 {
                     string jobName = scrub ? CGlobals.Scrubber.ScrubItem(job.Name, ScrubItemType.Job) : job.Name;
@@ -426,7 +432,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         job.RetentionType == "Cycles" ? "Points" : job.RetentionType,
                         retentionValue,
                         job.StgEncryptionEnabled,
-                        CJobTypesParser.GetJobType(job.JobType),
+                        agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
+                            ? agentRecord.FriendlyType
+                            : CJobTypesParser.GetJobType(job.JobType),
                         compressionLevel,
                         blockSize,
                         gfsEnabled.ToString(),
