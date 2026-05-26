@@ -146,12 +146,28 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
 
         public SessionStats SessionStats(string jobName)
         {
+            return this.SessionStats(new[] { jobName });
+        }
+
+        /// <summary>
+        /// Aggregates session stats across a set of job names. Used to roll up policy
+        /// per-machine child sessions (Name = "&lt;Parent&gt; - &lt;VmFqdn&gt;") into their
+        /// parent's row — the parent's own orchestrator sessions carry no data, so the
+        /// caller can pass just the children's names to get an accurate aggregate.
+        /// </summary>
+        public SessionStats SessionStats(IEnumerable<string> jobNames)
+        {
+            var names = new HashSet<string>(jobNames ?? Array.Empty<string>(), StringComparer.Ordinal);
             SessionStats stats = new SessionStats();
+            if (names.Count == 0)
+            {
+                return stats;
+            }
 
             foreach (var session in this.JobSessionInfoList())
             {
                 double diff = (DateTime.Now - session.CreationTime).TotalDays;
-                if (jobName == session.Name && diff < CGlobals.ReportDays)
+                if (names.Contains(session.Name) && diff < CGlobals.ReportDays)
                 {
                     stats.SessionCount++;
                     if (session.Status == "Failed")
