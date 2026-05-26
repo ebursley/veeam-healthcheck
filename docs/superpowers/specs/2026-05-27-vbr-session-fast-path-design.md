@@ -168,7 +168,7 @@ be confirmed during implementation.
 | Probe reflection throws unexpectedly | `Test-VhciCBackupSessionFastPath` returns `$false`; caller goes to slow path; logged once as INFO ("Using slow path") |
 | Per-job exception in fast path | WARNING with job name + exception message; continue to next job (matches today's ISC-3 behavior); **no demote to slow path** |
 | Slow-path scriptblock throws | WARNING with exception message; helper returns `@()`; other path family may still succeed |
-| Empty `$Jobs` + fast path | Zero iterations; returns `@()`; INFO log "No jobs to query" |
+| Empty `$Jobs` + fast path | Zero iterations; returns `@()`. No extra log — the standard "result count = 0" INFO line conveys this. |
 | Empty `$Jobs` + slow path | Scriptblock still invoked (slow path does not consume `$Jobs`); empty result possible if nothing in window |
 | Probe says yes but type loads partially | Reflection check on both type and method binding; either null → returns `$false`; silent degrade to slow path. Loud-fail on method-shape mismatch was rejected because it would break the very upgrade-resilience this design exists for. |
 
