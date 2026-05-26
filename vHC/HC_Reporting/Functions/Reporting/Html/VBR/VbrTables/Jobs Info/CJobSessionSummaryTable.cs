@@ -9,6 +9,7 @@ using VeeamHealthCheck.Functions.Reporting.Html.Shared;
 using VeeamHealthCheck.Html.VBR;
 using VeeamHealthCheck.Reporting.Html.VBR;
 using VeeamHealthCheck.Resources.Localization;
+using VeeamHealthCheck.Scrubber;
 using VeeamHealthCheck.Shared;
 using VeeamHealthCheck.Shared.Logging;
 
@@ -23,13 +24,27 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
 
         public CJobSessionSummaryTable() { }
 
-        private Dictionary<string, AgentJobRecord> BuildAgentJobsByName()
+        private Dictionary<string, AgentJobRecord> BuildAgentJobsByName(bool scrub)
         {
+            // ConvertJobSessSummaryToXml(scrub: true) returns sessions whose JobName has
+            // already been scrubbed for output, while CDataFormer.AgentJobs is built from
+            // raw _Jobs.csv. In scrub mode, key the lookup dictionary by the scrubbed
+            // job name so both sides of the lookup go through the same transform —
+            // otherwise the agent-session FriendlyType resolution always misses.
             return this.df.AgentJobs
                 .ToDictionary(
-                    a => a.JobName ?? string.Empty,
+                    a => ScrubJobNameIfNeeded(a.JobName, scrub),
                     a => a,
                     StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string ScrubJobNameIfNeeded(string jobName, bool scrub)
+        {
+            if (!scrub || string.IsNullOrEmpty(jobName))
+            {
+                return jobName ?? string.Empty;
+            }
+            return CGlobals.Scrubber.ScrubItem(jobName, ScrubItemType.Job) ?? string.Empty;
         }
 
         private string ResolveSessionType(
@@ -71,7 +86,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
-                var agentJobsByName = this.BuildAgentJobsByName();
+                var agentJobsByName = this.BuildAgentJobsByName(scrub);
 
                 foreach (var stu in stuff)
                 {
@@ -132,7 +147,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
-                var agentJobsByNameJson = this.BuildAgentJobsByName();
+                var agentJobsByNameJson = this.BuildAgentJobsByName(scrub);
                 List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "AvgDedupRatio", "AvgCompressRatio", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
                 List<List<string>> rows = stuff.Select(stu => new List<string>
                 {
@@ -176,7 +191,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             try
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
-                var agentJobsByName = this.BuildAgentJobsByName();
+                var agentJobsByName = this.BuildAgentJobsByName(scrub);
 
                 // Annotate each session with its FriendlyType, then group by that label.
                 // Managed and standalone agents share session-level JobType (EEndPoint) and
@@ -370,7 +385,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
             {
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
                 var ordered = stuff.OrderBy(stu => stu.JobName).ToList();
-                var agentJobsByNameJson = this.BuildAgentJobsByName();
+                var agentJobsByNameJson = this.BuildAgentJobsByName(scrub);
                 List<string> headers = new() { "JobName", "ItemCount", "MinJobTime", "MaxJobTime", "AvgJobTime", "SessionCount", "Fails", "Retries", "SuccessRate", "AvgBackupSize", "MaxBackupSize", "AvgDataSize", "MaxDataSize", "AvgChangeRate", "AvgDedupRatio", "AvgCompressRatio", "WaitCount", "MaxWait", "AvgWait", "JobTypes" };
                 List<List<string>> rows = ordered.Select(stu => new List<string>
                 {

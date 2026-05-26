@@ -186,7 +186,7 @@ namespace VhcXTests.Functions.Reporting.DataFormers.AgentJobs
         }
 
         [Fact]
-        public void Build_BackupChainType_SynteticAlgorithmYieldsReverseIncremental()
+        public void Build_BackupChainType_SyntheticAlgorithmYieldsReverseIncremental()
         {
             var row = new CJobCsvInfos
             {
