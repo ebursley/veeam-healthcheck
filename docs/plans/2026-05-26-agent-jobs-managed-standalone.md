@@ -8,7 +8,7 @@
 
 **Tech Stack:** .NET 8.0 (Windows-only build), WPF, PowerShell 7 SDK, CsvHelper, xUnit + Moq.
 
-**Spec:** `docs/superpowers/specs/2026-05-26-agent-jobs-managed-standalone-design.md` (committed on this branch).
+**Design record:** see ADRs 0014–0017 under `docs/adr/`. (The earlier working design document was superseded by these ADRs once the work landed.)
 
 **Upstream tracking issue:** VeeamHub/veeam-healthcheck#148.
 
@@ -1564,8 +1564,8 @@ Fixes three issues in how the VBR report renders Veeam Agent jobs:
 - `jobSummary` no longer double-counts managed agents (the previous "Agent Backup" bucket from `_AgentBackupJob.csv` overlapped with `EpAgentBackup`/`EpAgentPolicy` from `_Jobs.csv`); buckets now read "Windows Agent Backup", "Windows Agent Policy", "Windows Agent Standalone", etc.
 - `jobSessionSummaryByJob` no longer collapses every agent session to "Endpoint Backup"; each row reflects its job's actual friendly type.
 
-Design: `docs/superpowers/specs/2026-05-26-agent-jobs-managed-standalone-design.md`
-Implementation plan: `docs/superpowers/plans/2026-05-26-agent-jobs-managed-standalone.md`
+Design record: ADRs 0014–0017 under `docs/adr/`.
+Implementation plan: `docs/plans/2026-05-26-agent-jobs-managed-standalone.md`
 
 Relates to upstream issue VeeamHub/veeam-healthcheck#148.
 
