@@ -3,28 +3,29 @@
 function Get-VhcBackupSessions {
     <#
     .Synopsis
-        Fetches VBR backup sessions created within the reporting window and returns them
-        as pipeline output. The caller (orchestrator) captures the output and passes it
-        explicitly to Get-VhcSessionReport via the -BackupSessions parameter.
+        Fetches VBR backup sessions created within the reporting window and returns
+        them as pipeline output. The caller (orchestrator) captures the output and
+        passes it explicitly to Get-VhcSessionReport via the -BackupSessions parameter.
 
-        Returns a mixed array of two session object types:
-        - VM and Backup Copy sessions (CBackupSession / CBackupCopySession) via
-          Get-VBRBackupSession.
-        - Agent/computer backup sessions (VBRSession) via Get-VBRComputerBackupJobSession.
-        Both types are accepted by Get-VBRTaskSession, which Get-VhcSessionReport uses
-        to resolve task-level detail. See ADR 0012.
+        Returns a mixed array of two session object families:
+        - VM and Backup Copy sessions (CBackupSession / CBackupCopySession)
+        - Agent / computer backup sessions
 
-        Iterates per job (Get-VBRJob | Get-VBRBackupSession -Job ...) to keep each SQL
-        query bounded to a single job's session history. An unfiltered Get-VBRBackupSession
-        call against a large environment with remote SQL can exceed the Veeam SDK's
-        internal command timeout (~600s); per-job iteration avoids that.
-        Same idiom as the NAS session path documented in
-        docs/plans/2026-02-21-vbr-config-refactor.md.
+        Both families are accepted by Get-VBRTaskSession, which Get-VhcSessionReport
+        uses to resolve task-level detail. See ADR 0012 and ADR 0018.
+
+        Path selection is delegated to the private Get-VhciJobSessions helper. On
+        VBR versions that ship Veeam.Backup.Core.CBackupSession with the
+        GetByJobAndTimeRangeWithLog(Guid, DateTime) overload, the helper uses an
+        indexed DB query per job (the fast path). On older versions or when
+        reflection fails, it falls back to a single unfiltered cmdlet call
+        followed by a client-side CreationTime filter (the pre-59e2621 shape that
+        works on v12).
     .Parameter ReportInterval
-        Number of days back to collect sessions for. Matches the -ReportInterval parameter
-        passed to Get-VBRConfig.ps1.
+        Number of days back to collect sessions for. Matches the -ReportInterval
+        parameter passed to Get-VBRConfig.ps1.
     .Outputs
-        [object[]] -- Mixed array of Veeam backup session objects.
+        [object[]] -- mixed array of Veeam backup session objects.
     #>
     [CmdletBinding()]
     param (
@@ -34,28 +35,30 @@ function Get-VhcBackupSessions {
     Write-LogFile "Fetching backup sessions for the last $ReportInterval days..."
     $cutoff = (Get-Date).AddDays(-$ReportInterval)
 
-    $sessions = New-Object System.Collections.ArrayList
-    $jobs = @(Get-VBRJob -ErrorAction SilentlyContinue)
-    Write-LogFile "Iterating $($jobs.Count) jobs for session history..."
-    foreach ($job in $jobs) {
-        try {
-            $jobSessions = @(Get-VBRBackupSession -Job $job | Where-Object { $_.CreationTime -gt $cutoff })
-            if ($jobSessions.Count -gt 0) {
-                [void]$sessions.AddRange($jobSessions)
-            }
-        } catch {
-            Write-LogFile "Failed to get sessions for job '$($job.Name)': $($_.Exception.Message)" -LogLevel "WARNING"
-        }
+    $jobs       = @(Get-VBRJob               -ErrorAction SilentlyContinue)
+    $agentJobs  = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)
+
+    $vmSessions = @()
+    try {
+        $vmSessions = @(Get-VhciJobSessions `
+            -Jobs $jobs `
+            -Since $cutoff `
+            -SlowPathCommand { Get-VBRBackupSession } `
+            -PathLabel 'VM/BackupCopy')
+    } catch {
+        Write-LogFile "VM/BackupCopy session collection failed: $($_.Exception.Message)" -LogLevel 'WARNING'
     }
-    Write-LogFile "Collected $($sessions.Count) VM/Backup Copy sessions across $($jobs.Count) jobs."
 
     $agentSessions = @()
     try {
-        $agentSessions = @(Get-VBRComputerBackupJobSession | Where-Object { $_.CreationTime -gt $cutoff })
-        Write-LogFile "Collected $($agentSessions.Count) agent backup sessions."
+        $agentSessions = @(Get-VhciJobSessions `
+            -Jobs $agentJobs `
+            -Since $cutoff `
+            -SlowPathCommand { Get-VBRComputerBackupJobSession } `
+            -PathLabel 'Agent')
     } catch {
-        Write-LogFile "Failed to collect agent backup sessions: $($_.Exception.Message)" -LogLevel "WARNING"
+        Write-LogFile "Agent session collection failed: $($_.Exception.Message)" -LogLevel 'WARNING'
     }
 
-    return @($sessions) + @($agentSessions)
+    return $vmSessions + $agentSessions
 }
