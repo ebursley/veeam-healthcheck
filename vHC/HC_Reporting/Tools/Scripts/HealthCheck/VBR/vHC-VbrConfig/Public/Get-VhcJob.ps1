@@ -45,14 +45,12 @@ function Get-VhcJob {
     # a CBackupJob with the same shape Get-VBRJob produces, so they flow
     # through the projection below unchanged.
     try {
-        $standaloneBackups = Get-VBRBackup -WarningAction SilentlyContinue |
-            Where-Object { $_.IsAgentStandaloneJob -eq $true }
-        if ($standaloneBackups) {
-            $standaloneJobs = @($standaloneBackups | ForEach-Object { $_.GetJob() } | Where-Object { $_ })
-            if ($standaloneJobs.Count -gt 0) {
-                Write-LogFile "Standalone agent jobs collected: $($standaloneJobs.Count)"
-                $Jobs = @($Jobs) + $standaloneJobs
-            }
+        $standaloneBackups = @(Get-VBRBackup -WarningAction SilentlyContinue |
+            Where-Object { $_.IsAgentStandaloneJob -eq $true })
+        $standaloneJobs = @($standaloneBackups | ForEach-Object { $_.GetJob() } | Where-Object { $_ })
+        Write-LogFile "Standalone agent jobs collected: $($standaloneJobs.Count)"
+        if ($standaloneJobs.Count -gt 0) {
+            $Jobs = @($Jobs) + $standaloneJobs
         }
     } catch {
         Write-LogFile "Standalone agent job collection failed: $($_.Exception.Message)" -LogLevel "ERROR"
