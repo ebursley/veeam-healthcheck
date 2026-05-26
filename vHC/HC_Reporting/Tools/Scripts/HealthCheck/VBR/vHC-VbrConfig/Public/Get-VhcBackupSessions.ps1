@@ -26,6 +26,11 @@ function Get-VhcBackupSessions {
         parameter passed to Get-VBRConfig.ps1.
     .Outputs
         [object[]] -- mixed array of Veeam backup session objects.
+    .NOTES
+        Pre-condition: the Veeam PowerShell snap-in (or Veeam.Backup.PowerShell
+        module) must be loaded before calling. Get-VBRConfig.ps1 ensures this
+        before invoking this function. If the snap-in is missing the function
+        degrades to an empty result and logs a WARNING per missing cmdlet.
     #>
     [CmdletBinding()]
     param (
@@ -35,8 +40,23 @@ function Get-VhcBackupSessions {
     Write-LogFile "Fetching backup sessions for the last $ReportInterval days..."
     $cutoff = (Get-Date).AddDays(-$ReportInterval)
 
-    $jobs       = @(Get-VBRJob               -ErrorAction SilentlyContinue)
-    $agentJobs  = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)
+    # -ErrorAction SilentlyContinue does not suppress terminating errors
+    # like CommandNotFoundException (raised when the Veeam PS snap-in is
+    # not loaded). Wrap in try/catch so a missing dependency degrades to
+    # an empty job list instead of throwing out of this function.
+    $jobs = @()
+    try {
+        $jobs = @(Get-VBRJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBRJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    $agentJobs = @()
+    try {
+        $agentJobs = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBRComputerBackupJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
 
     $vmSessions = @()
     try {
