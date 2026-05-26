@@ -54,7 +54,20 @@ function Get-VhciJobSessions {
         return @($results)
     }
 
-    # Slow-path branch implemented in Task 4
-    Write-LogFile "[$PathLabel] Using slow path (fallback NOT YET IMPLEMENTED)" -LogLevel 'WARNING'
-    return @()
+    # Slow path: single unfiltered cmdlet call, client-side cutoff filter.
+    # Matches pre-59e2621 behaviour for v12 environments.
+    $cmdText = $SlowPathCommand.ToString().Trim()
+    Write-LogFile "[$PathLabel] Using slow path ($cmdText unfiltered)"
+
+    $raw = @()
+    try {
+        $raw = @(& $SlowPathCommand)
+    } catch {
+        Write-LogFile "[$PathLabel] Slow path failed: $($_.Exception.Message)" -LogLevel 'WARNING'
+        return @()
+    }
+
+    $filtered = @($raw | Where-Object { $_.CreationTime -gt $Since })
+    Write-LogFile "[$PathLabel] Collected $($filtered.Count) sessions via slow path"
+    return $filtered
 }

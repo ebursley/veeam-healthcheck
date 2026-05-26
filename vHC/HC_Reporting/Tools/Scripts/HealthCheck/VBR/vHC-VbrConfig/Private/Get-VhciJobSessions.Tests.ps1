@@ -104,3 +104,67 @@ Describe 'GJS-3: Fast path iterates jobs with correct JobId and Since' {
         Should -Invoke Invoke-VhciCBackupSessionFetch -Times 1 -Exactly -ParameterFilter { $Since -eq $script:cutoff }
     }
 }
+
+# ---------------------------------------------------------------------------
+# GJS-2  Probe $false -> slow branch; scriptblock invoked once,
+#                        Invoke-VhciCBackupSessionFetch never invoked
+# ---------------------------------------------------------------------------
+Describe 'GJS-2: Probe $false selects the slow path' {
+
+    BeforeEach {
+        Mock Write-LogFile -MockWith { }
+        Mock Test-VhciCBackupSessionFastPath -MockWith { $false }
+        Mock Invoke-VhciCBackupSessionFetch -MockWith { throw 'Should not be called' }
+        $script:slowCallCount = 0
+        $script:slowSb = {
+            $script:slowCallCount++
+            @(script:New-FakeSession -CreationTime (Get-Date).AddHours(-1))
+        }
+    }
+
+    It 'invokes the slow-path scriptblock exactly once' {
+        @(Get-VhciJobSessions -Jobs @((script:New-FakeJob 'J1')) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy') | Out-Null
+        $script:slowCallCount | Should -Be 1
+    }
+
+    It 'never invokes Invoke-VhciCBackupSessionFetch' {
+        @(Get-VhciJobSessions -Jobs @((script:New-FakeJob 'J1')) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy') | Out-Null
+        Should -Invoke Invoke-VhciCBackupSessionFetch -Times 0 -Exactly
+    }
+
+    It 'logs an INFO line containing "slow path"' {
+        $script:infoMessages = [System.Collections.Generic.List[string]]::new()
+        Mock Write-LogFile -MockWith {
+            if (-not $LogLevel -or $LogLevel -eq 'INFO') { $script:infoMessages.Add($Message) }
+        }
+        @(Get-VhciJobSessions -Jobs @((script:New-FakeJob 'J1')) `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy') | Out-Null
+        ($script:infoMessages | Where-Object { $_ -match 'slow path' }).Count | Should -BeGreaterThan 0
+    }
+}
+
+# ---------------------------------------------------------------------------
+# GJS-5  Slow path applies the cutoff filter client-side
+# ---------------------------------------------------------------------------
+Describe 'GJS-5: Slow path filters by CreationTime > $Since' {
+
+    BeforeEach {
+        Mock Write-LogFile -MockWith { }
+        Mock Test-VhciCBackupSessionFastPath -MockWith { $false }
+        $script:slowSb = {
+            @(
+                (script:New-FakeSession -CreationTime (Get-Date).AddDays(-10)),  # outside window
+                (script:New-FakeSession -CreationTime (Get-Date).AddHours(-1))   # inside window
+            )
+        }
+    }
+
+    It 'returns only sessions newer than $Since' {
+        $result = @(Get-VhciJobSessions -Jobs @() `
+            -Since (Get-Date).AddDays(-7) -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy')
+        $result.Count | Should -Be 1
+        $result[0].CreationTime | Should -BeGreaterThan (Get-Date).AddDays(-7)
+    }
+}
