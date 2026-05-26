@@ -29,13 +29,78 @@ namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
 
             return rows
                 .Where(r => r != null && r.JobType != null && AgentJobTypes.Contains(r.JobType))
-                .Select(r => new AgentJobRecord
-                {
-                    JobName = r.Name,
-                    JobType = r.JobType,
-                    FriendlyType = ResolveFriendlyType(r),
-                })
+                .Select(MapRow)
                 .ToList();
+        }
+
+        private static AgentJobRecord MapRow(CJobCsvInfos r)
+        {
+            bool gfsEnabled = r.GfsMonthlyEnabled || r.GfsWeeklyIsEnabled || r.GfsYearlyEnabled;
+            var gfsDetailParts = new List<string>();
+            if (r.GfsWeeklyIsEnabled)
+            {
+                gfsDetailParts.Add($"Weekly:{r.GfsWeeklyCount}");
+            }
+            if (r.GfsMonthlyEnabled)
+            {
+                gfsDetailParts.Add($"Monthly:{r.GfsMonthlyCount}");
+            }
+            if (r.GfsYearlyEnabled)
+            {
+                gfsDetailParts.Add($"Yearly:{r.GfsYearlyCount}");
+            }
+
+            string compressionLevel = r.CompressionLevel switch
+            {
+                "9" => "Extreme",
+                "6" => "High",
+                "5" => "Optimal",
+                "4" => "Dedupe-Friendly",
+                "0" => "None",
+                _ => r.CompressionLevel,
+            };
+
+            string blockSize = r.BlockSize switch
+            {
+                "KbBlockSize1024" => "1 MB",
+                "KbBlockSize512" => "512 KB",
+                "KbBlockSize256" => "256 KB",
+                "KbBlockSize4096" => "4 MB",
+                "KbBlockSize8192" => "8 MB",
+                _ => r.BlockSize,
+            };
+
+            bool syntheticFull = r.Algorithm == "Increment" && r.TransformFullToSyntethic;
+            string backupChainType = r.Algorithm == "Syntethic" ? "Reverse Incremental" : "Forward Incremental";
+            bool indexingEnabled = r.IndexingType != null && r.IndexingType != "None";
+            string retentionScheme = r.RetentionType == "Cycles" ? "Points" : r.RetentionType;
+            string retainDays = r.RetentionType == "Cycles" ? r.RetentionCount : r.RetainDaysToKeep;
+
+            return new AgentJobRecord
+            {
+                JobName = r.Name,
+                JobType = r.JobType,
+                FriendlyType = ResolveFriendlyType(r),
+                RepoName = r.RepoName,
+                SourceSizeGB = System.Math.Round(r.OriginalSize / 1024.0 / 1024.0 / 1024.0, 2),
+                OnDiskGB = System.Math.Round(r.OnDiskGB ?? 0, 2),
+                RetentionScheme = retentionScheme,
+                RetainDays = retainDays,
+                Encrypted = r.StgEncryptionEnabled,
+                CompressionLevel = compressionLevel,
+                BlockSize = blockSize,
+                GfsEnabled = gfsEnabled,
+                GfsDetails = gfsEnabled ? string.Join(",", gfsDetailParts) : string.Empty,
+                ActiveFullEnabled = r.EnableFullBackup.ToString(),
+                SyntheticFullEnabled = syntheticFull,
+                BackupChainType = backupChainType,
+                IndexingEnabled = indexingEnabled,
+                AAIPEnabled = r.AAIPEnabled ?? "",
+                VSSEnabled = r.VSSEnabled ?? "",
+                VSSIgnoreErrors = r.VSSIgnoreErrors ?? "",
+                GuestFSIndexing = r.GuestFSIndexingEnabled ?? "",
+                Platform = r.Platform ?? "",
+            };
         }
 
         private static string ResolveFriendlyType(CJobCsvInfos row)
