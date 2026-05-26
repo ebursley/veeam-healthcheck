@@ -175,9 +175,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
 
             try
             {
-                CCsvParser csvparser = new();
-                var source = csvparser.JobCsvParser().ToList();
-                source.OrderBy(x => x.Name);
                 var stuff = this.df.ConvertJobSessSummaryToXml(scrub);
                 var agentJobsByName = this.BuildAgentJobsByName();
 

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
 using VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs;
-using VeeamHealthCheck.Functions.Reporting.Html;
 using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
 using VeeamHealthCheck.Shared;
 using static VeeamHealthCheck.Functions.Collection.DB.CModel;
@@ -41,8 +40,13 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                 // Agent jobs (managed + standalone) come from the unified AgentJobs view,
                 // grouped by FriendlyType. This replaces the previous "Agent Backup" /
                 // "Unmanaged Agent" buckets which double-counted managed jobs.
-                var dataFormer = new CDataFormer();
-                foreach (var grouping in dataFormer.AgentJobs.GroupBy(a => a.FriendlyType))
+                //
+                // Calling AgentJobAggregator.Build directly on the already-materialized
+                // backupJobs list avoids constructing a CDataFormer here — that constructor
+                // eagerly reads four proxy CSVs and logs a warning when they're missing,
+                // which is irrelevant noise for the job-summary path.
+                var agentJobs = AgentJobAggregator.Build(backupJobs);
+                foreach (var grouping in agentJobs.GroupBy(a => a.FriendlyType))
                 {
                     if (!typeAndCount.ContainsKey(grouping.Key))
                     {
