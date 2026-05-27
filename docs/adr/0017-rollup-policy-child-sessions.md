@@ -1,6 +1,6 @@
 # ADR 0017: Roll Up Policy Per-VM Child Sessions Into Parent Row in jobSessionSummary
 
-* **Status:** Accepted
+* **Status:** Superseded by ADR 0019
 * **Date:** 2026-05-27
 * **Decider:** Ben Thomas (@comnam90)
 * **Consulted:** Claude Code (architecture review)
