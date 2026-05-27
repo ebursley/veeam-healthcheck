@@ -14,7 +14,7 @@ Describe 'Test-VhciCBackupSessionFastPath' {
         # In a dev/CI environment without Veeam the -as [type] check returns $null
         # and the probe must return $false.  On a live VBR host (or after another
         # test in the same Pester run has loaded Veeam.Backup.Core.dll), the type
-        # IS present and the probe correctly returns $true — so we skip the
+        # IS present and the probe correctly returns $true - so we skip the
         # "must-be-false" assertion in that case.
         $typeAvailable = $null -ne ('Veeam.Backup.Core.CBackupSession' -as [type])
         $result = Test-VhciCBackupSessionFastPath
