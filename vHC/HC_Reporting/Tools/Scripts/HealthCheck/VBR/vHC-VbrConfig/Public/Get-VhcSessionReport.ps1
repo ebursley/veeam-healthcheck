@@ -40,10 +40,29 @@ function Get-VhcSessionReport {
     # in jobSessionSummary. Looking the JobId up here and overriding the
     # CSV's JobName collapses historical and current sessions onto the same
     # row, letting the C# rollup aggregate them as one job.
+    $vbrJobs = @()
+    try {
+        $vbrJobs = @(Get-VBRJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBRJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    $agentJobs = @()
+    try {
+        $agentJobs = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBRComputerBackupJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    $epJobs = @()
+    try {
+        $epJobs = @(Get-VBREPJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBREPJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
     $jobIdMap = @{}
-    foreach ($j in @(Get-VBRJob               -ErrorAction SilentlyContinue) +
-                   @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue) +
-                   @(Get-VBREPJob             -ErrorAction SilentlyContinue)) {
+    foreach ($j in $vbrJobs + $agentJobs + $epJobs) {
         if ($null -ne $j.Id -and $null -ne $j.Name) { $jobIdMap[$j.Id] = $j.Name }
     }
 
