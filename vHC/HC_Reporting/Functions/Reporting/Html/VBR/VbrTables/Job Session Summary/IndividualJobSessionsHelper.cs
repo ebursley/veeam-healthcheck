@@ -97,48 +97,37 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
             this.CleanFolder(folderName);
 
             var allSessions = this.ReturnJobSessionsList();
-            var namesList = this.ReturnJobSessionsNamesList() ?? new List<string>();
 
-            // Roll up per-machine child sessions under their parent job using the
-            // same logic that drives jobSessionSummaryByJob (see CJobSessSummary).
-            // BC and policy children share the same logical job as their parent;
-            // grouping them in one file per parent matches user expectation.
-            var rollup = CJobSessSummaryHelper.BuildNameRollup(namesList);
+            // Group sessions by the same rollup key the summary table uses, so
+            // per-machine child sessions land in the same HTML file as their
+            // parent. See ADR 0019.
+            var groups = allSessions
+                .GroupBy(s => CSessionGroupKey.Of(s))
+                .ToList();
 
             double percentCounter = 0;
             int totalSessions = allSessions.Count;
 
-            // Iterate effective parent names: anything in allNames that is NOT
-            // itself a rolled-up child. That includes standalone jobs and
-            // parents (the shared helper has already added orphan-parent
-            // names from _Jobs.csv to allNames).
-            foreach (var name in rollup.AllNames)
+            foreach (var group in groups)
             {
-                if (rollup.ChildNames.Contains(name)) continue;
+                var displayName = group
+                    .Select(s => CSessionGroupKey.DisplayName(s))
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n))
+                    ?? group.First().JobName ?? string.Empty;
 
                 try
                 {
-                    // The names that contribute rows to this parent's file: the
-                    // parent itself plus any children rolled up under it.
-                    var contributingNames = new HashSet<string>(StringComparer.Ordinal) { name };
-                    if (rollup.ParentToChildren.TryGetValue(name, out var children))
-                    {
-                        foreach (var c in children) contributingNames.Add(c);
-                    }
-
-                    var sessionsForJob = allSessions
-                        .Where(s => s.JobName != null && contributingNames.Contains(s.JobName))
-                        .ToList();
+                    var sessionsForJob = group.ToList();
 
                     this.LogJobSessionParseProgress(percentCounter, totalSessions);
 
-                    string mainDir = this.SetMainDir(folderName, name);
-                    string scrubDir = this.SetScrubDir(folderName, name);
+                    string mainDir = this.SetMainDir(folderName, displayName);
+                    string scrubDir = this.SetScrubDir(folderName, displayName);
 
-                    string mainString = this.ReturnTableHeaderString(name);
+                    string mainString = this.ReturnTableHeaderString(displayName);
                     File.WriteAllText(mainDir, mainString);
 
-                    string scrubString = this.ReturnTableHeaderString(name);
+                    string scrubString = this.ReturnTableHeaderString(displayName);
                     File.WriteAllText(scrubDir, scrubString);
 
                     foreach (var cs in sessionsForJob)
@@ -159,7 +148,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
                 }
                 catch (Exception e)
                 {
-                    this.log.Error($"Exception generating individual session HTML for job '{name}':");
+                    this.log.Error($"Exception generating individual session HTML for job '{displayName}':");
                     this.log.Error(e.Message);
                 }
             }
