@@ -33,6 +33,20 @@ function Get-VhcSessionReport {
 
     Write-LogFile "Generating session report for $(@($BackupSessions).Count) sessions..."
 
+    # Build a JobId -> canonical-name lookup from the active job lists.
+    # When a job is renamed in Veeam, existing sessions retain the historical
+    # name. The fast-path query is by job_id, so it returns these alongside
+    # current-name sessions and they would otherwise appear as their own row
+    # in jobSessionSummary. Looking the JobId up here and overriding the
+    # CSV's JobName collapses historical and current sessions onto the same
+    # row, letting the C# rollup aggregate them as one job.
+    $jobIdMap = @{}
+    foreach ($j in @(Get-VBRJob               -ErrorAction SilentlyContinue) +
+                   @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue) +
+                   @(Get-VBREPJob             -ErrorAction SilentlyContinue)) {
+        if ($null -ne $j.Id -and $null -ne $j.Name) { $jobIdMap[$j.Id] = $j.Name }
+    }
+
     [System.Collections.ArrayList]$allOutput = @()
 
     # Use Get-VBRTaskSession per session to resolve task-level detail (one row per machine).
@@ -82,6 +96,17 @@ function Get-VhcSessionReport {
                 # Agent task JobName has the machine name appended by Veeam; use the parent
                 # session Name for the clean job name instead. See ADR 0012.
                 $jobName = if ($task.ObjectPlatform.IsEpAgentPlatform) { $session.Name } else { $task.JobName }
+
+                # If this session belongs to a currently-active job (by JobId),
+                # override with the canonical name. Catches historical-name
+                # sessions retained after a Veeam job rename, plus any other
+                # case where $task.JobName / $session.Name disagrees with the
+                # active job list. Per-machine child sessions have a different
+                # JobId from the parent and fall through unchanged so the C#
+                # rollup can still detect them as children.
+                if ($null -ne $session.JobId -and $jobIdMap.ContainsKey($session.JobId)) {
+                    $jobName = $jobIdMap[$session.JobId]
+                }
 
                 $row = [pscustomobject][ordered]@{
                     'JobName'           = $jobName
