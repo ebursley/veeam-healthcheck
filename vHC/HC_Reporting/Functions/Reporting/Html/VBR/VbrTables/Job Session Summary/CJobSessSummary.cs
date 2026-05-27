@@ -5,8 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
 using VeeamHealthCheck.Functions.Reporting.DataTypes;
 using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
@@ -69,58 +67,28 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             double totalRetries = 0;
             SessionStats totalStats = new();
 
-            // Policy jobs store per-VM child sessions in the DB with names like
-            // "<Parent> - <VmFqdn>" (regular agent/Backup jobs) or
-            // "<Parent>\<VmName>" (BackupCopy policies), optionally with a
-            // trailing algorithm parenthetical "(Full)" / "(Incremental)" added
-            // by Veeam to distinguish session algorithms. Each variant sits
-            // alongside a parent orchestrator session named "<Parent>" that
-            // carries no data (DataSize/BackupSize = 0); the actual work is in
-            // the children. Render one row per parent by detecting these pairs
-            // and aggregating the children's sessions under the parent's name.
-            // Standalone jobs and orphan parents (no children visible in
-            // window) are unaffected.
-            //
-            // The rollup is dispatched on a name pattern (not on JobType), so any future VBR
-            // job type that produces matching <Parent> + <Parent>{sep}<Child> sessions would
-            // be caught automatically. Defensive guard below limits the rollup to parents
-            // whose own sessions all have zero DataSize/BackupSize - preventing data loss on
-            // an unverified job type that happens to share the naming but carries real data
-            // on the parent session.
-            //
-            // nameSet also incorporates current job names from _Jobs.csv so that a BC
-            // orchestrator session producing no tasks (and thus no CSV row) still acts as
-            // a rollup anchor for its children.
-            // One pass to mark which names have ANY data-bearing session in the window.
-            var namesWithData = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var session in helper.JobSessionInfoList())
-            {
-                if (session.Name != null && (session.DataSize > 0 || session.BackupSize > 0))
+            // Group all sessions by their stable rollup key. Children inherit the
+            // parent's PolicyTag (GUID), so grouping by CSessionGroupKey.Of merges
+            // per-machine sessions under the parent without any name parsing.
+            // See ADR 0019.
+            var groups = helper.JobSessionInfoList()
+                .GroupBy(s => CSessionGroupKey.Of(s))
+                .Select(g => new
                 {
-                    namesWithData.Add(session.Name);
-                }
-            }
-
-            // Defensive: only roll up when the parent has no data-bearing sessions.
-            // If the parent carries real data, leave parent and child as separate rows
-            // rather than risk silently dropping the parent's metrics for some job type
-            // that doesn't follow the policy-orchestrator pattern. The shared rollup
-            // helper handles _Jobs.csv enrichment for BC orphan-parent rows.
-            var rollup = CJobSessSummaryHelper.BuildNameRollup(helper.JobNameList(), namesWithData);
-            var allNames = rollup.AllNames;
-            var nameSet = rollup.NameSet;
-            var parentToChildren = rollup.ParentToChildren;
-            var childNames = rollup.ChildNames;
+                    DisplayName = g
+                        .Select(s => CSessionGroupKey.DisplayName(s))
+                        .FirstOrDefault(n => !string.IsNullOrEmpty(n))
+                        ?? (g.First().JobName ?? string.Empty),
+                    SessionNames = new HashSet<string>(
+                        g.Select(s => s.Name).Where(n => !string.IsNullOrEmpty(n)),
+                        StringComparer.Ordinal),
+                })
+                .ToList();
 
             int totalProtectedInstances = 0;
-            foreach (var j in allNames)
+            foreach (var group in groups)
             {
-                if (childNames.Contains(j))
-                {
-                    // Child sessions are aggregated into the parent row above; skip the
-                    // standalone child row to avoid duplication.
-                    continue;
-                }
+                var j = group.DisplayName;
 
                 // log.Debug( logStart + "Parsing Sessions for job: " + j);
                 try
@@ -135,14 +103,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     List<double> dataSize = new();
                     List<double> backupSize = new();
 
-                    // For parents with children, aggregate ONLY the children's sessions —
-                    // the parent's own orchestrator sessions have DataSize=0 and would
-                    // dilute averages. For orphan parents and standalone jobs, aggregate
-                    // the row's own sessions.
-                    var namesToAggregate = parentToChildren.TryGetValue(j, out var children) && children.Count > 0
-                        ? (IEnumerable<string>)children
-                        : new[] { j };
-                    SessionStats thisSession = helper.SessionStats(namesToAggregate);
+                    SessionStats thisSession = helper.SessionStats(group.SessionNames);
                     durations = thisSession.JobDuration;
                     vmNames = thisSession.VmNames;
                     dataSize = thisSession.DataSize;
@@ -164,13 +125,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                         {
                             info.UsedVmSizeTB = jobInfo.OriginalSize / 1024 / 1024 / 1024 / 1024;
 
-                            // When we rolled up children into this parent, the child
-                            // sessions carry a child-flavour JobType (e.g. "EEndPoint"
-                            // for BackupCopy children) that gets translated to a
-                            // misleading display label ("Endpoint Backup"). Override
-                            // with the parent's authoritative TypeToString from
-                            // _Jobs.csv (e.g. "Backup Copy") when available.
-                            if (parentToChildren.ContainsKey(j) && !string.IsNullOrEmpty(jobInfo.TypeToString))
+                            // The row's identity is now the parent's display name,
+                            // so the _Jobs.csv TypeToString is always the parent's
+                            // canonical type (e.g. "Backup Copy" instead of the
+                            // child's "Endpoint Backup"). See ADR 0019.
+                            if (!string.IsNullOrEmpty(jobInfo.TypeToString))
                             {
                                 info.JobType = jobInfo.TypeToString;
                             }
