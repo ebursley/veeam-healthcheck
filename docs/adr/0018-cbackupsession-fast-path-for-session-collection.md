@@ -47,18 +47,32 @@ on the SQL/PostgreSQL schemas across v11+.
 static-method class with over 40 query methods. Several map directly to the
 index:
 
-| Method | Filters by |
-|---|---|
-| `GetByJob(Guid jobId)` | job id (full history) |
-| `GetByJobAndTimeRangeWithLog(Guid, DateTime)` | job id + start date |
-| `GetByTypeAndTimeInterval(EDbJobType, DateTime, DateTime)` | type + window |
-| `FindLastByJob(Guid)` | most recent for job |
+| Method | Filters by | Returns children? |
+|---|---|---|
+| `GetByJob(Guid jobId)` | job id (full history) | no (top-level only) |
+| `GetByJobAndTimeRangeWithLog(Guid, DateTime)` | job id + start date | **no** (top-level only) |
+| `GetAllSessionsByPolicyJobAndTimeRange(Guid, DateTime, DateTime)` | job id + range | **yes** (incl. per-machine children) |
+| `GetByTypeAndTimeInterval(EDbJobType, DateTime, DateTime)` | type + window | n/a |
+| `FindLastByJob(Guid)` | most recent for job | no |
 
-These are the methods the supported cmdlets (`Get-VBRBackupSession`,
-`Get-VBRComputerBackupJobSession`) call internally. We confirmed by lab test
-that `GetByJobAndTimeRangeWithLog` returns sessions for VM, Backup Copy, and
-agent jobs alike — including the `Managed-WindowsAgents-Job` from a managed
-agent — in 312 ms over a 7-day window.
+The first design choice was the narrower `GetByJobAndTimeRangeWithLog`, but lab
+testing during PR review (#147) showed it silently drops per-machine child
+sessions. Policy jobs (`SimpleBackupCopyPolicy`, `EpAgentPolicy`, `EpAgentBackup`)
+emit per-machine child sessions to `backup.model.jobsessions` under a synthetic
+`<Parent>\<Vm>` `job_id` that `Get-VBRJob` does not surface. The narrower call
+only returns rows where `job_id` equals the parent's id exactly. The wider
+`GetAllSessionsByPolicyJobAndTimeRange` returns both parent and per-machine
+children regardless of policy type — the "Policy" in the name is misleading,
+the underlying query simply joins on the parent-child relationship. This is
+what ADR 0017's `jobSessionSummary` rollup expects.
+
+Lab confirmation (VBR 13.0.1):
+
+| Job | Narrower call | Wider call (chosen) |
+|---|---|---|
+| `Backup Copy Job 1` (SimpleBackupCopyPolicy) | 1 (orchestrator only) | 3 (1 + 2 children) |
+| `Managed-WindowsAgents-Job` (EpAgentBackup) | 2 | 4 (2 + 2 children) |
+| `Managed-WindowsAgents-Policy` (EpAgentPolicy) | 4 | 5 |
 
 ### The supportability question
 
@@ -87,19 +101,21 @@ coupling automatic to recover from.
 ## Decision
 
 1. **Primary path: internal .NET method.** Call
-   `[Veeam.Backup.Core.CBackupSession]::GetByJobAndTimeRangeWithLog($jobId, $since)`
-   per job to fetch sessions filtered at the database layer.
+   `[Veeam.Backup.Core.CBackupSession]::GetAllSessionsByPolicyJobAndTimeRange($jobId, $since, $until)`
+   per job to fetch sessions filtered at the database layer. This method
+   returns the parent job's session plus any per-machine child sessions
+   within the time window.
 
 2. **Fallback path: supported unfiltered cmdlet.** When the type or the
-   specific `(Guid, DateTime)` method overload is not available, fall back
-   to a single unfiltered cmdlet call (`Get-VBRBackupSession` for VM/Backup
-   Copy, `Get-VBRComputerBackupJobSession` for agents) with client-side
-   `CreationTime > $since` filtering. This is the pre-`59e2621` shape and
-   is known to work on v12 and small v13 environments.
+   specific `(Guid, DateTime, DateTime)` method overload is not available,
+   fall back to a single unfiltered cmdlet call (`Get-VBRBackupSession` for
+   VM/Backup Copy, `Get-VBRComputerBackupJobSession` for agents) with
+   client-side `CreationTime > $since` filtering. This is the pre-`59e2621`
+   shape and is known to work on v12 and small v13 environments.
 
 3. **Reflection-based probe.** A `Test-VhciCBackupSessionFastPath` helper
    uses reflection (`'Veeam.Backup.Core.CBackupSession' -as [type]` +
-   `GetMethod('GetByJobAndTimeRangeWithLog', [type[]]@([guid],[datetime]))`)
+   `GetMethod('GetAllSessionsByPolicyJobAndTimeRange', [type[]]@([guid],[datetime],[datetime]))`)
    to determine availability. Probe failures degrade silently to the slow
    path with an INFO log line.
 
@@ -111,6 +127,13 @@ coupling automatic to recover from.
 5. **Wrap the static call in a mockable PS function.**
    `Invoke-VhciCBackupSessionFetch` is a one-line wrapper around the static
    call, exposed solely so Pester can `Mock` it without `Add-Type`.
+
+6. **Dedupe agent jobs out of `Get-VBRJob` results.** `Get-VBRJob` still
+   returns agent jobs on VBR 13 (with a deprecation warning) and they also
+   appear in `Get-VBRComputerBackupJob` with identical `Id`s. The public
+   `Get-VhcBackupSessions` subtracts the agent-job Id set from the
+   `Get-VBRJob` result before calling the helper, so each agent job is
+   queried exactly once via the Agent path.
 
 The full helper design is documented in
 `docs/superpowers/specs/2026-05-27-vbr-session-fast-path-design.md`.
@@ -174,9 +197,9 @@ The full helper design is documented in
 
 - Coupling to an unsupported internal API. Mitigated by the reflection
   probe; nonetheless, if Veeam renames or removes
-  `GetByJobAndTimeRangeWithLog` in a future major version, the slow path
-  becomes the only path on that version. Acceptable, since "slow but
-  working" is the current pre-`59e2621` baseline.
+  `GetAllSessionsByPolicyJobAndTimeRange` in a future major version, the
+  slow path becomes the only path on that version. Acceptable, since "slow
+  but working" is the current pre-`59e2621` baseline.
 - One extra `Get-VBRComputerBackupJob` call in `Get-VhcBackupSessions` to
   produce the agent-job list the fast path iterates. Cheap (returns a small
   metadata list, not session data) and only paid once per run.
@@ -191,26 +214,37 @@ The full helper design is documented in
 
 ## Validation
 
-The fast path was validated against a VBR 13.0.1 lab during the design
-phase:
+The fast path was validated against a VBR 13.0.1 lab in two phases.
 
-- `[Veeam.Backup.Core.CBackupSession]::GetByJobAndTimeRangeWithLog($jobId, $since)`
-  returned 2 sessions for `Managed-WindowsAgents-Job` over a 7-day window
+**Design-phase validation** with the narrower `GetByJobAndTimeRangeWithLog`:
+
+- Returned 2 sessions for `Managed-WindowsAgents-Job` over a 7-day window
   in 312 ms.
-- The same call against a VM/BackupCopy job (`Backup Copy Job 1`) returned
-  the expected sessions with `CBackupSession` shape.
 - `psql` direct inspection of `public."backup.model.jobsessions"` confirmed
-  the index plan and that the result set matches the cmdlet output
-  one-for-one.
+  the index plan.
 
-Implementation will add:
+**PR-review validation** that motivated switching to `GetAllSessionsByPolicyJobAndTimeRange`:
+
+- `Backup Copy Job 1`: narrower call returned 1 session (orchestrator only);
+  wider call returned 3 sessions (1 orchestrator + 2 per-machine children).
+  The narrower call silently dropped the children, which is what the
+  reporter flagged as "missing BC sessions in jobSessionSummary".
+- `Managed-WindowsAgents-Job`: narrower 2 → wider 4 (2 + 2 per-machine
+  children).
+- `Managed-WindowsAgents-Policy`: narrower 4 → wider 5.
+- End-to-end run produces 11 task-rows in `VeeamSessionReport.csv`,
+  including 2 rows for `Backup Copy Job 1\Unmanaged-WindowsAgents-VTESTVM03`
+  (incremental and full) with `DataSizeGB`/`BackupSizeGB` populated.
+- Verified the agent-job dedupe: agent jobs no longer appear twice in the
+  combined output (previously the same agent job was queried via both
+  `Get-VBRJob` and `Get-VBRComputerBackupJob` paths).
+
+Implementation includes:
 
 - Pester unit tests in `Private/Get-VhciJobSessions.Tests.ps1` (GJS-1
-  through GJS-7) covering both branches without a live VBR runtime.
+  through GJS-8) covering both branches without a live VBR runtime.
 - Rewritten `Public/Get-VhcBackupSessions.Tests.ps1` (ISC-1 through ISC-7)
   asserting the new call shape.
-- A manual end-to-end run of `Get-VhcSessionReport` against the lab to
-  confirm `CBackupSession` agent-session objects flow through
-  `Get-VBRTaskSession` correctly. If they do not, an adapter layer is added
-  at the agent fast-path return site; this is implementation risk, not
-  design risk.
+- A manual end-to-end run of `Get-VhcSessionReport` against the lab,
+  confirming `CBackupSession` agent-session objects flow through
+  `Get-VBRTaskSession` correctly (no adapter layer needed).

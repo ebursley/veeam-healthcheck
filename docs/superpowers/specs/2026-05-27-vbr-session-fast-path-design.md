@@ -22,11 +22,19 @@ safe fallback for environments where the fast path is not available.
 
 ## Solution
 
-Use the internal `Veeam.Backup.Core.CBackupSession.GetByJobAndTimeRangeWithLog(Guid, DateTime)`
+Use the internal `Veeam.Backup.Core.CBackupSession.GetAllSessionsByPolicyJobAndTimeRange(Guid, DateTime, DateTime)`
 static method as a fast path. This method exists on every supported VBR version
 that ships `Veeam.Backup.Core.dll` and queries the indexed
-`backup.model.jobsessions` table directly (verified manually against a VBR 13.0.1
-lab: 2 sessions for a 7-day window returned in 312 ms).
+`backup.model.jobsessions` table directly. It returns the parent job's session
+**and** any per-machine child sessions whose `creation_time` falls within the
+range — necessary because policy jobs (`SimpleBackupCopyPolicy`,
+`EpAgentPolicy`, `EpAgentBackup`) emit per-machine child sessions under a
+synthetic `<Parent>\<Vm>` `job_id` that `Get-VBRJob` does not surface. The
+narrower `GetByJobAndTimeRangeWithLog(Guid, DateTime)` was tried first but
+dropped these children silently. (Method-name caveat: "Policy" in the name is
+misleading — the underlying query also includes per-machine children for
+non-policy parent jobs, which is what ADR 0017's `jobSessionSummary` rollup
+expects.)
 
 Fall back to the original unfiltered `Get-VBRBackupSession | Where-Object` shape
 when the fast-path type or method is not available, preserving v12 compatibility
@@ -39,6 +47,12 @@ is no mode-switching mid-run — if the fast path is chosen, every job uses it; 
 per-job exception inside the fast path logs a WARNING and continues to the next
 job (matching today's partial-failure tolerance) but does not demote that job to
 the slow path.
+
+Agent jobs are returned by both `Get-VBRJob` (still surfaced on v13 with a
+deprecation warning) and `Get-VBRComputerBackupJob` with identical `Id`s. The
+public `Get-VhcBackupSessions` subtracts the agent-job Id set from the
+`Get-VBRJob` result before calling the helper, so each agent job is queried
+exactly once via the Agent path.
 
 ## Architecture
 
@@ -95,7 +109,7 @@ function Get-VhciJobSessions {
 ### 2. `Private/Test-VhciCBackupSessionFastPath.ps1` (new)
 
 Returns `[bool]`. Uses `'Veeam.Backup.Core.CBackupSession' -as [type]` for type
-existence, then `GetMethod('GetByJobAndTimeRangeWithLog', [type[]]@([guid],[datetime]))`
+existence, then `GetMethod('GetAllSessionsByPolicyJobAndTimeRange', [type[]]@([guid],[datetime],[datetime]))`
 for method existence. Wrapped in `try/catch` returning `$false` on any
 reflection failure — never throws to caller.
 
@@ -106,18 +120,29 @@ target so unit tests don't need a live VBR connection.
 
 ```powershell
 function Invoke-VhciCBackupSessionFetch {
-    param([Parameter(Mandatory)] [Guid] $JobId, [Parameter(Mandatory)] [DateTime] $Since)
-    return [Veeam.Backup.Core.CBackupSession]::GetByJobAndTimeRangeWithLog($JobId, $Since)
+    param(
+        [Parameter(Mandatory)] [Guid]     $JobId,
+        [Parameter(Mandatory)] [DateTime] $Since,
+        [Parameter(Mandatory)] [DateTime] $Until
+    )
+    return [Veeam.Backup.Core.CBackupSession]::GetAllSessionsByPolicyJobAndTimeRange($JobId, $Since, $Until)
 }
 ```
 
 ### 4. `Public/Get-VhcBackupSessions.ps1` (modified)
 
-Lines 37–58 (the broken `-Job` loop plus the agent block) collapse to:
+The broken `-Job` loop plus the agent block collapse to two helper delegations
+wrapped in their own try/catch (so a throw in one family doesn't kill the
+other) plus an agent-job dedupe step:
 
 ```powershell
-$jobs       = @(Get-VBRJob                   -ErrorAction SilentlyContinue)
-$agentJobs  = @(Get-VBRComputerBackupJob     -ErrorAction SilentlyContinue)
+$jobs      = @(Get-VBRJob               -ErrorAction SilentlyContinue)  # in try/catch
+$agentJobs = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)  # in try/catch
+
+# Get-VBRJob still returns agent jobs on v13 (with a deprecation warning).
+# Subtract them so each agent job is only queried via the Agent path.
+$agentIdSet = @{}; foreach ($aj in $agentJobs) { $agentIdSet[$aj.Id] = $true }
+$jobs       = @($jobs | Where-Object { -not $agentIdSet.ContainsKey($_.Id) })
 
 $vmSessions    = @(Get-VhciJobSessions -Jobs $jobs      -Since $cutoff `
                        -SlowPathCommand { Get-VBRBackupSession } `
@@ -133,7 +158,8 @@ return $vmSessions + $agentSessions
 The `Get-VBRComputerBackupJob` call is new — the pre-existing code did not need
 an agent job list because the slow-path cmdlet is called unfiltered. The fast
 path requires a job-id list, so the caller now fetches one. In the slow-path
-branch the job list is unused — that is fine.
+branch the job list is unused — that is fine. The dedupe step removes agent
+jobs from the `Get-VBRJob` result so they are not queried twice.
 
 ### 5. `Private/Get-VhciJobSessions.Tests.ps1` (new)
 
@@ -215,14 +241,21 @@ collector. `Invoke-VhciCBackupSessionFetch` and
 Performed during implementation against the local lab VBR (13.0.1) used during
 brainstorming:
 
-1. `Veeam.Backup.Core.CBackupSession.GetByJobAndTimeRangeWithLog($jobId, $since)`
-   returns `CBackupSession` objects for VM/BackupCopy and Agent jobs alike
-   (confirmed during design: `Managed-WindowsAgents-Job` returned 2 sessions).
+1. `Veeam.Backup.Core.CBackupSession.GetAllSessionsByPolicyJobAndTimeRange($jobId, $since, $until)`
+   returns `CBackupSession` objects for VM/BackupCopy and Agent jobs alike,
+   including per-machine child sessions where applicable. Confirmed against
+   the lab: BC Job 1 returned 3 sessions (1 orchestrator + 2 children), the
+   managed agent job returned the parent plus per-machine children.
 2. End-to-end run of `Get-VhcSessionReport` over the helper's output — the
    downstream code path that calls `Get-VBRTaskSession` accepts `CBackupSession`
-   objects originating from agent jobs. If this fails, a small adapter is
-   needed at the agent slow-path return site; this is implementation risk, not
-   design risk.
+   objects originating from agent jobs. Confirmed: 12 sessions in →
+   11 task-rows in `VeeamSessionReport.csv` with populated sizes for both VM
+   parent rows and per-machine child rows.
+3. The previously-tried narrower `GetByJobAndTimeRangeWithLog(Guid, DateTime)`
+   was dropped because it silently omits the per-machine child sessions that
+   live under synthetic `<Parent>\<Vm>` `job_id`s. Lab evidence: BC Job 1
+   returned 1 session (orchestrator only) via the narrower call vs 3 sessions
+   via the policy variant.
 
 ## Out of Scope
 
@@ -250,8 +283,8 @@ brainstorming:
 - **Internal type stability.** `Veeam.Backup.Core.CBackupSession` is not part
   of the supported PowerShell surface. A future VBR release could rename the
   method or change its signature. The probe specifically validates the
-  `(Guid, DateTime)` overload exists; signature drift cleanly degrades to slow
-  path. Risk accepted.
+  `(Guid, DateTime, DateTime)` overload of `GetAllSessionsByPolicyJobAndTimeRange`
+  exists; signature drift cleanly degrades to slow path. Risk accepted.
 
 ## References
 
