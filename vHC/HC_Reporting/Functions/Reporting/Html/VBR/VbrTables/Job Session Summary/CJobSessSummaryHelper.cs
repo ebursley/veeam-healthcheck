@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
@@ -26,112 +25,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
         /// </summary>
         public CJobSessSummaryHelper()
         {
-        }
-
-        // Strips a trailing Veeam algorithm parenthetical: " (Full)", " (Incremental)",
-        // " (Synthetic Full)", etc. Used to normalise child session names before
-        // looking up the parent prefix. Returns the input unchanged if no
-        // parenthetical is present.
-        private static readonly Regex AlgorithmSuffixRegex =
-            new Regex(@"\s*\([^)]+\)\s*$", RegexOptions.Compiled);
-
-        public static string StripAlgorithmSuffix(string name) =>
-            name == null ? null : AlgorithmSuffixRegex.Replace(name, string.Empty);
-
-        // Given a session/job name, returns the parent prefix if the name has the
-        // shape "<Parent> - <Child>[ (suffix)]" OR "<Parent>\<Child>[ (suffix)]"
-        // and <Parent> exists in nameSet. Returns null otherwise.
-        // The dash-space-dash separator is the policy/agent naming pattern;
-        // the backslash separator is the BackupCopy policy naming pattern.
-        public static string TryGetParentPrefix(string name, HashSet<string> nameSet)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            var stripped = StripAlgorithmSuffix(name);
-
-            int dashIdx = stripped.IndexOf(" - ", StringComparison.Ordinal);
-            int bsIdx   = stripped.IndexOf('\\');
-            int delim;
-            if (dashIdx > 0 && bsIdx > 0) delim = Math.Min(dashIdx, bsIdx);
-            else if (dashIdx > 0)         delim = dashIdx;
-            else if (bsIdx > 0)           delim = bsIdx;
-            else                          return null;
-
-            var prefix = stripped.Substring(0, delim);
-            return nameSet.Contains(prefix) ? prefix : null;
-        }
-
-        // Returns a name-rollup result for a collection of session/job names:
-        //   * AllNames - the input names plus any parent names enriched from
-        //     _Jobs.csv (so a BC orchestrator that produced no session row
-        //     still acts as a rollup anchor for its children).
-        //   * ParentToChildren - children mapped under their parent name.
-        //   * ChildNames - the set of names rolled up under a parent.
-        // namesWithData (optional) is the set of session names with non-zero
-        // DataSize/BackupSize - children whose parent appears in this set are
-        // NOT rolled up (defensive: keeps real per-row metrics on the parent's
-        // own data-bearing sessions).
-        public class NameRollup
-        {
-            public List<string> AllNames { get; set; }
-            public HashSet<string> NameSet { get; set; }
-            public Dictionary<string, List<string>> ParentToChildren { get; set; }
-            public HashSet<string> ChildNames { get; set; }
-        }
-
-        public static NameRollup BuildNameRollup(IEnumerable<string> sessionNames, HashSet<string> namesWithData = null)
-        {
-            var allNames = (sessionNames ?? Enumerable.Empty<string>())
-                .Where(n => !string.IsNullOrEmpty(n))
-                .Distinct()
-                .ToList();
-            var nameSet = new HashSet<string>(allNames, StringComparer.Ordinal);
-
-            try
-            {
-                var jobCsv = new CCsvParser().JobCsvParser();
-                if (jobCsv != null)
-                {
-                    foreach (var jobRow in jobCsv)
-                    {
-                        if (!string.IsNullOrEmpty(jobRow.Name)) nameSet.Add(jobRow.Name);
-                    }
-                }
-            }
-            catch
-            {
-                // _Jobs.csv unavailable - rollup still works for sessions whose parent has a row
-            }
-
-            var parentToChildren = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-            var childNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var name in allNames)
-            {
-                var prefix = TryGetParentPrefix(name, nameSet);
-                if (prefix == null) continue;
-                if (namesWithData != null && namesWithData.Contains(prefix)) continue;
-                childNames.Add(name);
-                if (!parentToChildren.TryGetValue(prefix, out var list))
-                {
-                    list = new List<string>();
-                    parentToChildren[prefix] = list;
-                }
-                list.Add(name);
-            }
-
-            // Add orphan parents (in _Jobs.csv but not in sessions) to allNames
-            // so callers iterating allNames render a row for them.
-            foreach (var parent in parentToChildren.Keys.ToList())
-            {
-                if (!allNames.Contains(parent)) allNames.Add(parent);
-            }
-
-            return new NameRollup
-            {
-                AllNames = allNames,
-                NameSet = nameSet,
-                ParentToChildren = parentToChildren,
-                ChildNames = childNames
-            };
         }
 
         /// <summary>
@@ -216,11 +109,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
                 TimeSpan t = new TimeSpan(longAvg);
                 return t.ToString(@"dd\.hh\:mm\:ss");
             }
-        }
-
-        public List<string> JobNameList()
-        {
-            return this.JobSessionInfoList().Select(x => x.Name).ToList();
         }
 
         public List<CJobSessionInfo> JobSessionInfoList()

@@ -64,27 +64,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
                 }
         }
 
-        private List<string> ReturnJobSessionsNamesList()
-        {
-            var targetDate = CGlobals.GetToolStart.AddDays(-CGlobals.ReportDays);
-
-            List<string> csv = new();
-            var res = CGlobals.DtParser.JobSessions; // .Where(c => c.CreationTime >= targetDate).ToList();
-            if (res == null)
-                    return null;
-                else
-                {
-                    var p = res.Select(c => c.Name).ToList();
-
-                    // csv = csv.Where(c => c.CreationTime >= targetDate).ToList();
-                    // csv = csv.Where(x => x.Name == jobName).ToList();
-
-                    // csv = csv.OrderBy(y => y.CreationTime).ToList();
-                    csv.Reverse();
-                    return p.Distinct().ToList();
-                }
-        }
-
         public void ParseIndividualSessions(bool scrub)
         {
             this.scrubber = CGlobals.Scrubber;
