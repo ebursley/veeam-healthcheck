@@ -26,6 +26,16 @@ namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
             "EndpointBackup",
         };
 
+        /// <summary>
+        /// Canonical human-readable labels that should always appear in the
+        /// Missing Jobs section, even when no agent jobs are configured.
+        /// </summary>
+        public static readonly IReadOnlySet<string> DefaultFriendlyTypes = new HashSet<string>
+        {
+            "Agent Backup",
+            "Agent Standalone",
+        };
+
         public static IReadOnlyList<AgentJobRecord> Build(IEnumerable<CJobCsvInfos> rows)
         {
             if (rows == null)

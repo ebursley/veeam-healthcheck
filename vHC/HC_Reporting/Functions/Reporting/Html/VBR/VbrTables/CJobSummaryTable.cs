@@ -37,10 +37,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                 typeAndCount.Add("SureBackup", sureBackup.Count());
                 typeAndCount.Add("Tape", tapeJobs.Count());
 
-                // Agent jobs (managed + standalone) come from the unified AgentJobs view,
-                // grouped by FriendlyType. This replaces the previous "Agent Backup" /
-                // "Unmanaged Agent" buckets which double-counted managed jobs.
-                //
                 // Calling AgentJobAggregator.Build directly on the already-materialized
                 // backupJobs list avoids constructing a CDataFormer here — that constructor
                 // eagerly reads four proxy CSVs and logs a warning when they're missing,
@@ -51,6 +47,16 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                     if (!typeAndCount.ContainsKey(grouping.Key))
                     {
                         typeAndCount.Add(grouping.Key, grouping.Count());
+                    }
+                }
+
+                // Ensure canonical agent types always appear so that sites with no agent
+                // jobs show them in the Missing Jobs section (count=0 → listed as missing).
+                foreach (var label in AgentJobAggregator.DefaultFriendlyTypes)
+                {
+                    if (!typeAndCount.ContainsKey(label))
+                    {
+                        typeAndCount.Add(label, 0);
                     }
                 }
 
