@@ -113,11 +113,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             double onDiskGB = 0;
                             double sourceSizeGB = 0;
 
-                            if (job.JobType != jType)
-                            {
-                                continue;
-                            }
-
                             string row = string.Empty;
                             if (jType == "NasBackup")
                             {
@@ -476,7 +471,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         job.StgEncryptionEnabled,
                         CJobTypesParser.ResolveJobFriendlyType(job,
                             agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
-                                ? agentRecord?.FriendlyType
+                                ? agentRecord.FriendlyType
                                 : null),
                         compressionLevel,
                         blockSize,
