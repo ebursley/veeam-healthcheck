@@ -120,25 +120,15 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     retries = thisSession.RetryCounts;
                     totalFailedSessions += thisSession.FailCounts;
                     totalRetries += thisSession.RetryCounts;
-                    info.JobType = CJobTypesParser.GetJobType(thisSession.JobType);
-
                     // log.Debug(logStart + "Job Type: " + thisSession.JobType + " parsed to: " + info.JobType);
+                    CJobCsvInfos jobInfo = null;
                     try
                     {
                         CCsvParser csv = new();
-                        var jobInfo = csv.JobCsvParser().Where(x => x.Name == j).FirstOrDefault();
+                        jobInfo = csv.JobCsvParser().Where(x => x.Name == j).FirstOrDefault();
                         if (jobInfo != null)
                         {
                             info.UsedVmSizeTB = jobInfo.OriginalSize / 1024 / 1024 / 1024 / 1024;
-
-                            // The row's identity is now the parent's display name,
-                            // so the _Jobs.csv TypeToString is always the parent's
-                            // canonical type (e.g. "Backup Copy" instead of the
-                            // child's "Endpoint Backup"). See ADR 0019.
-                            if (!string.IsNullOrEmpty(jobInfo.TypeToString))
-                            {
-                                info.JobType = jobInfo.TypeToString;
-                            }
                         }
                     }
                     catch (Exception e)
@@ -147,6 +137,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                         log.Error(e.ToString());
                         info.UsedVmSizeTB = 0;
                     }
+
+                    // ResolveJobFriendlyType: TypeToString (Veeam-API label, plug-in types) →
+                    // GetJobType (enum switch) → raw type. When jobInfo is null (no _Jobs.csv match
+                    // or CSV parse failure), fall back to the session-reported type so rolled-up
+                    // child sessions keep their own enum value rather than the parent's. ADR 0019, 0020.
+                    info.JobType = jobInfo != null
+                        ? CJobTypesParser.ResolveJobFriendlyType(jobInfo)
+                        : CJobTypesParser.GetJobType(thisSession.JobType);
 
                     List<TimeSpan> nonZeros = CJobSessSummaryHelper.AddNonZeros(durations);
 
