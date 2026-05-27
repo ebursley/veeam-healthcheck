@@ -646,5 +646,48 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables
         }
 
         #endregion
+
+        [Fact]
+        public void CDataTypesParser_Maps_NewCsvColumns_OntoCJobSessionInfo()
+        {
+            var integrationDir = Path.Combine(Path.GetTempPath(), "VhcPolicyLink_" + Guid.NewGuid().ToString());
+            var integrationVbrDir = VbrCsvSampleGenerator.CreateTestDataDirectory(integrationDir);
+
+            var csv = "\"JobName\",\"VmName\",\"Status\",\"IsRetry\",\"ProcessingMode\",\"JobDuration\",\"TaskDuration\",\"Alg\",\"CreationTime\",\"BackupSize\",\"DataSize\",\"DedupRatio\",\"CompressionRation\",\"BottleneckDetails\",\"PrimaryBottleneck\",\"JobType\",\"JobAlgorithm\",\"JobId\",\"PolicyName\",\"PolicyTag\"\r\n" +
+                      "\"Physical - Linux Servers - lab01 (Incremental)\",\"lab01\",\"Success\",\"False\",\"\",\"00:10:00\",\"00:10:00\",\"Increment\",\"2026-05-20 01:00:00\",\"100\",\"200\",\"\",\"\",\"\",\"\",\"EpAgentManagement\",\"\",\"592c44dc-861c-48fc-b70e-e9916c790222\",\"Physical - Linux Servers\",\"02fe84bc-7394-42b5-bdb2-81a56190d8c5\"";
+            // CreateCsvFile is at VbrCsvSampleGenerator.cs:616 - existing helper used by
+            // CapacityTierXmlFromCsv_UsesStatusFromCapTierCsv (CJobSessSummaryTEST.cs around line 350).
+            VbrCsvSampleGenerator.CreateCsvFile(integrationVbrDir, "VeeamSessionReport.csv", csv);
+
+            var previousImport = CGlobals.IMPORT;
+            var previousImportPath = CGlobals.IMPORT_PATH;
+            var previousResolvedPath = CVariables.ResolvedImportPath;
+            var previousParser = CGlobals.DtParser;
+
+            try
+            {
+                CGlobals.IMPORT = true;
+                CGlobals.IMPORT_PATH = integrationVbrDir;
+                CVariables.ResolvedImportPath = integrationVbrDir;
+                CGlobals.DtParser = new CDataTypesParser();
+
+                var sessions = CGlobals.DtParser.JobSessions;
+
+                Assert.NotNull(sessions);
+                Assert.Single(sessions);
+                var row = sessions[0];
+                Assert.Equal(Guid.Parse("592c44dc-861c-48fc-b70e-e9916c790222"), row.JobId);
+                Assert.Equal("Physical - Linux Servers", row.PolicyName);
+                Assert.Equal(Guid.Parse("02fe84bc-7394-42b5-bdb2-81a56190d8c5"), row.PolicyTag);
+            }
+            finally
+            {
+                CGlobals.IMPORT = previousImport;
+                CGlobals.IMPORT_PATH = previousImportPath;
+                CVariables.ResolvedImportPath = previousResolvedPath;
+                CGlobals.DtParser = previousParser;
+                VbrCsvSampleGenerator.CleanupTestDirectory(integrationDir);
+            }
+        }
     }
 }
