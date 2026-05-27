@@ -91,25 +91,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             // nameSet also incorporates current job names from _Jobs.csv so that a BC
             // orchestrator session producing no tasks (and thus no CSV row) still acts as
             // a rollup anchor for its children.
-            var allNames = helper.JobNameList().Distinct().ToList();
-            var nameSet = new HashSet<string>(allNames.Where(n => n != null), StringComparer.Ordinal);
-
-            try
-            {
-                var jobCsv = new CCsvParser().JobCsvParser();
-                if (jobCsv != null)
-                {
-                    foreach (var jobRow in jobCsv)
-                    {
-                        if (!string.IsNullOrEmpty(jobRow.Name)) nameSet.Add(jobRow.Name);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                log.Warning(this.logStart + "Could not enrich nameSet from _Jobs.csv: " + e.Message);
-            }
-
             // One pass to mark which names have ANY data-bearing session in the window.
             var namesWithData = new HashSet<string>(StringComparer.Ordinal);
             foreach (var session in helper.JobSessionInfoList())
@@ -120,38 +101,16 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                 }
             }
 
-            var parentToChildren = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-            var childNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var name in allNames)
-            {
-                if (name == null) continue;
-                var prefix = TryGetParentPrefix(name, nameSet);
-                if (prefix == null) continue;
-                // Defensive: only roll up when the parent has no data-bearing sessions.
-                // If the parent carries real data, leave parent and child as separate rows
-                // rather than risk silently dropping the parent's metrics for some job type
-                // that doesn't follow the policy-orchestrator pattern.
-                if (namesWithData.Contains(prefix)) continue;
-                childNames.Add(name);
-                if (!parentToChildren.TryGetValue(prefix, out var list))
-                {
-                    list = new List<string>();
-                    parentToChildren[prefix] = list;
-                }
-                list.Add(name);
-            }
-
-            // For any parent that exists in nameSet (via _Jobs.csv enrichment) but does NOT
-            // appear in allNames (i.e. no session row this window - typical for BackupCopy
-            // orchestrator sessions that produce zero tasks), add it to allNames so the
-            // outer loop emits a single rolled-up row under the parent's name.
-            foreach (var parent in parentToChildren.Keys.ToList())
-            {
-                if (!allNames.Contains(parent))
-                {
-                    allNames.Add(parent);
-                }
-            }
+            // Defensive: only roll up when the parent has no data-bearing sessions.
+            // If the parent carries real data, leave parent and child as separate rows
+            // rather than risk silently dropping the parent's metrics for some job type
+            // that doesn't follow the policy-orchestrator pattern. The shared rollup
+            // helper handles _Jobs.csv enrichment for BC orphan-parent rows.
+            var rollup = CJobSessSummaryHelper.BuildNameRollup(helper.JobNameList(), namesWithData);
+            var allNames = rollup.AllNames;
+            var nameSet = rollup.NameSet;
+            var parentToChildren = rollup.ParentToChildren;
+            var childNames = rollup.ChildNames;
 
             int totalProtectedInstances = 0;
             foreach (var j in allNames)
@@ -334,38 +293,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
 
             log.Info("converting job session summary to xml..done!");
             return outList;
-        }
-
-        // Strips a trailing Veeam algorithm parenthetical: " (Full)", " (Incremental)",
-        // " (Synthetic Full)", etc. Used to normalise child session names before
-        // looking up the parent prefix. Returns the input unchanged if no
-        // parenthetical is present.
-        private static readonly Regex AlgorithmSuffixRegex =
-            new Regex(@"\s*\([^)]+\)\s*$", RegexOptions.Compiled);
-
-        private static string StripAlgorithmSuffix(string name) =>
-            AlgorithmSuffixRegex.Replace(name, string.Empty);
-
-        // Given a session/job name, returns the parent prefix if the name has the
-        // shape "<Parent> - <Child>[ (suffix)]" OR "<Parent>\<Child>[ (suffix)]"
-        // and <Parent> exists in nameSet. Returns null otherwise.
-        // The dash-space-dash separator is the policy/agent naming pattern;
-        // the backslash separator is the BackupCopy policy naming pattern.
-        private static string TryGetParentPrefix(string name, HashSet<string> nameSet)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            var stripped = StripAlgorithmSuffix(name);
-
-            int dashIdx = stripped.IndexOf(" - ", StringComparison.Ordinal);
-            int bsIdx   = stripped.IndexOf('\\');
-            int delim;
-            if (dashIdx > 0 && bsIdx > 0) delim = Math.Min(dashIdx, bsIdx);
-            else if (dashIdx > 0)         delim = dashIdx;
-            else if (bsIdx > 0)           delim = bsIdx;
-            else                          return null;
-
-            var prefix = stripped.Substring(0, delim);
-            return nameSet.Contains(prefix) ? prefix : null;
         }
 
         private static CJobSummaryTypes SetBackupDataSizes(CJobSummaryTypes info, List<double> dataSize, List<double> backupSize, double MaxDataSizeGB,
