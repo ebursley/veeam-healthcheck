@@ -791,6 +791,10 @@ $script:VBRServer  = 'test'
 $script:LogPath    = '{tmpDir}'
 $script:LogLevel   = 'ERROR'
 
+if (-not (Get-Command Get-VBRJob               -ErrorAction SilentlyContinue)) {{ function global:Get-VBRJob               {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {{ function global:Get-VBRComputerBackupJob {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBREPJob             -ErrorAction SilentlyContinue)) {{ function global:Get-VBREPJob             {{ param([string]$ErrorAction) }} }}
+
 # Stub Get-VBRTaskSession to return one mock agent task session.
 # JobName on the task has the machine suffix that Veeam appends; the function must
 # use $session.Name instead when ObjectPlatform.IsEpAgentPlatform is true.
@@ -890,6 +894,10 @@ $script:ReportPath = '{tmpDir}'
 $script:VBRServer  = 'test'
 $script:LogPath    = '{tmpDir}'
 $script:LogLevel   = 'ERROR'
+
+if (-not (Get-Command Get-VBRJob               -ErrorAction SilentlyContinue)) {{ function global:Get-VBRJob               {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {{ function global:Get-VBRComputerBackupJob {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBREPJob             -ErrorAction SilentlyContinue)) {{ function global:Get-VBREPJob             {{ param([string]$ErrorAction) }} }}
 
 # Stub Get-VBRTaskSession returning an agent task session with BottleneckInfo populated
 # but Logger returning empty log records, simulating agent session post-completion state.
@@ -997,6 +1005,10 @@ $script:ReportPath = '{tmpDir}'
 $script:VBRServer  = 'test'
 $script:LogPath    = '{tmpDir}'
 $script:LogLevel   = 'ERROR'
+
+if (-not (Get-Command Get-VBRJob               -ErrorAction SilentlyContinue)) {{ function global:Get-VBRJob               {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {{ function global:Get-VBRComputerBackupJob {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBREPJob             -ErrorAction SilentlyContinue)) {{ function global:Get-VBREPJob             {{ param([string]$ErrorAction) }} }}
 
 function Get-VBRTaskSession {{
     param($Session)
