@@ -50,14 +50,21 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                     }
                 }
 
-                // Ensure canonical agent types always appear so that sites with no agent
-                // jobs show them in the Missing Jobs section (count=0 → listed as missing).
-                foreach (var label in AgentJobAggregator.DefaultFriendlyTypes)
+                // "Agent Standalone" is always seeded — standalone agent jobs are an
+                // independent category that should appear as missing regardless of whether
+                // managed agent jobs exist.
+                if (!typeAndCount.ContainsKey("Agent Standalone"))
                 {
-                    if (!typeAndCount.ContainsKey(label))
-                    {
-                        typeAndCount.Add(label, 0);
-                    }
+                    typeAndCount.Add("Agent Standalone", 0);
+                }
+
+                // "Agent Backup" is only seeded when no agent jobs exist at all. If modern
+                // agent jobs (EpAgentBackup etc.) are present, the dynamic loop already wrote
+                // their FriendlyType labels ("Windows Agent Backup" etc.) and seeding "Agent
+                // Backup" here would be a false-positive missing-job alert.
+                if (!agentJobs.Any() && !typeAndCount.ContainsKey("Agent Backup"))
+                {
+                    typeAndCount.Add("Agent Backup", 0);
                 }
 
                 var types = backupJobs.Select(x => x.JobType).Distinct().ToList();
