@@ -95,5 +95,31 @@ function Get-VhcBackupSessions {
         Write-LogFile "Agent session collection failed: $($_.Exception.Message)" -LogLevel 'WARNING'
     }
 
+    # The fast path returns parent sessions AND per-machine child sessions
+    # (e.g. 'Managed-WindowsAgents-Job - vtestvm01.foo'). For agent jobs the
+    # parent session's Get-VBRTaskSession output already exposes the per-
+    # machine work under the parent name (see ADR 0012), so the child sessions
+    # are duplicates. Keep only sessions whose JobName matches a canonical
+    # agent-job name. Backup-copy jobs in $vmSessions are NOT filtered: their
+    # parent session has no per-machine tasks, so the child sessions are the
+    # only place the work appears.
+    if ($agentSessions.Count -gt 0 -and $agentJobs.Count -gt 0) {
+        $agentNameSet = @{}
+        foreach ($aj in $agentJobs) {
+            if ($null -ne $aj.Name) { $agentNameSet[$aj.Name] = $true }
+        }
+        $beforeCount = $agentSessions.Count
+        $agentSessions = @($agentSessions | Where-Object {
+            # Null JobName means the session is not a canonical agent-job session
+            # (e.g. a test sentinel). Keep it - the filter is only there to drop
+            # known-duplicate per-machine child sessions.
+            $null -eq $_.JobName -or $agentNameSet.ContainsKey($_.JobName)
+        })
+        $dropped = $beforeCount - $agentSessions.Count
+        if ($dropped -gt 0) {
+            Write-LogFile "Dropped $dropped per-machine agent child session(s) (data captured via parent task hierarchy)"
+        }
+    }
+
     return $vmSessions + $agentSessions
 }
