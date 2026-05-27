@@ -17,6 +17,9 @@ BeforeAll {
     if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {
         function global:Get-VBRComputerBackupJob { param([string]$ErrorAction) }
     }
+    if (-not (Get-Command Get-VBREPJob -ErrorAction SilentlyContinue)) {
+        function global:Get-VBREPJob { param([string]$ErrorAction) }
+    }
     if (-not (Get-Command Get-VBRBackupSession -ErrorAction SilentlyContinue)) {
         function global:Get-VBRBackupSession { }
     }

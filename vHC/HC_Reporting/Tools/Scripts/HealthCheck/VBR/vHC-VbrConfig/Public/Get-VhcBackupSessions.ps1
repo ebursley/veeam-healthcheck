@@ -63,6 +63,20 @@ function Get-VhcBackupSessions {
         Write-LogFile "Get-VBRComputerBackupJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
     }
 
+    # Unmanaged/legacy endpoint backup jobs (job type EndpointBackup) come
+    # from Get-VBREPJob - separate from both Get-VBRJob and
+    # Get-VBRComputerBackupJob. Their sessions only appear in the fast-path
+    # query if we know their job_id, so collect them here.
+    $epJobs = @()
+    try {
+        $epJobs = @(Get-VBREPJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBREPJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+    if ($epJobs.Count -gt 0) {
+        $agentJobs = @($agentJobs) + @($epJobs)
+    }
+
     # Get-VBRJob still returns agent jobs on v13 (with a deprecation warning).
     # Subtract them so each agent job is only queried via the Agent path -
     # otherwise the fast path runs against the same job_id twice and produces
@@ -96,28 +110,43 @@ function Get-VhcBackupSessions {
     }
 
     # The fast path returns parent sessions AND per-machine child sessions
-    # (e.g. 'Managed-WindowsAgents-Job - vtestvm01.foo'). For agent jobs the
-    # parent session's Get-VBRTaskSession output already exposes the per-
-    # machine work under the parent name (see ADR 0012), so the child sessions
-    # are duplicates. Keep only sessions whose JobName matches a canonical
-    # agent-job name. Backup-copy jobs in $vmSessions are NOT filtered: their
-    # parent session has no per-machine tasks, so the child sessions are the
-    # only place the work appears.
+    # (e.g. 'Managed-WindowsAgents-Job - vtestvm01.foo'). For some job families
+    # the parent's Get-VBRTaskSession output already exposes the per-machine
+    # work under the parent name (ADR 0012), making the per-machine child
+    # sessions duplicates. For other families the parent's tasks are
+    # orchestration-only with zero data, and the children carry the actual
+    # work. The discriminator is the job's Mode property:
+    #   * Mode 'ManagedByBackupServer' - parent has data; drop children to
+    #     avoid double-counting in jobSessionSummary.
+    #   * Mode 'ManagedByAgent' (policy) - parent has zero-data orchestrator
+    #     tasks; KEEP children so the rollup picks up the per-machine data.
+    #   * EP jobs (Mode null/empty) - typically no children; default to keep.
     if ($agentSessions.Count -gt 0 -and $agentJobs.Count -gt 0) {
-        $agentNameSet = @{}
+        $dedupParents = @{}
         foreach ($aj in $agentJobs) {
-            if ($null -ne $aj.Name) { $agentNameSet[$aj.Name] = $true }
+            if ($null -ne $aj.Name -and "$($aj.Mode)" -eq 'ManagedByBackupServer') {
+                $dedupParents[$aj.Name] = $true
+            }
         }
-        $beforeCount = $agentSessions.Count
-        $agentSessions = @($agentSessions | Where-Object {
-            # Null JobName means the session is not a canonical agent-job session
-            # (e.g. a test sentinel). Keep it - the filter is only there to drop
-            # known-duplicate per-machine child sessions.
-            $null -eq $_.JobName -or $agentNameSet.ContainsKey($_.JobName)
-        })
-        $dropped = $beforeCount - $agentSessions.Count
-        if ($dropped -gt 0) {
-            Write-LogFile "Dropped $dropped per-machine agent child session(s) (data captured via parent task hierarchy)"
+
+        if ($dedupParents.Count -gt 0) {
+            $beforeCount = $agentSessions.Count
+            $agentSessions = @($agentSessions | Where-Object {
+                # Null JobName means the session is not a canonical agent-job
+                # session (e.g. a test sentinel). Keep it.
+                if ($null -eq $_.JobName) { return $true }
+                # If JobName equals a known parent (canonical session), keep.
+                if ($dedupParents.ContainsKey($_.JobName)) { return $true }
+                # Per-machine pattern: "<Parent> - <Vm>" or "<Parent>\<Vm>".
+                # Drop only when the parent prefix is in $dedupParents.
+                $m = [regex]::Match($_.JobName, '^(.+?)(?:\s+-\s+|\\).+$')
+                if (-not $m.Success) { return $true }
+                return -not $dedupParents.ContainsKey($m.Groups[1].Value)
+            })
+            $dropped = $beforeCount - $agentSessions.Count
+            if ($dropped -gt 0) {
+                Write-LogFile "Dropped $dropped per-machine child session(s) for ManagedByBackupServer agent job(s) (data captured via parent task hierarchy)"
+            }
         }
     }
 

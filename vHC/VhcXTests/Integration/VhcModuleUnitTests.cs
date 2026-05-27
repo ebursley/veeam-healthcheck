@@ -708,8 +708,9 @@ $script:LogLevel = 'ERROR'
 function Get-VBRJob {{ return @() }}
 function Get-VBRBackupSession {{ return @() }}
 function Get-VBRComputerBackupJob {{
-    return @([pscustomobject]@{{ Name = 'Agent Job'; Id = [guid]::NewGuid() }})
+    return @([pscustomobject]@{{ Name = 'Agent Job'; Id = [guid]::NewGuid(); Mode = 'ManagedByBackupServer' }})
 }}
+function Get-VBREPJob {{ return @() }}
 function Get-VBRComputerBackupJobSession {{
     return @([pscustomobject]@{{ Name = 'Agent Job'; CreationTime = (Get-Date) }})
 }}
