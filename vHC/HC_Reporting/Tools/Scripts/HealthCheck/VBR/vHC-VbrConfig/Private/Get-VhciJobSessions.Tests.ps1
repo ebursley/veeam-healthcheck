@@ -103,6 +103,19 @@ Describe 'GJS-3: Fast path iterates jobs with correct JobId and Since' {
             -SlowPathCommand { } -PathLabel 'VM/BackupCopy') | Out-Null
         Should -Invoke Invoke-VhciCBackupSessionFetch -Times 1 -Exactly -ParameterFilter { $Since -eq $script:cutoff }
     }
+
+    It 'passes a $Until that is between $Since and (Get-Date).AddSeconds(1)' {
+        # $Until is computed inside the helper as (Get-Date) at the start of the
+        # fast-path branch. We can't pin the exact value but we can verify it
+        # lives within a sensible window: after $Since and not in the future.
+        $before = Get-Date
+        @(Get-VhciJobSessions -Jobs @($script:job1) -Since $script:cutoff `
+            -SlowPathCommand { } -PathLabel 'VM/BackupCopy') | Out-Null
+        $after = (Get-Date).AddSeconds(1)  # tolerance for clock drift
+        Should -Invoke Invoke-VhciCBackupSessionFetch -Times 1 -Exactly -ParameterFilter {
+            $Until -gt $script:cutoff -and $Until -ge $before -and $Until -le $after
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------

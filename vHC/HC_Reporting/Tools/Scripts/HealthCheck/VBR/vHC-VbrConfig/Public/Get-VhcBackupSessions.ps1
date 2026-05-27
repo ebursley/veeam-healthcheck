@@ -16,11 +16,16 @@ function Get-VhcBackupSessions {
 
         Path selection is delegated to the private Get-VhciJobSessions helper. On
         VBR versions that ship Veeam.Backup.Core.CBackupSession with the
-        GetByJobAndTimeRangeWithLog(Guid, DateTime) overload, the helper uses an
-        indexed DB query per job (the fast path). On older versions or when
-        reflection fails, it falls back to a single unfiltered cmdlet call
-        followed by a client-side CreationTime filter (the pre-59e2621 shape that
-        works on v12).
+        GetAllSessionsByPolicyJobAndTimeRange(Guid, DateTime, DateTime) overload,
+        the helper uses an indexed DB query per job (the fast path), which
+        returns the parent's session AND per-machine child sessions. On older
+        versions or when reflection fails, it falls back to a single unfiltered
+        cmdlet call followed by a client-side CreationTime filter (the pre-59e2621
+        shape that works on v12).
+
+        Agent jobs returned by Get-VBRJob (still surfaced on v13 with a
+        deprecation warning) are removed from the VM/BackupCopy list so each
+        agent job is only queried via the Agent path.
     .Parameter ReportInterval
         Number of days back to collect sessions for. Matches the -ReportInterval
         parameter passed to Get-VBRConfig.ps1.
@@ -56,6 +61,16 @@ function Get-VhcBackupSessions {
         $agentJobs = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)
     } catch {
         Write-LogFile "Get-VBRComputerBackupJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    # Get-VBRJob still returns agent jobs on v13 (with a deprecation warning).
+    # Subtract them so each agent job is only queried via the Agent path -
+    # otherwise the fast path runs against the same job_id twice and produces
+    # duplicate sessions in the return.
+    if ($agentJobs.Count -gt 0 -and $jobs.Count -gt 0) {
+        $agentIdSet = @{}
+        foreach ($aj in $agentJobs) { $agentIdSet[$aj.Id] = $true }
+        $jobs = @($jobs | Where-Object { -not $agentIdSet.ContainsKey($_.Id) })
     }
 
     $vmSessions = @()

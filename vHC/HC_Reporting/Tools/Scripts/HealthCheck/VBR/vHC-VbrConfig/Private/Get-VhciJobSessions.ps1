@@ -37,12 +37,16 @@ function Get-VhciJobSessions {
     $useFastPath = Test-VhciCBackupSessionFastPath
 
     if ($useFastPath) {
-        Write-LogFile "[$PathLabel] Using fast path (CBackupSession.GetByJobAndTimeRangeWithLog)"
+        Write-LogFile "[$PathLabel] Using fast path (CBackupSession.GetAllSessionsByPolicyJobAndTimeRange)"
+
+        # Upper bound for the time-range query. Captured once per call so all
+        # per-job queries see the same horizon.
+        $until = Get-Date
 
         $results = New-Object System.Collections.ArrayList
         foreach ($job in $Jobs) {
             try {
-                $jobResults = @(Invoke-VhciCBackupSessionFetch -JobId $job.Id -Since $Since)
+                $jobResults = @(Invoke-VhciCBackupSessionFetch -JobId $job.Id -Since $Since -Until $until)
                 if ($jobResults.Count -gt 0) {
                     [void]$results.AddRange($jobResults)
                 }
