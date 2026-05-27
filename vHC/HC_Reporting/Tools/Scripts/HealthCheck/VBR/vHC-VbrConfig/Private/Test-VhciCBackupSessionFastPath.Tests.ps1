@@ -11,11 +11,19 @@ BeforeAll {
 Describe 'Test-VhciCBackupSessionFastPath' {
 
     It 'returns $false when the Veeam.Backup.Core.CBackupSession type is not loaded' {
-        # In the test environment, the Veeam SDK is not present, so the -as [type]
-        # check returns $null and the probe must return $false without throwing.
+        # In a dev/CI environment without Veeam the -as [type] check returns $null
+        # and the probe must return $false.  On a live VBR host (or after another
+        # test in the same Pester run has loaded Veeam.Backup.Core.dll), the type
+        # IS present and the probe correctly returns $true — so we skip the
+        # "must-be-false" assertion in that case.
+        $typeAvailable = $null -ne ('Veeam.Backup.Core.CBackupSession' -as [type])
         $result = Test-VhciCBackupSessionFastPath
         $result | Should -BeOfType [bool]
-        $result | Should -BeFalse
+        if (-not $typeAvailable) {
+            $result | Should -BeFalse
+        }
+        # If $typeAvailable is $true the probe returning $true is also correct;
+        # the side-effect-free test below verifies no accidental side-loads occur.
     }
 
     It 'is side-effect-free (calling the probe does not load Veeam.Backup.Core)' {
