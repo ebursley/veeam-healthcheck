@@ -75,6 +75,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                 .GroupBy(s => CSessionGroupKey.Of(s))
                 .Select(g => new
                 {
+                    // DisplayName: pick the first non-empty PolicyName/JobName in the group.
+                    // The filter skips empty values (BC orchestrator parents leave PolicyName
+                    // empty - children supply it). Multiple non-empty values in the same group
+                    // shouldn't happen because Task 1's PS layer canonicalizes PolicyName via
+                    // $jobIdMap; if it ever does (mid-window rename), JobSessionInfoList's
+                    // CreationTime descending order means the most recent wins. See ADR 0019.
                     DisplayName = g
                         .Select(s => CSessionGroupKey.DisplayName(s))
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n))

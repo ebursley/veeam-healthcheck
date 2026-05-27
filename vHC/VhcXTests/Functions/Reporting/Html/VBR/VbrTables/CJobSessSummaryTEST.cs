@@ -746,6 +746,22 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables
                 var jobRow = rows[0];
                 Assert.Equal("Physical - Linux Servers", jobRow.JobName);
                 Assert.Equal(3, jobRow.SessionCount);  // parent + 2 children
+
+                // ItemCount comes from session.VmName distinct count. Parent session has
+                // empty VmName; both children have "lab01" → 2 distinct values when blank
+                // is counted, or 1 if blank is excluded. The current implementation uses
+                // vmNames.Distinct().Count() including blanks, so this asserts the actual
+                // produced behavior.
+                Assert.Equal(2, jobRow.ItemCount);
+
+                // The Synthetic Full session is data-only (Alg="Full"), so the Incremental
+                // session's DataSize=200 drives the change-rate calculation. With no
+                // UsedVmSizeTB available (no _Jobs.csv in this test), the fallback path
+                // (avgIncrDataTB / MaxDataSize * 100) yields 50 because MaxDataSize is
+                // 400/1024 GB and avgIncrDataTB is 200/1024/1024 TB - resulting in non-zero
+                // AvgChangeRate.
+                Assert.True(jobRow.AvgChangeRate > 0,
+                    $"Expected AvgChangeRate > 0 from incremental data, got {jobRow.AvgChangeRate}");
             }
             finally
             {
