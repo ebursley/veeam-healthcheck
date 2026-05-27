@@ -204,6 +204,17 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                         if (jobInfo != null)
                         {
                             info.UsedVmSizeTB = jobInfo.OriginalSize / 1024 / 1024 / 1024 / 1024;
+
+                            // When we rolled up children into this parent, the child
+                            // sessions carry a child-flavour JobType (e.g. "EEndPoint"
+                            // for BackupCopy children) that gets translated to a
+                            // misleading display label ("Endpoint Backup"). Override
+                            // with the parent's authoritative TypeToString from
+                            // _Jobs.csv (e.g. "Backup Copy") when available.
+                            if (parentToChildren.ContainsKey(j) && !string.IsNullOrEmpty(jobInfo.TypeToString))
+                            {
+                                info.JobType = jobInfo.TypeToString;
+                            }
                         }
                     }
                     catch (Exception e)
