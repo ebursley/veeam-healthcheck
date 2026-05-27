@@ -281,3 +281,32 @@ Describe 'GJS-7: Empty $Jobs + fast path returns empty without calling fetch' {
         $result.Count | Should -Be 0
     }
 }
+
+# ---------------------------------------------------------------------------
+# GJS-8  Empty $Jobs + slow path -> scriptblock still invoked once
+#        (slow path ignores $Jobs by design per spec error-handling table)
+# ---------------------------------------------------------------------------
+Describe 'GJS-8: Empty $Jobs + slow path still invokes the scriptblock' {
+
+    BeforeEach {
+        Mock Write-LogFile -MockWith { }
+        Mock Test-VhciCBackupSessionFastPath -MockWith { $false }
+        $script:slowCallCount = 0
+        $script:slowSb = {
+            $script:slowCallCount++
+            @(script:New-FakeSession -CreationTime (Get-Date).AddHours(-1))
+        }
+    }
+
+    It 'invokes the slow-path scriptblock exactly once even with empty $Jobs' {
+        @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy') | Out-Null
+        $script:slowCallCount | Should -Be 1
+    }
+
+    It 'returns the (filtered) scriptblock output' {
+        $result = @(Get-VhciJobSessions -Jobs @() -Since (Get-Date).AddDays(-7) `
+            -SlowPathCommand $script:slowSb -PathLabel 'VM/BackupCopy')
+        $result.Count | Should -Be 1
+    }
+}

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 **Closes:** veeamhub/veeam-healthcheck#147
-**Status:** Proposed
+**Status:** Implemented
 
 ## Problem
 
