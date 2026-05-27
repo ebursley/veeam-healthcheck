@@ -42,11 +42,6 @@ Describe 'GVSR-1: Session CSV includes JobId/PolicyName/PolicyTag columns' {
         # Fake task that Get-VBRTaskSession will return for our fake session
         $parentGuid = [guid]'02fe84bc-7394-42b5-bdb2-81a56190d8c5'
         $childGuid  = [guid]'592c44dc-861c-48fc-b70e-e9916c790222'
-        $script:parentSession = [pscustomobject]@{
-            Name = 'Physical - Linux Servers'
-            JobId = $parentGuid
-            Info = [pscustomobject]@{ PolicyName = 'Physical - Linux Servers'; PolicyTag = $parentGuid }
-        }
         $script:childSession  = [pscustomobject]@{
             Name = 'Physical - Linux Servers - lab-m01-lnx01 (Incremental)'
             JobId = $childGuid
@@ -101,7 +96,7 @@ Describe 'GVSR-1: Session CSV includes JobId/PolicyName/PolicyTag columns' {
 
         $rows = Import-Csv -Path (Join-Path $script:tempDir 'VeeamSessionReport.csv')
         $rows[0].PolicyName | Should -Be ''
-        $rows[0].PolicyTag  | Should -Match '^(00000000-0000-0000-0000-000000000000)?$'
+        $rows[0].PolicyTag  | Should -Be ''
         $rows[0].JobId      | Should -Be '68621a52-2a9c-4fc5-a3f4-acc1c2caa44e'
     }
 }
