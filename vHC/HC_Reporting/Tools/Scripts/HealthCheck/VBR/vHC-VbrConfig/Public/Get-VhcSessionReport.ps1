@@ -108,6 +108,22 @@ function Get-VhcSessionReport {
                     $jobName = $jobIdMap[$session.JobId]
                 }
 
+                # Capture parent-link properties exposed by VBR on every session.
+                # Children carry the parent's PolicyTag (GUID) and PolicyName,
+                # enabling the C# layer to roll up per-machine sessions under the
+                # parent without any name-prefix parsing. See ADR 0019.
+                $policyName = ''
+                $policyTag  = [guid]::Empty
+                try { if ($session.Info.PolicyName) { $policyName = $session.Info.PolicyName } } catch {}
+                try { if ($session.Info.PolicyTag)  { $policyTag  = $session.Info.PolicyTag  } } catch {}
+
+                # If the PolicyTag points at a currently-active job, canonicalize
+                # the PolicyName to the job's current Name (handles renames the
+                # same way $jobName is already canonicalized above).
+                if ($policyTag -ne [guid]::Empty -and $jobIdMap.ContainsKey($policyTag)) {
+                    $policyName = $jobIdMap[$policyTag]
+                }
+
                 $row = [pscustomobject][ordered]@{
                     'JobName'           = $jobName
                     'VMName'            = $task.Name
@@ -135,6 +151,9 @@ function Get-VhcSessionReport {
                     'PrimaryBottleneck' = $PrimaryBottleneckDetails
                     'JobType'           = $task.ObjectPlatform.Platform
                     'JobAlgorithm'      = $task.JobSess.Info.SessionAlgorithm
+                    'JobId'             = if ($session.JobId) { "$($session.JobId)" } else { '' }
+                    'PolicyName'        = $policyName
+                    'PolicyTag'         = if ($policyTag -ne [guid]::Empty) { "$policyTag" } else { '' }
                 }
                 if ($row) { $null = $allOutput.Add($row) }
             } catch {
@@ -154,7 +173,8 @@ function Get-VhcSessionReport {
             'JobName'=''; 'VMName'=''; 'Status'=''; 'IsRetry'=''; 'ProcessingMode'='';
             'JobDuration'=''; 'TaskDuration'=''; 'TaskAlgorithm'=''; 'CreationTime'='';
             'BackupSizeGB'=''; 'DataSizeGB'=''; 'DedupRatio'=''; 'CompressRatio'='';
-            'BottleneckDetails'=''; 'PrimaryBottleneck'=''; 'JobType'=''; 'JobAlgorithm'=''
+            'BottleneckDetails'=''; 'PrimaryBottleneck'=''; 'JobType'=''; 'JobAlgorithm'='';
+            'JobId'=''; 'PolicyName'=''; 'PolicyTag'=''
         } | ConvertTo-Csv -NoTypeInformation | Select-Object -First 1)
         Out-File -FilePath $csvPath -InputObject $headerLine -Encoding UTF8
     }
