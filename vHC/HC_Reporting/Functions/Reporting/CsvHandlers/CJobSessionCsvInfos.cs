@@ -57,5 +57,17 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
 
         [Index(16)]
         public string JobAlgorithm { get; set; }
+
+        [Index(17)]
+        [Optional]
+        public string JobId { get; set; }
+
+        [Index(18)]
+        [Optional]
+        public string PolicyName { get; set; }
+
+        [Index(19)]
+        [Optional]
+        public string PolicyTag { get; set; }
     }
 }

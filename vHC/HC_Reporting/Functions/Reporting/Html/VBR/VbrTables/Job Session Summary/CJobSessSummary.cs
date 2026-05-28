@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
 using VeeamHealthCheck.Functions.Reporting.DataTypes;
 using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
@@ -68,64 +67,34 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             double totalRetries = 0;
             SessionStats totalStats = new();
 
-            // Policy jobs store per-VM child sessions in the DB with Name = "<Parent> - <VmFqdn>"
-            // alongside a parent orchestrator session with Name = "<Parent>". The orchestrator
-            // sessions carry no data (DataSize/BackupSize = 0); the actual work is in the
-            // children. Render one row per parent by detecting these pairs and aggregating
-            // the children's sessions under the parent's name. Standalone jobs and orphan
-            // parents (no children visible in window) are unaffected.
-            //
-            // The rollup is dispatched on a name pattern (not on JobType), so any future VBR
-            // job type that produces matching <Parent> + <Parent> - <Child> sessions would be
-            // caught automatically. Defensive guard below limits the rollup to parents whose
-            // own sessions all have zero DataSize/BackupSize — preventing data loss on an
-            // unverified job type that happens to share the naming but carries real data on
-            // the parent session.
-            var allNames = helper.JobNameList().Distinct().ToList();
-            var nameSet = new HashSet<string>(allNames.Where(n => n != null), StringComparer.Ordinal);
-
-            // One pass to mark which names have ANY data-bearing session in the window.
-            var namesWithData = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var session in helper.JobSessionInfoList())
-            {
-                if (session.Name != null && (session.DataSize > 0 || session.BackupSize > 0))
+            // Group all sessions by their stable rollup key. Children inherit the
+            // parent's PolicyTag (GUID), so grouping by CSessionGroupKey.Of merges
+            // per-machine sessions under the parent without any name parsing.
+            // See ADR 0019.
+            var groups = helper.JobSessionInfoList()
+                .GroupBy(s => CSessionGroupKey.Of(s))
+                .Select(g => new
                 {
-                    namesWithData.Add(session.Name);
-                }
-            }
-
-            var parentToChildren = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-            var childNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var name in allNames)
-            {
-                if (name == null) continue;
-                int delim = name.IndexOf(" - ", StringComparison.Ordinal);
-                if (delim <= 0) continue;
-                var prefix = name.Substring(0, delim);
-                if (!nameSet.Contains(prefix)) continue;
-                // Defensive: only roll up when the parent has no data-bearing sessions.
-                // If the parent carries real data, leave parent and child as separate rows
-                // rather than risk silently dropping the parent's metrics for some job type
-                // that doesn't follow the policy-orchestrator pattern.
-                if (namesWithData.Contains(prefix)) continue;
-                childNames.Add(name);
-                if (!parentToChildren.TryGetValue(prefix, out var list))
-                {
-                    list = new List<string>();
-                    parentToChildren[prefix] = list;
-                }
-                list.Add(name);
-            }
+                    // DisplayName: pick the first non-empty PolicyName/JobName in the group.
+                    // The filter skips empty values (BC orchestrator parents leave PolicyName
+                    // empty - children supply it). Multiple non-empty values in the same group
+                    // shouldn't happen because Task 1's PS layer canonicalizes PolicyName via
+                    // $jobIdMap; if it ever does (mid-window rename), JobSessionInfoList's
+                    // CreationTime descending order means the most recent wins. See ADR 0019.
+                    DisplayName = g
+                        .Select(s => CSessionGroupKey.DisplayName(s))
+                        .FirstOrDefault(n => !string.IsNullOrEmpty(n))
+                        ?? (g.First().JobName ?? string.Empty),
+                    SessionNames = new HashSet<string>(
+                        g.Select(s => s.Name).Where(n => !string.IsNullOrEmpty(n)),
+                        StringComparer.Ordinal),
+                })
+                .ToList();
 
             int totalProtectedInstances = 0;
-            foreach (var j in allNames)
+            foreach (var group in groups)
             {
-                if (childNames.Contains(j))
-                {
-                    // Child sessions are aggregated into the parent row above; skip the
-                    // standalone child row to avoid duplication.
-                    continue;
-                }
+                var j = group.DisplayName;
 
                 // log.Debug( logStart + "Parsing Sessions for job: " + j);
                 try
@@ -140,14 +109,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     List<double> dataSize = new();
                     List<double> backupSize = new();
 
-                    // For parents with children, aggregate ONLY the children's sessions —
-                    // the parent's own orchestrator sessions have DataSize=0 and would
-                    // dilute averages. For orphan parents and standalone jobs, aggregate
-                    // the row's own sessions.
-                    var namesToAggregate = parentToChildren.TryGetValue(j, out var children) && children.Count > 0
-                        ? (IEnumerable<string>)children
-                        : new[] { j };
-                    SessionStats thisSession = helper.SessionStats(namesToAggregate);
+                    SessionStats thisSession = helper.SessionStats(group.SessionNames);
                     durations = thisSession.JobDuration;
                     vmNames = thisSession.VmNames;
                     dataSize = thisSession.DataSize;
@@ -158,13 +120,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     retries = thisSession.RetryCounts;
                     totalFailedSessions += thisSession.FailCounts;
                     totalRetries += thisSession.RetryCounts;
-                    info.JobType = CJobTypesParser.GetJobType(thisSession.JobType);
-
                     // log.Debug(logStart + "Job Type: " + thisSession.JobType + " parsed to: " + info.JobType);
+                    CJobCsvInfos jobInfo = null;
                     try
                     {
                         CCsvParser csv = new();
-                        var jobInfo = csv.JobCsvParser().Where(x => x.Name == j).FirstOrDefault();
+                        jobInfo = csv.JobCsvParser().Where(x => x.Name == j).FirstOrDefault();
                         if (jobInfo != null)
                         {
                             info.UsedVmSizeTB = jobInfo.OriginalSize / 1024 / 1024 / 1024 / 1024;
@@ -176,6 +137,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                         log.Error(e.ToString());
                         info.UsedVmSizeTB = 0;
                     }
+
+                    // ResolveJobFriendlyType: TypeToString (Veeam-API label, plug-in types) →
+                    // GetJobType (enum switch) → raw type. When jobInfo is null (no _Jobs.csv match
+                    // or CSV parse failure), fall back to the session-reported type so rolled-up
+                    // child sessions keep their own enum value rather than the parent's. ADR 0019, 0020.
+                    info.JobType = jobInfo != null
+                        ? CJobTypesParser.ResolveJobFriendlyType(jobInfo)
+                        : CJobTypesParser.GetJobType(thisSession.JobType);
 
                     List<TimeSpan> nonZeros = CJobSessSummaryHelper.AddNonZeros(durations);
 

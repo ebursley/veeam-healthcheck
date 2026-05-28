@@ -74,6 +74,13 @@ namespace VeeamHealthCheck.Tests.Functions.Collection.DB
     }
 
     // ---------------------------------------------------------------------------
+    // xUnit collection: serialise all test classes that mutate shared static state
+    // (CRegReader.hostInstanceString / databaseName) so they never run in parallel.
+    // ---------------------------------------------------------------------------
+    [CollectionDefinition("CDbAccessor-Sequential", DisableParallelization = true)]
+    public class CDbAccessorSequentialCollection { }
+
+    // ---------------------------------------------------------------------------
     // ISC-12  No private 'connectionString' field on CDbAccessor
     // ---------------------------------------------------------------------------
     public class CDbAccessor_NoConnectionStringField
@@ -154,6 +161,7 @@ namespace VeeamHealthCheck.Tests.Functions.Collection.DB
     // ISC-14  SimpleConnectionBuilder with mocked CRegReader ->
     //         UserID empty, Password empty, Integrated Security retained
     // ---------------------------------------------------------------------------
+    [Collection("CDbAccessor-Sequential")]
     [Trait("Category", "Integration")]
     public class CDbAccessor_SimpleConnectionBuilder_IntegratedSecurity
     {
@@ -257,6 +265,7 @@ namespace VeeamHealthCheck.Tests.Functions.Collection.DB
     //         "Sql Test Connection Failed" message). We assert the actionable
     //         pre-flight warning specifically — not the total count.
     // ---------------------------------------------------------------------------
+    [Collection("CDbAccessor-Sequential")]
     [Trait("Category", "Integration")]
     public class CDbAccessor_PreFlightWarning_Content
     {
@@ -323,6 +332,7 @@ namespace VeeamHealthCheck.Tests.Functions.Collection.DB
     // ---------------------------------------------------------------------------
     // ISC-17  Warning contains no SID pattern, no IntPtr, no literal "Password="
     // ---------------------------------------------------------------------------
+    [Collection("CDbAccessor-Sequential")]
     [Trait("Category", "Integration")]
     public class CDbAccessor_PreFlightWarning_NoSensitiveData
     {
@@ -395,6 +405,7 @@ namespace VeeamHealthCheck.Tests.Functions.Collection.DB
     // ---------------------------------------------------------------------------
     // ISC-18  DbAccessorString() is idempotent across two calls
     // ---------------------------------------------------------------------------
+    [Collection("CDbAccessor-Sequential")]
     [Trait("Category", "Integration")]
     public class CDbAccessor_DbAccessorString_Idempotent
     {

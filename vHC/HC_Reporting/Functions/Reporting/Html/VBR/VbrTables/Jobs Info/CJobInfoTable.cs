@@ -62,31 +62,28 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         a => a,
                         System.StringComparer.OrdinalIgnoreCase);
 
-                // Build the section list. For non-agent JobTypes there is one section per
-                // raw JobType (existing behavior). For agent JobTypes the rows are split
-                // further by FriendlyType — necessary because EndpointBackup spans Windows,
-                // Linux, and Mac standalone agents which share that raw enum but resolve
-                // to distinct friendly labels. Without this split a mixed-platform estate
-                // would render one section header with rows of multiple platforms under it.
+                // Build the section list. Every JobType is split by its resolved
+                // FriendlyType so that rows with different TypeToString values (e.g.,
+                // "VMware Backup" vs "Hyper-V Backup" under the same "Backup" enum, or
+                // plug-in types like "Proxmox Backup" under "VmbApiPolicyTempJob") each
+                // get their own section header. Agent rows use their pre-computed
+                // FriendlyType (which carries the Standalone/Managed distinction). All
+                // other rows use ResolveJobFriendlyType which consults TypeToString first.
+                // See ADR 0020.
                 var sections = new List<(string JType, string FriendlyType, List<CJobCsvInfos> Rows)>();
                 foreach (var jType in jobTypes)
                 {
                     var rowsForType = source.Where(x => x.JobType == jType).ToList();
-                    if (jType != null && AgentJobAggregator.AgentJobTypes.Contains(jType))
-                    {
-                        var friendlyGroups = rowsForType
-                            .GroupBy(r => agentJobsByName.TryGetValue(r.Name ?? string.Empty, out var rec)
-                                ? rec.FriendlyType
-                                : CJobTypesParser.GetJobType(jType))
-                            .OrderBy(g => g.Key);
-                        foreach (var fg in friendlyGroups)
+                    var friendlyGroups = rowsForType
+                        .GroupBy(r =>
                         {
-                            sections.Add((jType, fg.Key, fg.ToList()));
-                        }
-                    }
-                    else
+                            agentJobsByName.TryGetValue(r.Name ?? string.Empty, out var rec);
+                            return CJobTypesParser.ResolveJobFriendlyType(r, rec?.FriendlyType);
+                        })
+                        .OrderBy(g => g.Key);
+                    foreach (var fg in friendlyGroups)
                     {
-                        sections.Add((jType, CJobTypesParser.GetJobType(jType), rowsForType));
+                        sections.Add((jType, fg.Key, fg.ToList()));
                     }
                 }
 
@@ -101,14 +98,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
 
                         bool useSourceSize = !(jType == "NasBackupCopy" || jType == "Copy");
 
-                        // Section slugs need to be unique. For agent JobTypes that produced
-                        // multiple FriendlyType subsections, suffix the slug with the
-                        // friendly type so HTML element ids don't collide.
-                        string sectionSlug = (jType ?? "unknown").ToLower();
-                        if (jType != null && AgentJobAggregator.AgentJobTypes.Contains(jType))
-                        {
-                            sectionSlug += "-" + (realType ?? "agent").ToLower().Replace(" ", "-");
-                        }
+                        // Section slugs always include the friendly type suffix so that
+                        // multiple friendly subsections under the same raw JobType get
+                        // unique HTML anchor ids (e.g. jobTable-backup-vmware-backup vs
+                        // jobTable-backup-hyper-v-backup). See ADR 0020.
+                        string sectionSlug = (jType ?? "unknown").ToLower()
+                            + "-" + (realType ?? "unknown").ToLower().Replace(" ", "-");
                         string jobTable = this.form.SectionStartWithButton("jobTable-" + sectionSlug, realType + " Jobs", string.Empty);
                         s += jobTable;
                         s += this.SetGenericJobTablHeader(useSourceSize, jType);
@@ -117,11 +112,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         {
                             double onDiskGB = 0;
                             double sourceSizeGB = 0;
-
-                            if (job.JobType != jType)
-                            {
-                                continue;
-                            }
 
                             string row = string.Empty;
                             if (jType == "NasBackup")
@@ -199,9 +189,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                             row += this.form.TableData(retentionValue, string.Empty);
 
                             row += job.StgEncryptionEnabled == "True" ? this.form.TableData(this.form.True, string.Empty) : this.form.TableData(this.form.False, string.Empty);
-                            string jobType = agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
-                                ? agentRecord.FriendlyType
-                                : CJobTypesParser.GetJobType(job.JobType);
+                            agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord);
+                            string jobType = CJobTypesParser.ResolveJobFriendlyType(job, agentRecord?.FriendlyType);
                             row += this.form.TableData(jobType, string.Empty);
 
                             string compressionLevel = string.Empty;
@@ -480,9 +469,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Jobs_Info
                         job.RetentionType == "Cycles" ? "Points" : job.RetentionType,
                         retentionValue,
                         job.StgEncryptionEnabled,
-                        agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
-                            ? agentRecord.FriendlyType
-                            : CJobTypesParser.GetJobType(job.JobType),
+                        CJobTypesParser.ResolveJobFriendlyType(job,
+                            agentJobsByName.TryGetValue(job.Name ?? string.Empty, out var agentRecord)
+                                ? agentRecord.FriendlyType
+                                : null),
                         compressionLevel,
                         blockSize,
                         gfsEnabled.ToString(),

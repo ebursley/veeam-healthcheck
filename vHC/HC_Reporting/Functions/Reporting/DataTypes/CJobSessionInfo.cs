@@ -56,6 +56,12 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
 
         public string JobType { get; set; }
 
+        public Guid? JobId { get; set; }
+
+        public string PolicyName { get; set; }
+
+        public Guid? PolicyTag { get; set; }
+
         public CJobSessionInfo(string name, int min, int max, int avg)
         {
             // Name = name;

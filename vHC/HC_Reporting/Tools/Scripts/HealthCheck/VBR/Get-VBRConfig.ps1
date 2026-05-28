@@ -244,7 +244,10 @@ $RepositoryDetails = $repoResult.Output
 
 # ---------------------------------------------------------------------------
 # Fetch backup sessions as live .NET objects and pass them explicitly to SessionReport.
-# Uses Get-VBRBackupSession; objects are never serialised so .NET methods
+# Uses Get-VhciJobSessions which probes the Veeam.Backup.Core.CBackupSession
+# fast path and falls back to unfiltered cmdlets (Get-VBRBackupSession,
+# Get-VBRComputerBackupJobSession) when the fast path is unavailable. In
+# either case, the returned objects are never serialised so .NET methods
 # (GetTaskSessions, Logger.GetLog) remain available to Get-VhcSessionReport. See ADR 0006.
 $backupSessionsResult = Invoke-VhcCollector -Name 'BackupSessions' -Action {
     Get-VhcBackupSessions -ReportInterval $ReportInterval

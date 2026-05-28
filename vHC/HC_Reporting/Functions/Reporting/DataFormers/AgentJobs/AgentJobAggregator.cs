@@ -26,6 +26,25 @@ namespace VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs
             "EndpointBackup",
         };
 
+        /// <summary>
+        /// <para>
+        /// Canonical human-readable labels used to seed zero-count entries in the
+        /// Missing Jobs section. Consumers apply these selectively:
+        /// </para>
+        /// <list type="bullet">
+        ///   <item><c>Agent Standalone</c> — always seeded; standalone agent jobs are an
+        ///   independent category from managed jobs.</item>
+        ///   <item><c>Agent Backup</c> — seeded only when no agent jobs exist at all;
+        ///   skipped when modern agent jobs (EpAgentBackup etc.) are present to avoid a
+        ///   false-positive missing-job alert.</item>
+        /// </list>
+        /// </summary>
+        public static readonly IReadOnlySet<string> DefaultFriendlyTypes = new HashSet<string>
+        {
+            "Agent Backup",
+            "Agent Standalone",
+        };
+
         public static IReadOnlyList<AgentJobRecord> Build(IEnumerable<CJobCsvInfos> rows)
         {
             if (rows == null)

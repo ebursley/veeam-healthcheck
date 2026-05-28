@@ -37,10 +37,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                 typeAndCount.Add("SureBackup", sureBackup.Count());
                 typeAndCount.Add("Tape", tapeJobs.Count());
 
-                // Agent jobs (managed + standalone) come from the unified AgentJobs view,
-                // grouped by FriendlyType. This replaces the previous "Agent Backup" /
-                // "Unmanaged Agent" buckets which double-counted managed jobs.
-                //
                 // Calling AgentJobAggregator.Build directly on the already-materialized
                 // backupJobs list avoids constructing a CDataFormer here — that constructor
                 // eagerly reads four proxy CSVs and logs a warning when they're missing,
@@ -52,6 +48,23 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables
                     {
                         typeAndCount.Add(grouping.Key, grouping.Count());
                     }
+                }
+
+                // "Agent Standalone" is always seeded — standalone agent jobs are an
+                // independent category that should appear as missing regardless of whether
+                // managed agent jobs exist.
+                if (!typeAndCount.ContainsKey("Agent Standalone"))
+                {
+                    typeAndCount.Add("Agent Standalone", 0);
+                }
+
+                // "Agent Backup" is only seeded when no agent jobs exist at all. If modern
+                // agent jobs (EpAgentBackup etc.) are present, the dynamic loop already wrote
+                // their FriendlyType labels ("Windows Agent Backup" etc.) and seeding "Agent
+                // Backup" here would be a false-positive missing-job alert.
+                if (!agentJobs.Any() && !typeAndCount.ContainsKey("Agent Backup"))
+                {
+                    typeAndCount.Add("Agent Backup", 0);
                 }
 
                 var types = backupJobs.Select(x => x.JobType).Distinct().ToList();

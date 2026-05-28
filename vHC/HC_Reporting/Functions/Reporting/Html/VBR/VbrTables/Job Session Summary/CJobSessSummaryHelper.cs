@@ -111,11 +111,6 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
             }
         }
 
-        public List<string> JobNameList()
-        {
-            return this.JobSessionInfoList().Select(x => x.Name).ToList();
-        }
-
         public List<CJobSessionInfo> JobSessionInfoList()
         {
                 List<CJobSessionInfo> csv = new();
