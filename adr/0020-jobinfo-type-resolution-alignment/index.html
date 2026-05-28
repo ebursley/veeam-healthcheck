@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0012-agent-session-collection-via-get-vbrtasksession/">
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0020-jobinfo-type-resolution-alignment/">
       
       
       
@@ -20,7 +20,7 @@
     
     
       
-        <title>ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession - Veeam Health Check</title>
+        <title>ADR 0020: Align JobInfo Type Resolution with JobSessionSummary - Veeam Health Check</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" class="md-skip">
+        <a href="#adr-0020-align-jobinfo-type-resolution-with-jobsessionsummary" class="md-skip">
           Skip to content
         </a>
       
@@ -105,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession
+              ADR 0020: Align JobInfo Type Resolution with JobSessionSummary
             
           </span>
         </div>
@@ -545,39 +545,6 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Context and Problem Statement">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#why-gettasksessions-could-not-be-reused" class="md-nav__link">
-    <span class="md-ellipsis">
-      Why GetTaskSessions() could not be reused
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-get-vbrtasksession-works-for-all-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      Why Get-VBRTaskSession works for all types
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#jobname-suffix-on-agent-task-sessions" class="md-nav__link">
-    <span class="md-ellipsis">
-      JobName suffix on agent task sessions
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -641,9 +608,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#validation" class="md-nav__link">
+  <a href="#related" class="md-nav__link">
     <span class="md-ellipsis">
-      Validation
+      Related
     </span>
   </a>
   
@@ -664,7 +631,7 @@
                   
 
   
-    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0012-agent-session-collection-via-get-vbrtasksession.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0020-jobinfo-type-resolution-alignment.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -672,100 +639,115 @@
   
 
 
-<h1 id="adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession">ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession<a class="headerlink" href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" title="Permanent link">&para;</a></h1>
+<h1 id="adr-0020-align-jobinfo-type-resolution-with-jobsessionsummary">ADR 0020: Align JobInfo Type Resolution with JobSessionSummary<a class="headerlink" href="#adr-0020-align-jobinfo-type-resolution-with-jobsessionsummary" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Accepted</li>
-<li><strong>Date:</strong> 2026-03-13</li>
+<li><strong>Date:</strong> 2026-05-28</li>
 <li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
-<li><strong>Consulted:</strong> GitHub Copilot</li>
-<li><strong>See also:</strong> <a href="../0018-cbackupsession-fast-path-for-session-collection/">ADR 0018</a> updates the collection mechanism — <code>Get-VBRComputerBackupJobSession</code> becomes the fallback when the <code>Veeam.Backup.Core.CBackupSession</code> fast path is unavailable. The downstream <code>Get-VBRTaskSession</code> per-session loop and <code>IsEpAgentPlatform</code> detection described below are unchanged.</li>
+<li><strong>Consulted:</strong> Claude Code (architecture review)</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p><code>Get-VhcBackupSessions</code> used only <code>Get-VBRBackupSession</code>, which silently excludes
-agent/computer backup job sessions (<code>EpAgentBackup</code> type). These sessions are a
-separate family managed by <code>Get-VBRComputerBackupJobSession</code> and do not appear in
-<code>Get-VBRBackupSession</code> output.</p>
-<p>Live investigation confirmed the gap: a job named <code>Physical Servers - Linux</code> produced
-4 sessions visible via <code>CBackupSession::GetByJob()</code> and <code>Get-VBRComputerBackupJobSession</code>,
-but zero rows via <code>Get-VBRBackupSession</code>. Any customer running Windows or Linux agent
-backup jobs via VBR had those sessions silently absent from <code>VeeamSessionReport.csv</code>.</p>
-<h3 id="why-gettasksessions-could-not-be-reused">Why GetTaskSessions() could not be reused<a class="headerlink" href="#why-gettasksessions-could-not-be-reused" title="Permanent link">&para;</a></h3>
-<p>Agent sessions resolve to <code>Veeam.Backup.PowerShell.Infos.VBRSession</code> (a PowerShell
-wrapper type), which does not have a <code>GetTaskSessions()</code> method. The existing code
-called <code>$BackupSessions.GetTaskSessions()</code> on the full collection, which would fail
-on <code>VBRSession</code> objects.</p>
-<h3 id="why-get-vbrtasksession-works-for-all-types">Why Get-VBRTaskSession works for all types<a class="headerlink" href="#why-get-vbrtasksession-works-for-all-types" title="Permanent link">&para;</a></h3>
-<p><code>Get-VBRTaskSession</code> declares its <code>-Session</code> parameter with type
-<code>Veeam.Backup.PowerShell.Infos.VBRSession</code> and a <code>VBRSessionTransformationAttribute</code>
-transformer. This attribute coerces <code>CBackupSession</code> and <code>CBackupCopySession</code> .NET
-objects to the expected wrapper type, so the same cmdlet accepts all three session
-families. Live testing confirmed correct <code>CBackupTaskSession</code> output for VM, Backup
-Copy, and agent sessions.</p>
-<h3 id="jobname-suffix-on-agent-task-sessions">JobName suffix on agent task sessions<a class="headerlink" href="#jobname-suffix-on-agent-task-sessions" title="Permanent link">&para;</a></h3>
-<p>For agent task sessions, Veeam appends the machine name to <code>$task.JobName</code>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Physical Servers - Linux - lab-m01-utl01.lab.garagecloud.net
-</code></pre></div>
-The parent <code>VBRSession.Name</code> contains the clean job name (<code>Physical Servers - Linux</code>).
-For VM and Backup Copy sessions, <code>$task.JobName</code> is already the clean job name.</p>
+<p>The VBR healthcheck report builds two job-centric tables from the same underlying <code>_Jobs.csv</code>
+data:</p>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Builder</th>
+<th>Type resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jobSessionSummaryByJob</code></td>
+<td><code>CJobSessSummary</code></td>
+<td><code>CJobTypesParser.GetJobType</code> then overridden by <code>_Jobs.csv</code> <code>TypeToString</code></td>
+</tr>
+<tr>
+<td><code>jobInfo</code></td>
+<td><code>CJobInfoTable</code></td>
+<td>Agent rows → <code>AgentJobRecord.FriendlyType</code>; all others → <code>CJobTypesParser.GetJobType</code> only</td>
+</tr>
+</tbody>
+</table>
+<p>For jobs backed by the Veeam plug-in system (<code>VmbApiPolicyTempJob</code> — Proxmox VE, Nutanix AHV,
+HPE Morpheus VME, VMware Cloud Director, etc.), <code>CJobTypesParser.GetJobType</code> has no matching
+<code>case</code> and falls through to <code>default: return jobType</code>, emitting the raw enum string.</p>
+<p>Confirmed in <code>After-Veeam Health Check Report_VBR_vbr-04.usdemo.veeam.local_2026.05.27.132935.json</code>:
+- <code>Sections.jobInfo.Rows</code>: <code>"VmbApiPolicyTempJob"</code> for Proxmox / AHV / HPE Morpheus jobs.
+- <code>Sections.jobSessionSummaryByJob.Rows</code>: same jobs shown as <code>"Proxmox Backup"</code> / <code>"Nutanix AHV Backup"</code> / <code>"HPE Morpheus VME Backup"</code>.</p>
+<p><code>TypeToString</code> is written by <code>Get-VhcJob.ps1</code> directly from the Veeam API
+(<code>$Job.TypeToString</code>) and is the authoritative, Veeam-supplied friendly label for any job
+type, including third-party plug-in types. The session-summary table already uses it
+(introduced in ADR 0019). The job-info table did not.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<ol>
-<li>
-<p>In <code>Get-VhcBackupSessions</code>: add <code>Get-VBRComputerBackupJobSession</code> (filtered by
-   <code>$cutoff</code>) to the returned array alongside the existing <code>Get-VBRBackupSession</code>
-   results. Wrap the agent collection in <code>try/catch</code> with a WARNING so that failure
-   (e.g. cmdlet unavailable on older VBR builds) degrades gracefully without
-   aborting the whole collector.</p>
-</li>
-<li>
-<p>In <code>Get-VhcSessionReport</code>: replace the single <code>$BackupSessions.GetTaskSessions()</code>
-   call with a per-session loop using <code>Get-VBRTaskSession -Session $session</code>. This
-   works for all session types via the implicit coercion described above.</p>
-</li>
-<li>
-<p>Use <code>$task.ObjectPlatform.IsEpAgentPlatform</code> to detect agent task sessions and
-   take <code>JobName</code> from the parent <code>$session.Name</code> instead of <code>$task.JobName</code>.</p>
-</li>
-</ol>
+<p>Introduce a shared static helper <code>CJobTypesParser.ResolveJobFriendlyType</code> that encodes the
+three-level precedence in one place:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">// Precedence: agent FriendlyType (already resolved by AgentJobAggregator)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1">//             → TypeToString (Veeam API authoritative label)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1">//             → GetJobType (enum switch fallback)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">ResolveJobFriendlyType</span><span class="p">(</span><span class="n">CJobCsvInfos</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">agentFriendlyType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">agentFriendlyType</span><span class="p">))</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">agentFriendlyType</span><span class="p">;</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">row</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="kt">string</span><span class="p">.</span><span class="n">IsNullOrEmpty</span><span class="p">(</span><span class="n">row</span><span class="p">.</span><span class="n">TypeToString</span><span class="p">))</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">row</span><span class="p">.</span><span class="n">TypeToString</span><span class="p">;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nf">GetJobType</span><span class="p">(</span><span class="n">row</span><span class="o">?.</span><span class="n">JobType</span><span class="p">);</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">}</span>
+</code></pre></div>
+<p>Note: the caller passes <code>agentRecord?.FriendlyType</code> rather than the <code>AgentJobRecord</code> object
+to avoid a namespace cycle — <code>AgentJobAggregator</code> (in <code>DataFormers.AgentJobs</code>) already
+imports <code>CJobTypesParser</code> (in <code>Html.DataFormers</code>).</p>
+<p><strong><code>CJobInfoTable</code>:</strong> section grouping is generalized so every <code>JobType</code> (not only agent
+enums) is split by <code>ResolveJobFriendlyType</code>. This means raw types like <code>Backup</code> (which
+contains both VMware and Hyper-V jobs when <code>TypeToString</code> differs) fragment into separate
+sub-sections (e.g., "VMware Backup Jobs", "Hyper-V Backup Jobs") with their own anchor
+slugs (<code>jobTable-backup-vmware-backup</code>, <code>jobTable-backup-hyper-v-backup</code>). The two
+per-row resolution sites (HTML + JSON) are updated to use the same helper.</p>
+<p><strong><code>CJobSessSummary</code>:</strong> the existing two-step override (<code>GetJobType</code> then <code>TypeToString</code>
+if present at lines 123 / 138-140) is collapsed into a single <code>ResolveJobFriendlyType</code>
+call. No semantic change — this is a simplification to prevent the two sites from drifting
+independently in future.</p>
 <h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>Get-VBRTaskSession</code> is a single cmdlet that handles all session types, keeping
-  the processing code path unified (no branching by type).</li>
-<li>The <code>IsEpAgentPlatform</code> flag is a stable, self-describing property on the task
-  object itself, making the intent clear and the logic testable with mock objects.</li>
-<li>Wrapping only the agent collection in <code>try/catch</code> (not the VM collection) means
-  the failure mode is a degraded result (agent sessions absent, warned in logs)
-  rather than a total collector failure.</li>
+<li><strong>Single source of truth.</strong> The precedence ladder (<code>FriendlyType</code> → <code>TypeToString</code> →
+  <code>GetJobType</code>) is encoded once; callers cannot independently drift.</li>
+<li><strong>No new enum cases needed.</strong> Plug-in job types are fully described by <code>TypeToString</code>
+  from the Veeam API. Adding them to the switch would require updating the switch every
+  time Veeam ships a new plug-in.</li>
+<li><strong>Section fragmentation is intentional.</strong> Grouping "Backup" rows by friendly type
+  produces per-platform sections that are more readable than one monolithic "Backup Jobs"
+  section mixing VMware and Hyper-V rows. The HTML anchor slugs change
+  (<code>jobTable-backup</code> → <code>jobTable-backup-vmware-backup</code>); verified that no external JS,
+  TOC, or sidebar references these slugs — they are generated and consumed internally.</li>
 </ul>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Agent/computer backup job sessions now appear in <code>VeeamSessionReport.csv</code>.</li>
-<li><code>JobName</code> column contains the clean job name for all session types.</li>
-<li>Single processing loop for all session types; no type-dispatch branching.</li>
-<li>VM and Backup Copy session behaviour is unchanged.</li>
+<li><code>Sections.jobInfo.Rows[*].JobType</code> shows <code>"Proxmox Backup"</code>, <code>"Nutanix AHV Backup"</code>, etc.
+  for plug-in jobs, matching the session-summary output.</li>
+<li>One section per friendly type in the HTML report for every job category, not only agents.</li>
+<li>Single code path for type resolution; future plug-in types require no code changes.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>ProcessingMode</code>, <code>BottleneckDetails</code>, and <code>PrimaryBottleneck</code> are empty for
-  agent sessions: <code>$task.Logger.GetLog()</code> returns no records post-completion for
-  <code>EpAgentBackup</code> sessions (confirmed via live testing).</li>
-<li><code>BackupStats</code> and <code>Progress</code> fields on <code>$task.JobSess</code> are populated for agent
-  sessions (confirmed: <code>BackupStats.BackupSize = 72 GB</code>, <code>DataSize = 136 GB</code>), so
-  the existing ADR 0005 fallback logic is not needed for agent sessions.</li>
+<li>HTML anchor IDs change for non-agent <code>Backup</code> and <code>Replica</code> sub-sections.
+  No external references exist; internal TOC is rebuilt from the generated section list.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>None identified.</li>
+<li>Reports generated before and after this change are not structurally identical in the
+  <code>jobInfo</code> section — <code>VmbApiPolicyTempJob</code> values become friendly names.</li>
 </ul>
-<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
-<p>Live testing on VBR v13 confirmed:
-- <code>Get-VBRComputerBackupJobSession</code> returns 4 sessions for <code>Physical Servers - Linux</code>
-  (1 success, 3 retries/failures) within the reporting window.
-- <code>Get-VBRTaskSession</code> on a <code>VBRSession</code> object returns <code>CBackupTaskSession</code> with
-  <code>Name = 'lab-m01-utl01.lab.garagecloud.net'</code> and <code>JobName</code> containing the machine suffix.
-- <code>$task.JobSess.BackupStats.BackupSize = 72208083488</code> (~67 GB) confirms size data
-  is available via the existing code path.
-- <code>$task.ObjectPlatform.IsEpAgentPlatform = True</code> for the agent task session.</p>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>ADR 0019</strong> — policy-link session rollup; introduced the <code>TypeToString</code> override in
+  <code>CJobSessSummary</code>. This ADR extends the same precedence to <code>CJobInfoTable</code>.</li>
+<li><strong>ADR 0015</strong> — hybrid friendly-type rule; established the agent <code>FriendlyType</code> resolution
+  (standalone vs managed).</li>
+</ul>
 
 
 

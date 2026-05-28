@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0012-agent-session-collection-via-get-vbrtasksession/">
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/plans/2026-05-05-vhcxtests-ci-wiring/">
       
       
       
@@ -20,7 +20,7 @@
     
     
       
-        <title>ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession - Veeam Health Check</title>
+        <title>VhcXTests CI Wiring + MFA Test Backfill - Veeam Health Check</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" class="md-skip">
+        <a href="#vhcxtests-ci-wiring-mfa-test-backfill" class="md-skip">
           Skip to content
         </a>
       
@@ -105,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession
+              VhcXTests CI Wiring + MFA Test Backfill
             
           </span>
         </div>
@@ -539,37 +539,46 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#problem-verified-not-assumed" class="md-nav__link">
     <span class="md-ellipsis">
-      Context and Problem Statement
+      Problem (verified, not assumed)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Context and Problem Statement">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-smallest-change-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fix (smallest change first)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fix (smallest change first)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#why-gettasksessions-could-not-be-reused" class="md-nav__link">
+  <a href="#step-1-wire-vhcxtests-into-the-solution" class="md-nav__link">
     <span class="md-ellipsis">
-      Why GetTaskSessions() could not be reused
+      Step 1: Wire VhcXTests into the solution
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#why-get-vbrtasksession-works-for-all-types" class="md-nav__link">
+  <a href="#step-2-establish-baseline-coverage" class="md-nav__link">
     <span class="md-ellipsis">
-      Why Get-VBRTaskSession works for all types
+      Step 2: Establish baseline coverage
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#jobname-suffix-on-agent-task-sessions" class="md-nav__link">
+  <a href="#step-3-backfill-mfa-path-resolution-tests-pester" class="md-nav__link">
     <span class="md-ellipsis">
-      JobName suffix on agent task sessions
+      Step 3: Backfill MFA path-resolution tests (Pester)
     </span>
   </a>
   
@@ -581,69 +590,36 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#decisions-still-open" class="md-nav__link">
     <span class="md-ellipsis">
-      Decision
+      Decisions still open
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#rationale" class="md-nav__link">
+  <a href="#verification-per-step" class="md-nav__link">
     <span class="md-ellipsis">
-      Rationale
+      Verification (per step)
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#out-of-scope-for-this-plan" class="md-nav__link">
     <span class="md-ellipsis">
-      Consequences
+      Out of scope for this plan
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      Positive
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      Neutral
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      Negative
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#validation" class="md-nav__link">
+  <a href="#working-tree-note" class="md-nav__link">
     <span class="md-ellipsis">
-      Validation
+      Working-tree note
     </span>
   </a>
   
@@ -664,7 +640,7 @@
                   
 
   
-    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0012-agent-session-collection-via-get-vbrtasksession.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/plans/2026-05-05-vhcxtests-ci-wiring.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -672,100 +648,90 @@
   
 
 
-<h1 id="adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession">ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession<a class="headerlink" href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" title="Permanent link">&para;</a></h1>
-<ul>
-<li><strong>Status:</strong> Accepted</li>
-<li><strong>Date:</strong> 2026-03-13</li>
-<li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
-<li><strong>Consulted:</strong> GitHub Copilot</li>
-<li><strong>See also:</strong> <a href="../0018-cbackupsession-fast-path-for-session-collection/">ADR 0018</a> updates the collection mechanism — <code>Get-VBRComputerBackupJobSession</code> becomes the fallback when the <code>Veeam.Backup.Core.CBackupSession</code> fast path is unavailable. The downstream <code>Get-VBRTaskSession</code> per-session loop and <code>IsEpAgentPlatform</code> detection described below are unchanged.</li>
-</ul>
-<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p><code>Get-VhcBackupSessions</code> used only <code>Get-VBRBackupSession</code>, which silently excludes
-agent/computer backup job sessions (<code>EpAgentBackup</code> type). These sessions are a
-separate family managed by <code>Get-VBRComputerBackupJobSession</code> and do not appear in
-<code>Get-VBRBackupSession</code> output.</p>
-<p>Live investigation confirmed the gap: a job named <code>Physical Servers - Linux</code> produced
-4 sessions visible via <code>CBackupSession::GetByJob()</code> and <code>Get-VBRComputerBackupJobSession</code>,
-but zero rows via <code>Get-VBRBackupSession</code>. Any customer running Windows or Linux agent
-backup jobs via VBR had those sessions silently absent from <code>VeeamSessionReport.csv</code>.</p>
-<h3 id="why-gettasksessions-could-not-be-reused">Why GetTaskSessions() could not be reused<a class="headerlink" href="#why-gettasksessions-could-not-be-reused" title="Permanent link">&para;</a></h3>
-<p>Agent sessions resolve to <code>Veeam.Backup.PowerShell.Infos.VBRSession</code> (a PowerShell
-wrapper type), which does not have a <code>GetTaskSessions()</code> method. The existing code
-called <code>$BackupSessions.GetTaskSessions()</code> on the full collection, which would fail
-on <code>VBRSession</code> objects.</p>
-<h3 id="why-get-vbrtasksession-works-for-all-types">Why Get-VBRTaskSession works for all types<a class="headerlink" href="#why-get-vbrtasksession-works-for-all-types" title="Permanent link">&para;</a></h3>
-<p><code>Get-VBRTaskSession</code> declares its <code>-Session</code> parameter with type
-<code>Veeam.Backup.PowerShell.Infos.VBRSession</code> and a <code>VBRSessionTransformationAttribute</code>
-transformer. This attribute coerces <code>CBackupSession</code> and <code>CBackupCopySession</code> .NET
-objects to the expected wrapper type, so the same cmdlet accepts all three session
-families. Live testing confirmed correct <code>CBackupTaskSession</code> output for VM, Backup
-Copy, and agent sessions.</p>
-<h3 id="jobname-suffix-on-agent-task-sessions">JobName suffix on agent task sessions<a class="headerlink" href="#jobname-suffix-on-agent-task-sessions" title="Permanent link">&para;</a></h3>
-<p>For agent task sessions, Veeam appends the machine name to <code>$task.JobName</code>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Physical Servers - Linux - lab-m01-utl01.lab.garagecloud.net
+<h1 id="vhcxtests-ci-wiring-mfa-test-backfill">VhcXTests CI Wiring + MFA Test Backfill<a class="headerlink" href="#vhcxtests-ci-wiring-mfa-test-backfill" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-05-05
+<strong>Priority:</strong> ASAP
+<strong>Discovered during:</strong> PR #129 review (MFA D:-drive fix)
+<strong>Related:</strong> Issue #128, commit <code>1041d75</code></p>
+<h2 id="problem-verified-not-assumed">Problem (verified, not assumed)<a class="headerlink" href="#problem-verified-not-assumed" title="Permanent link">&para;</a></h2>
+<p>Two test projects exist in the repo:</p>
+<table>
+<thead>
+<tr>
+<th>Project</th>
+<th>Files</th>
+<th>Where it runs in CI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vHC/VhcXTests/</code></td>
+<td>32 test files (xUnit + Moq + coverlet, Windows-only, full WPF deps)</td>
+<td><strong>Nowhere — does not execute in CI</strong></td>
+</tr>
+<tr>
+<td><code>vHC/VhcXTests.CrossPlatform/</code></td>
+<td>2 test files (CHostNameHelperTests, HtmlStructureTests)</td>
+<td><code>crossplatform-tests.yml</code> on ubuntu + macos — runs ~14 tests, all passing</td>
+</tr>
+</tbody>
+</table>
+<p>Root cause:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>$ dotnet sln vHC/HC.sln list
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Project(s)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>----------
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>HC_Reporting/VeeamHealthCheck.csproj
 </code></pre></div>
-The parent <code>VBRSession.Name</code> contains the clean job name (<code>Physical Servers - Linux</code>).
-For VM and Backup Copy sessions, <code>$task.JobName</code> is already the clean job name.</p>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p><code>HC.sln</code> references only the main project. Both <code>ci-cd.yaml</code> (line ~40) and <code>pr-release-prep.yml</code> (line 36) invoke <code>dotnet test vHC/HC.sln</code>, so the test run discovers zero tests. Verified in run logs:</p>
+<ul>
+<li>Run <code>25396813454</code> (sha <code>1041d75</code>) — "Run tests with coverage" finished in <strong>0.56s</strong>, no test discovery output, "Generate coverage report" fell into the <code>No coverage files found</code> branch.</li>
+<li>Run <code>25339190612</code> (sha <code>ab8d967</code>) — same pattern, <strong>0.57s</strong>, no test output.</li>
+</ul>
+<p>So 32 test files compile successfully on every push but never execute. Coverage reporting is configured (coverlet + ReportGenerator) but produces no data because no tests run.</p>
+<h2 id="fix-smallest-change-first">Fix (smallest change first)<a class="headerlink" href="#fix-smallest-change-first" title="Permanent link">&para;</a></h2>
+<h3 id="step-1-wire-vhcxtests-into-the-solution">Step 1: Wire <code>VhcXTests</code> into the solution<a class="headerlink" href="#step-1-wire-vhcxtests-into-the-solution" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>dotnet sln vHC/HC.sln add vHC/VhcXTests/VhcXTests.csproj</code></li>
+<li>Do NOT add <code>VhcXTests.CrossPlatform.csproj</code> — it targets <code>net10.0</code> and is invoked directly by <code>crossplatform-tests.yml</code>. Keeping it out of the sln avoids dragging the net10 framework into the main build.</li>
+<li>Push to <code>dev</code> and watch <code>ci-cd.yaml</code> "Run tests with coverage" — it should now show <code>Discovering: VhcXTests</code>, real pass/fail counts, and produce a <code>coverage.cobertura.xml</code> artifact.</li>
+</ul>
+<h3 id="step-2-establish-baseline-coverage">Step 2: Establish baseline coverage<a class="headerlink" href="#step-2-establish-baseline-coverage" title="Permanent link">&para;</a></h3>
+<ul>
+<li>After Step 1, download the <code>code-coverage-report</code> artifact from a <code>dev</code> push.</li>
+<li>Record the line/branch coverage % per assembly. This is the baseline.</li>
+<li>Decide whether to add a coverage threshold gate (e.g., fail if line coverage drops below the baseline). Not required for this plan to land; can be a follow-up.</li>
+</ul>
+<h3 id="step-3-backfill-mfa-path-resolution-tests-pester">Step 3: Backfill MFA path-resolution tests (Pester)<a class="headerlink" href="#step-3-backfill-mfa-path-resolution-tests-pester" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The MFA fix (<code>1041d75</code>) modified <code>vHC/HC_Reporting/Functions/Collection/PSCollections/Scripts/TestMfa.ps1</code>. The path-resolution logic lives in PowerShell, so xUnit can't directly cover it. Use Pester.</li>
+<li>Add <code>vHC/HC_Reporting/Functions/Collection/PSCollections/Scripts/TestMfa.Tests.ps1</code> with three behavior tests for <code>Resolve-VeeamConsolePath</code>:</li>
+<li>Registry <code>CorePath = "D:\Program Files\Veeam\Backup and Replication\Backup\"</code> and Console exists at the install root → returns <code>"D:\...\Console"</code>. <strong>This is the regression test for #128 / <code>1041d75</code>.</strong></li>
+<li>Registry missing or UNC → falls back to <code>$env:ProgramFiles</code>, returns the env-derived path when Console exists there.</li>
+<li>All candidates miss → returns <code>$null</code> and <code>Write-Error</code> fires with a "Paths attempted" listing.</li>
+<li>Mock <code>Get-ItemProperty</code>, <code>Test-Path</code>, and <code>$env:ProgramFiles</code> in scope so the tests don't touch the real registry or filesystem.</li>
+<li>Wire Pester execution into <code>ps51-syntax-validation.yml</code> as a new job (cheapest), or add a dedicated <code>pester-tests.yml</code> workflow.</li>
+<li>While there, add <code>Functions/Collection/PSCollections/Scripts/TestMfa.ps1</code> to the <code>ps51-syntax-validation.yml</code> script list — currently that workflow's parse check skips this file entirely.</li>
+</ul>
+<h2 id="decisions-still-open">Decisions still open<a class="headerlink" href="#decisions-still-open" title="Permanent link">&para;</a></h2>
 <ol>
-<li>
-<p>In <code>Get-VhcBackupSessions</code>: add <code>Get-VBRComputerBackupJobSession</code> (filtered by
-   <code>$cutoff</code>) to the returned array alongside the existing <code>Get-VBRBackupSession</code>
-   results. Wrap the agent collection in <code>try/catch</code> with a WARNING so that failure
-   (e.g. cmdlet unavailable on older VBR builds) degrades gracefully without
-   aborting the whole collector.</p>
-</li>
-<li>
-<p>In <code>Get-VhcSessionReport</code>: replace the single <code>$BackupSessions.GetTaskSessions()</code>
-   call with a per-session loop using <code>Get-VBRTaskSession -Session $session</code>. This
-   works for all session types via the implicit coercion described above.</p>
-</li>
-<li>
-<p>Use <code>$task.ObjectPlatform.IsEpAgentPlatform</code> to detect agent task sessions and
-   take <code>JobName</code> from the parent <code>$session.Name</code> instead of <code>$task.JobName</code>.</p>
-</li>
+<li><strong>Coverage gate threshold.</strong> Defer until we have a baseline number from Step 2.</li>
+<li><strong>Pester wiring location.</strong> Extend <code>ps51-syntax-validation.yml</code> (cheap, less YAML) vs. new <code>pester-tests.yml</code> (cleaner separation). Recommend extending unless the parse-validation workflow gets too crowded.</li>
+<li><strong><code>pr-release-prep.yml</code>.</strong> It also runs <code>dotnet test vHC/HC.sln</code> and skips coverage collection. After Step 1, it will run the Windows tests too. No change needed unless we want to mirror coverage collection there.</li>
 </ol>
-<h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
+<h2 id="verification-per-step">Verification (per step)<a class="headerlink" href="#verification-per-step" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>Get-VBRTaskSession</code> is a single cmdlet that handles all session types, keeping
-  the processing code path unified (no branching by type).</li>
-<li>The <code>IsEpAgentPlatform</code> flag is a stable, self-describing property on the task
-  object itself, making the intent clear and the logic testable with mock objects.</li>
-<li>Wrapping only the agent collection in <code>try/catch</code> (not the VM collection) means
-  the failure mode is a degraded result (agent sessions absent, warned in logs)
-  rather than a total collector failure.</li>
+<li><strong>Step 1:</strong> Run <code>dotnet sln vHC/HC.sln list</code> locally — must show both <code>VeeamHealthCheck.csproj</code> and <code>VhcXTests.csproj</code>. Push to a branch and confirm the <code>ci-cd.yaml</code> test step output now contains <code>Discovering / Discovered / Total tests / Passed</code>.</li>
+<li><strong>Step 2:</strong> Download <code>code-coverage-report</code> artifact from a successful run; confirm Cobertura XML and HTML report exist. Record baseline %.</li>
+<li><strong>Step 3:</strong> A Pester run against the <em>pre-fix</em> version of <code>TestMfa.ps1</code> must FAIL test 1 (regression test). Against the post-fix version (<code>1041d75</code>+) all three pass.</li>
 </ul>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<h2 id="out-of-scope-for-this-plan">Out of scope for this plan<a class="headerlink" href="#out-of-scope-for-this-plan" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Agent/computer backup job sessions now appear in <code>VeeamSessionReport.csv</code>.</li>
-<li><code>JobName</code> column contains the clean job name for all session types.</li>
-<li>Single processing loop for all session types; no type-dispatch branching.</li>
-<li>VM and Backup Copy session behaviour is unchanged.</li>
+<li>Refactoring the path-resolution logic into C# (would enable xUnit coverage of it but is a larger move).</li>
+<li>Adding a coverage threshold gate (do after baseline is known).</li>
+<li>Migrating any of the 32 Windows tests into the cross-platform project.</li>
 </ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>ProcessingMode</code>, <code>BottleneckDetails</code>, and <code>PrimaryBottleneck</code> are empty for
-  agent sessions: <code>$task.Logger.GetLog()</code> returns no records post-completion for
-  <code>EpAgentBackup</code> sessions (confirmed via live testing).</li>
-<li><code>BackupStats</code> and <code>Progress</code> fields on <code>$task.JobSess</code> are populated for agent
-  sessions (confirmed: <code>BackupStats.BackupSize = 72 GB</code>, <code>DataSize = 136 GB</code>), so
-  the existing ADR 0005 fallback logic is not needed for agent sessions.</li>
-</ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
-<ul>
-<li>None identified.</li>
-</ul>
-<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
-<p>Live testing on VBR v13 confirmed:
-- <code>Get-VBRComputerBackupJobSession</code> returns 4 sessions for <code>Physical Servers - Linux</code>
-  (1 success, 3 retries/failures) within the reporting window.
-- <code>Get-VBRTaskSession</code> on a <code>VBRSession</code> object returns <code>CBackupTaskSession</code> with
-  <code>Name = 'lab-m01-utl01.lab.garagecloud.net'</code> and <code>JobName</code> containing the machine suffix.
-- <code>$task.JobSess.BackupStats.BackupSize = 72208083488</code> (~67 GB) confirms size data
-  is available via the existing code path.
-- <code>$task.ObjectPlatform.IsEpAgentPlatform = True</code> for the agent task session.</p>
+<h2 id="working-tree-note">Working-tree note<a class="headerlink" href="#working-tree-note" title="Permanent link">&para;</a></h2>
+<p>At time of writing, <code>dev</code> HEAD is <code>1041d75</code> and PR #129 (<code>Sync dev → master</code>) is open. This plan can land as one or more follow-up commits on <code>dev</code> (after #129 merges, or in parallel — no file conflicts).</p>
 
 
 

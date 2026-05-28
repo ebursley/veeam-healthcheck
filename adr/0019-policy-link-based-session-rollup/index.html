@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0012-agent-session-collection-via-get-vbrtasksession/">
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0019-policy-link-based-session-rollup/">
       
       
       
@@ -20,7 +20,7 @@
     
     
       
-        <title>ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession - Veeam Health Check</title>
+        <title>ADR 0019: Session Rollup via Info.PolicyName / Info.PolicyTag - Veeam Health Check</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" class="md-skip">
+        <a href="#adr-0019-session-rollup-via-infopolicyname-infopolicytag" class="md-skip">
           Skip to content
         </a>
       
@@ -105,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession
+              ADR 0019: Session Rollup via Info.PolicyName / Info.PolicyTag
             
           </span>
         </div>
@@ -545,38 +545,14 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Context and Problem Statement">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#why-gettasksessions-could-not-be-reused" class="md-nav__link">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-from-vbr" class="md-nav__link">
     <span class="md-ellipsis">
-      Why GetTaskSessions() could not be reused
+      Evidence from VBR
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-get-vbrtasksession-works-for-all-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      Why Get-VBRTaskSession works for all types
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#jobname-suffix-on-agent-task-sessions" class="md-nav__link">
-    <span class="md-ellipsis">
-      JobName suffix on agent task sessions
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -649,6 +625,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -664,7 +649,7 @@
                   
 
   
-    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0012-agent-session-collection-via-get-vbrtasksession.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0019-policy-link-based-session-rollup.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -672,100 +657,132 @@
   
 
 
-<h1 id="adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession">ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession<a class="headerlink" href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" title="Permanent link">&para;</a></h1>
+<h1 id="adr-0019-session-rollup-via-infopolicyname-infopolicytag">ADR 0019: Session Rollup via Info.PolicyName / Info.PolicyTag<a class="headerlink" href="#adr-0019-session-rollup-via-infopolicyname-infopolicytag" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Accepted</li>
-<li><strong>Date:</strong> 2026-03-13</li>
+<li><strong>Date:</strong> 2026-05-27</li>
 <li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
-<li><strong>Consulted:</strong> GitHub Copilot</li>
-<li><strong>See also:</strong> <a href="../0018-cbackupsession-fast-path-for-session-collection/">ADR 0018</a> updates the collection mechanism — <code>Get-VBRComputerBackupJobSession</code> becomes the fallback when the <code>Veeam.Backup.Core.CBackupSession</code> fast path is unavailable. The downstream <code>Get-VBRTaskSession</code> per-session loop and <code>IsEpAgentPlatform</code> detection described below are unchanged.</li>
+<li><strong>Consulted:</strong> Claude Code (architecture review)</li>
+<li><strong>Supersedes:</strong> ADR 0017 (the name-prefix rollup is replaced; this ADR's machinery solves the same problem more cleanly)</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p><code>Get-VhcBackupSessions</code> used only <code>Get-VBRBackupSession</code>, which silently excludes
-agent/computer backup job sessions (<code>EpAgentBackup</code> type). These sessions are a
-separate family managed by <code>Get-VBRComputerBackupJobSession</code> and do not appear in
-<code>Get-VBRBackupSession</code> output.</p>
-<p>Live investigation confirmed the gap: a job named <code>Physical Servers - Linux</code> produced
-4 sessions visible via <code>CBackupSession::GetByJob()</code> and <code>Get-VBRComputerBackupJobSession</code>,
-but zero rows via <code>Get-VBRBackupSession</code>. Any customer running Windows or Linux agent
-backup jobs via VBR had those sessions silently absent from <code>VeeamSessionReport.csv</code>.</p>
-<h3 id="why-gettasksessions-could-not-be-reused">Why GetTaskSessions() could not be reused<a class="headerlink" href="#why-gettasksessions-could-not-be-reused" title="Permanent link">&para;</a></h3>
-<p>Agent sessions resolve to <code>Veeam.Backup.PowerShell.Infos.VBRSession</code> (a PowerShell
-wrapper type), which does not have a <code>GetTaskSessions()</code> method. The existing code
-called <code>$BackupSessions.GetTaskSessions()</code> on the full collection, which would fail
-on <code>VBRSession</code> objects.</p>
-<h3 id="why-get-vbrtasksession-works-for-all-types">Why Get-VBRTaskSession works for all types<a class="headerlink" href="#why-get-vbrtasksession-works-for-all-types" title="Permanent link">&para;</a></h3>
-<p><code>Get-VBRTaskSession</code> declares its <code>-Session</code> parameter with type
-<code>Veeam.Backup.PowerShell.Infos.VBRSession</code> and a <code>VBRSessionTransformationAttribute</code>
-transformer. This attribute coerces <code>CBackupSession</code> and <code>CBackupCopySession</code> .NET
-objects to the expected wrapper type, so the same cmdlet accepts all three session
-families. Live testing confirmed correct <code>CBackupTaskSession</code> output for VM, Backup
-Copy, and agent sessions.</p>
-<h3 id="jobname-suffix-on-agent-task-sessions">JobName suffix on agent task sessions<a class="headerlink" href="#jobname-suffix-on-agent-task-sessions" title="Permanent link">&para;</a></h3>
-<p>For agent task sessions, Veeam appends the machine name to <code>$task.JobName</code>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Physical Servers - Linux - lab-m01-utl01.lab.garagecloud.net
-</code></pre></div>
-The parent <code>VBRSession.Name</code> contains the clean job name (<code>Physical Servers - Linux</code>).
-For VM and Backup Copy sessions, <code>$task.JobName</code> is already the clean job name.</p>
+<p>ADR 0017 introduced a name-prefix rollup that grouped policy per-machine child sessions
+(<code>"&lt;Parent&gt; - &lt;Vm&gt;"</code> / <code>"&lt;Parent&gt;\&lt;Vm&gt;"</code>) under their parent's row by parsing the session
+name. The implementation in <code>CJobSessSummaryHelper.TryGetParentPrefix</code> picked the
+leftmost separator and looked the resulting prefix up in a name set. This worked for the
+canonical policy job name (e.g. <code>Managed-WindowsAgents-Policy</code>) but broke whenever the
+parent name itself contained " - ":</p>
+<ul>
+<li><code>Physical - Linux Servers</code> parent with children <code>Physical - Linux Servers - lab01...</code>
+  produced prefix "Physical" (not in nameSet) → no rollup → duplicate row visible.</li>
+<li><code>Backup Copy - Engineers CHC 02</code> parent with children
+  <code>Backup Copy - Engineers CHC 02\Hyper-V - Management Services</code> produced prefix
+  "Backup Copy" (not in nameSet) → child rendered as standalone row with the wrong
+  JobType label.</li>
+</ul>
+<p>Each follow-up commit (974a3b7, 0a8e05f, 07b9054, b39834d, dc5e163) fixed an adjacent
+edge case in the same string-parsing surface. The pattern of recurring fixes signaled
+the wrong architectural anchor.</p>
+<h2 id="evidence-from-vbr">Evidence from VBR<a class="headerlink" href="#evidence-from-vbr" title="Permanent link">&para;</a></h2>
+<p>Live probing of <code>Veeam.Backup.Core.CBackupSession</code> and <code>Veeam.Backup.Core.CBackupCopySession</code>
+objects on a v13 lab showed that every session carries two nested properties that VBR
+itself uses to track the parent relationship:</p>
+<ul>
+<li><code>session.Info.PolicyName</code> (string)</li>
+<li><code>session.Info.PolicyTag</code> (Guid)</li>
+</ul>
+<p>On a child session, both fields point at the <strong>parent</strong>: <code>PolicyName</code> = parent's
+JobName, <code>PolicyTag</code> = parent's JobId. On a parent or standalone session, the fields
+either equal the session's own JobName / JobId (policy parents) or are empty (regular
+Backup, Backup Copy orchestrator). This holds across both session classes and across
+the fast and slow collection paths (ADR 0018).</p>
+<p><code>probe-session-properties.csv</code> and <code>probe-policy-link.csv</code> at the repo root document
+the empirical verification across all three target job families (Linux Agent policy,
+Backup Copy policy, regular Hyper-V Backup). Both files are removed in Task 9 once the
+ADR is committed.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Replace the name-prefix rollup with GUID-based grouping anchored on <code>Info.PolicyTag</code>.</p>
+<p><strong>Collection side</strong> (<code>Get-VhcSessionReport.ps1</code>): for every emitted session row, write
+three new columns to <code>VeeamSessionReport.csv</code>:</p>
+<ul>
+<li><code>JobId</code> — the session's own <code>$session.JobId</code></li>
+<li><code>PolicyName</code> — <code>$session.Info.PolicyName</code>, canonicalized to the current parent name
+  via the existing JobId map (same handling as <code>$jobName</code>)</li>
+<li><code>PolicyTag</code> — <code>$session.Info.PolicyTag</code></li>
+</ul>
+<p><strong>Schema</strong> (<code>CJobSessionCsvInfos.cs</code>): columns at indices 17/18/19, marked <code>[Optional]</code>
+for backward compatibility with imported pre-this-ADR CSVs.</p>
+<p><strong>Data type</strong> (<code>CJobSessionInfo.cs</code>): three matching properties — <code>Guid? JobId</code>,
+<code>string PolicyName</code>, <code>Guid? PolicyTag</code>.</p>
+<p><strong>Rollup</strong> (<code>CSessionGroupKey.Of</code>): preference order</p>
 <ol>
-<li>
-<p>In <code>Get-VhcBackupSessions</code>: add <code>Get-VBRComputerBackupJobSession</code> (filtered by
-   <code>$cutoff</code>) to the returned array alongside the existing <code>Get-VBRBackupSession</code>
-   results. Wrap the agent collection in <code>try/catch</code> with a WARNING so that failure
-   (e.g. cmdlet unavailable on older VBR builds) degrades gracefully without
-   aborting the whole collector.</p>
-</li>
-<li>
-<p>In <code>Get-VhcSessionReport</code>: replace the single <code>$BackupSessions.GetTaskSessions()</code>
-   call with a per-session loop using <code>Get-VBRTaskSession -Session $session</code>. This
-   works for all session types via the implicit coercion described above.</p>
-</li>
-<li>
-<p>Use <code>$task.ObjectPlatform.IsEpAgentPlatform</code> to detect agent task sessions and
-   take <code>JobName</code> from the parent <code>$session.Name</code> instead of <code>$task.JobName</code>.</p>
-</li>
+<li><code>PolicyTag</code> when populated and not equal to own <code>JobId</code> → child rolls up under
+   the parent's job GUID.</li>
+<li><code>JobId</code> when populated → parent / standalone uses its own GUID.</li>
+<li>Fall back to <code>name:&lt;JobName&gt;</code> for legacy CSVs without the new columns.</li>
 </ol>
+<p><strong>Display name</strong> (<code>CSessionGroupKey.DisplayName</code>): <code>PolicyName</code> if non-empty, else
+<code>JobName</code>. The parent name flows through naturally because children carry the parent's
+PolicyName.</p>
+<p><code>CJobSessSummary.JobSessionSummaryToXml</code> and <code>IndividualJobSessionsHelper.ParseIndividualSessions</code>
+group sessions by <code>CSessionGroupKey.Of</code>. The previous parent/child detection,
+<code>namesWithData</code> guard, algorithm-suffix stripping, and longest-prefix retry logic are
+all deleted.</p>
 <h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>Get-VBRTaskSession</code> is a single cmdlet that handles all session types, keeping
-  the processing code path unified (no branching by type).</li>
-<li>The <code>IsEpAgentPlatform</code> flag is a stable, self-describing property on the task
-  object itself, making the intent clear and the logic testable with mock objects.</li>
-<li>Wrapping only the agent collection in <code>try/catch</code> (not the VM collection) means
-  the failure mode is a degraded result (agent sessions absent, warned in logs)
-  rather than a total collector failure.</li>
+<li><strong>No string parsing.</strong> Parent identity comes from a typed VBR property, not a
+  delimiter convention. Parent names containing " - " or <code>\</code> no longer matter.</li>
+<li><strong>Stable across renames.</strong> <code>PolicyTag</code> is a GUID; renaming the parent job doesn't
+  change historical sessions' grouping. The display name picks up the canonical
+  current name via the PS-layer <code>$jobIdMap</code> override.</li>
+<li><strong>Two session classes, two paths, same property.</strong> Verified on
+  <code>Veeam.Backup.Core.CBackupSession</code> (fast path) and <code>Veeam.Backup.Core.CBackupCopySession</code>
+  (slow path BC). The collection layer doesn't need different rollup logic per path.</li>
+<li><strong>One fallback only.</strong> <code>JobName</code> is used solely when neither GUID is populated
+  (legacy imported CSVs). New collections never hit the fallback.</li>
+<li><strong>Smaller surface to maintain.</strong> ~150 lines deleted; ~50 lines added.</li>
 </ul>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Agent/computer backup job sessions now appear in <code>VeeamSessionReport.csv</code>.</li>
-<li><code>JobName</code> column contains the clean job name for all session types.</li>
-<li>Single processing loop for all session types; no type-dispatch branching.</li>
-<li>VM and Backup Copy session behaviour is unchanged.</li>
+<li>Duplicate rows for parent-name-contains-" - " policies (Linux Agent, Backup Copy)
+  disappear without a special case.</li>
+<li>Backup Copy child rows are absorbed into the parent and rendered with the parent's
+  "Backup Copy" type from <code>_Jobs.csv</code> (no manual <code>parentToChildren.ContainsKey</code> check).</li>
+<li>Renamed jobs no longer produce two rows in <code>jobSessionSummary</code> — the GUID is the
+  anchor, the name is just display.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>ProcessingMode</code>, <code>BottleneckDetails</code>, and <code>PrimaryBottleneck</code> are empty for
-  agent sessions: <code>$task.Logger.GetLog()</code> returns no records post-completion for
-  <code>EpAgentBackup</code> sessions (confirmed via live testing).</li>
-<li><code>BackupStats</code> and <code>Progress</code> fields on <code>$task.JobSess</code> are populated for agent
-  sessions (confirmed: <code>BackupStats.BackupSize = 72 GB</code>, <code>DataSize = 136 GB</code>), so
-  the existing ADR 0005 fallback logic is not needed for agent sessions.</li>
+<li>Imported CSVs from prior versions (no <code>JobId</code>/<code>PolicyName</code>/<code>PolicyTag</code> columns) fall
+  back to grouping by <code>JobName</code>. Per-machine children show as separate rows in that
+  fallback, the same as they did before the original ADR 0017 rollup landed. Acceptable
+  because re-collection on the upgraded module restores correct grouping.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>None identified.</li>
+<li>Couples session rollup to two VBR <code>Info</code> properties. Mitigated by the <code>[Optional]</code>
+  CSV columns and the GUID-or-name fallback chain.</li>
 </ul>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
-<p>Live testing on VBR v13 confirmed:
-- <code>Get-VBRComputerBackupJobSession</code> returns 4 sessions for <code>Physical Servers - Linux</code>
-  (1 success, 3 retries/failures) within the reporting window.
-- <code>Get-VBRTaskSession</code> on a <code>VBRSession</code> object returns <code>CBackupTaskSession</code> with
-  <code>Name = 'lab-m01-utl01.lab.garagecloud.net'</code> and <code>JobName</code> containing the machine suffix.
-- <code>$task.JobSess.BackupStats.BackupSize = 72208083488</code> (~67 GB) confirms size data
-  is available via the existing code path.
-- <code>$task.ObjectPlatform.IsEpAgentPlatform = True</code> for the agent task session.</p>
+<p>Unit tests (<code>CSessionGroupKeyTEST</code>, two new cases in <code>CJobSessSummaryTEST</code>) cover:</p>
+<ul>
+<li>Linux Agent parent + 2 children → single rolled-up row.</li>
+<li>Hyper-V no-children Backup → single standalone row.</li>
+<li>BC parent with empty PolicyTag → uses own JobId.</li>
+<li>Legacy session (all GUIDs null) → falls back to JobName.</li>
+<li>DisplayName precedence.</li>
+</ul>
+<p>End-to-end verification by re-running the report against the user's lab VBR and
+confirming <code>jobSessionSummaryByJob.Rows</code> no longer contains the <code>Physical - Linux Servers - lab-m01-lnx01... (Incremental/Synthetic Full)</code> rows beside the parent.</p>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>ADR 0017</strong> — predecessor, name-prefix rollup. Superseded.</li>
+<li><strong>ADR 0018</strong> — fast-path session collection. Provides the same <code>Info.PolicyName</code>/<code>PolicyTag</code>
+  property visibility on both paths.</li>
+<li><strong>ADR 0016</strong> — <code>JobName</code>-based session-type lookup. The <code>" - "</code> convention used there
+  is no longer load-bearing for rollup, but still used for friendly-type resolution.</li>
+</ul>
 
 
 

@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0012-agent-session-collection-via-get-vbrtasksession/">
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0014-standalone-agent-jobs-via-getbackup-getjob/">
       
       
       
@@ -20,7 +20,7 @@
     
     
       
-        <title>ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession - Veeam Health Check</title>
+        <title>ADR 0014: Source Standalone Agent Jobs via Get-VBRBackup + .GetJob() Instead of Get-VBREPJob - Veeam Health Check</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" class="md-skip">
+        <a href="#adr-0014-source-standalone-agent-jobs-via-get-vbrbackup-getjob-instead-of-get-vbrepjob" class="md-skip">
           Skip to content
         </a>
       
@@ -105,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession
+              ADR 0014: Source Standalone Agent Jobs via Get-VBRBackup + .GetJob() Instead of Get-VBREPJob
             
           </span>
         </div>
@@ -549,27 +549,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#why-gettasksessions-could-not-be-reused" class="md-nav__link">
+  <a href="#option-a-get-vbrepjob" class="md-nav__link">
     <span class="md-ellipsis">
-      Why GetTaskSessions() could not be reused
+      Option A — Get-VBREPJob
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#why-get-vbrtasksession-works-for-all-types" class="md-nav__link">
+  <a href="#option-b-get-vbrbackup-isagentstandalonejob-getjob" class="md-nav__link">
     <span class="md-ellipsis">
-      Why Get-VBRTaskSession works for all types
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#jobname-suffix-on-agent-task-sessions" class="md-nav__link">
-    <span class="md-ellipsis">
-      JobName suffix on agent task sessions
+      Option B — Get-VBRBackup | ?{IsAgentStandaloneJob} | .GetJob()
     </span>
   </a>
   
@@ -664,7 +655,7 @@
                   
 
   
-    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0012-agent-session-collection-via-get-vbrtasksession.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0014-standalone-agent-jobs-via-getbackup-getjob.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -672,100 +663,93 @@
   
 
 
-<h1 id="adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession">ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession<a class="headerlink" href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" title="Permanent link">&para;</a></h1>
+<h1 id="adr-0014-source-standalone-agent-jobs-via-get-vbrbackup-getjob-instead-of-get-vbrepjob">ADR 0014: Source Standalone Agent Jobs via Get-VBRBackup + .GetJob() Instead of Get-VBREPJob<a class="headerlink" href="#adr-0014-source-standalone-agent-jobs-via-get-vbrbackup-getjob-instead-of-get-vbrepjob" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Accepted</li>
-<li><strong>Date:</strong> 2026-03-13</li>
+<li><strong>Date:</strong> 2026-05-26</li>
 <li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
-<li><strong>Consulted:</strong> GitHub Copilot</li>
-<li><strong>See also:</strong> <a href="../0018-cbackupsession-fast-path-for-session-collection/">ADR 0018</a> updates the collection mechanism — <code>Get-VBRComputerBackupJobSession</code> becomes the fallback when the <code>Veeam.Backup.Core.CBackupSession</code> fast path is unavailable. The downstream <code>Get-VBRTaskSession</code> per-session loop and <code>IsEpAgentPlatform</code> detection described below are unchanged.</li>
+<li><strong>Consulted:</strong> Claude Code (architecture review)</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p><code>Get-VhcBackupSessions</code> used only <code>Get-VBRBackupSession</code>, which silently excludes
-agent/computer backup job sessions (<code>EpAgentBackup</code> type). These sessions are a
-separate family managed by <code>Get-VBRComputerBackupJobSession</code> and do not appear in
-<code>Get-VBRBackupSession</code> output.</p>
-<p>Live investigation confirmed the gap: a job named <code>Physical Servers - Linux</code> produced
-4 sessions visible via <code>CBackupSession::GetByJob()</code> and <code>Get-VBRComputerBackupJobSession</code>,
-but zero rows via <code>Get-VBRBackupSession</code>. Any customer running Windows or Linux agent
-backup jobs via VBR had those sessions silently absent from <code>VeeamSessionReport.csv</code>.</p>
-<h3 id="why-gettasksessions-could-not-be-reused">Why GetTaskSessions() could not be reused<a class="headerlink" href="#why-gettasksessions-could-not-be-reused" title="Permanent link">&para;</a></h3>
-<p>Agent sessions resolve to <code>Veeam.Backup.PowerShell.Infos.VBRSession</code> (a PowerShell
-wrapper type), which does not have a <code>GetTaskSessions()</code> method. The existing code
-called <code>$BackupSessions.GetTaskSessions()</code> on the full collection, which would fail
-on <code>VBRSession</code> objects.</p>
-<h3 id="why-get-vbrtasksession-works-for-all-types">Why Get-VBRTaskSession works for all types<a class="headerlink" href="#why-get-vbrtasksession-works-for-all-types" title="Permanent link">&para;</a></h3>
-<p><code>Get-VBRTaskSession</code> declares its <code>-Session</code> parameter with type
-<code>Veeam.Backup.PowerShell.Infos.VBRSession</code> and a <code>VBRSessionTransformationAttribute</code>
-transformer. This attribute coerces <code>CBackupSession</code> and <code>CBackupCopySession</code> .NET
-objects to the expected wrapper type, so the same cmdlet accepts all three session
-families. Live testing confirmed correct <code>CBackupTaskSession</code> output for VM, Backup
-Copy, and agent sessions.</p>
-<h3 id="jobname-suffix-on-agent-task-sessions">JobName suffix on agent task sessions<a class="headerlink" href="#jobname-suffix-on-agent-task-sessions" title="Permanent link">&para;</a></h3>
-<p>For agent task sessions, Veeam appends the machine name to <code>$task.JobName</code>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Physical Servers - Linux - lab-m01-utl01.lab.garagecloud.net
+<p><code>Get-VBRJob</code> does not return standalone (unmanaged) Veeam Agent jobs. Before this work, the report had no per-job detail row in <code>jobInfo</code> for these jobs — their session data appeared in <code>jobSessionSummaryByJob</code> but the actual job configuration (source size, on-disk GB, retention, encryption, compression, GFS, indexing) was absent. To close the gap we needed a way to enumerate standalone jobs and project them through the same <code>_Jobs.csv</code> pipeline as managed jobs.</p>
+<p>The Veeam SDK offers two candidates:</p>
+<h3 id="option-a-get-vbrepjob">Option A — <code>Get-VBREPJob</code><a class="headerlink" href="#option-a-get-vbrepjob" title="Permanent link">&para;</a></h3>
+<p>The obvious first choice. Already collected by <code>Get-VhciAgentJob.ps1</code> into <code>_EndpointJob.csv</code>. Live inspection of the cmdlet's output for a real standalone job:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>RepositoryId : fddf7a1e-708f-46f0-be18-cfb8df621a09
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>ObjectsCount : 1
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>IsEnabled    : True
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>NextRun      : 27/05/2026 12:30:00 am
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>Target       : BackupRepo1
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>Type         : EndpointBackup
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>LastResult   : Success
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>LastState    : Stopped
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>Id           : 54bc3629-5304-47cb-bb0d-9c9aede2e72c
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>Name         : Unmanaged-WindowsAgents-VTESTVM03
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>Description  : Veeam Agent for Windows backup job
 </code></pre></div>
-The parent <code>VBRSession.Name</code> contains the clean job name (<code>Physical Servers - Linux</code>).
-For VM and Backup Copy sessions, <code>$task.JobName</code> is already the clean job name.</p>
+<p>The output is a stripped-down wrapper. It exposes only the fields above — no retention scheme, no encryption flag, no compression level, no block size, no GFS settings, no AAIP/VSS, no indexing options, no source/on-disk size. To consume it for the existing <code>_Jobs.csv</code> projection (40+ columns of <code>CJobCsvInfos</code>), we would have needed:</p>
+<ul>
+<li>A parallel projection path emitting blank cells for everything <code>Get-VBREPJob</code> does not expose.</li>
+<li>A separate sizing pipeline (the <code>Get-VBRBackup</code> → <code>Get-VBRRestorePoint</code> → <code>GetStorage().Stats.BackupSize</code> chain that <code>Get-VhcJob.ps1</code> already runs for managed jobs).</li>
+<li>Synthesized <code>TypeToString</code> from the <code>Description</code> field's platform substring (<code>"Veeam Agent for Windows"</code> → <code>"Windows Agent ..."</code>), since the wrapper does not carry <code>TypeToString</code>.</li>
+</ul>
+<h3 id="option-b-get-vbrbackup-isagentstandalonejob-getjob">Option B — <code>Get-VBRBackup | ?{IsAgentStandaloneJob} | .GetJob()</code><a class="headerlink" href="#option-b-get-vbrbackup-isagentstandalonejob-getjob" title="Permanent link">&para;</a></h3>
+<p><code>Get-VBRBackup</code> returns the backup repository's view of each backup. Filter on <code>IsAgentStandaloneJob</code> to select standalone-agent backups, then call <code>.GetJob()</code> on each. Live inspection:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>PS&gt; $standalone = Get-VBRBackup | Where-Object { $_.IsAgentStandaloneJob -eq $true }
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>PS&gt; $standalone[0].GetJob().GetType().FullName
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Veeam.Backup.Core.CBackupJob
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>PS&gt; $standalone[0].GetJob() | Select-Object Name, JobType, TypeToString | Format-List
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>Name         : Unmanaged-WindowsAgents-VTESTVM03
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>JobType      : EndpointBackup
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>TypeToString : Windows Agent Backup
+</code></pre></div>
+<p><code>.GetJob()</code> returns a <code>Veeam.Backup.Core.CBackupJob</code> — the exact same .NET type that <code>Get-VBRJob</code> returns for managed jobs. <code>GetLastBackup()</code> works on it. <code>Options.BackupStorageOptions</code> is fully populated (<code>CompressionLevel = 5</code>, <code>StgBlockSize = KbBlockSize1024</code>, <code>RetentionType = Days</code>, <code>RetainCycles = 7</code>, <code>StorageEncryptionEnabled = True</code>). <code>Options.GfsPolicy</code> and <code>VssOptions</code> are fully populated.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<ol>
-<li>
-<p>In <code>Get-VhcBackupSessions</code>: add <code>Get-VBRComputerBackupJobSession</code> (filtered by
-   <code>$cutoff</code>) to the returned array alongside the existing <code>Get-VBRBackupSession</code>
-   results. Wrap the agent collection in <code>try/catch</code> with a WARNING so that failure
-   (e.g. cmdlet unavailable on older VBR builds) degrades gracefully without
-   aborting the whole collector.</p>
-</li>
-<li>
-<p>In <code>Get-VhcSessionReport</code>: replace the single <code>$BackupSessions.GetTaskSessions()</code>
-   call with a per-session loop using <code>Get-VBRTaskSession -Session $session</code>. This
-   works for all session types via the implicit coercion described above.</p>
-</li>
-<li>
-<p>Use <code>$task.ObjectPlatform.IsEpAgentPlatform</code> to detect agent task sessions and
-   take <code>JobName</code> from the parent <code>$session.Name</code> instead of <code>$task.JobName</code>.</p>
-</li>
-</ol>
+<p>Source standalone agent jobs via:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">$standaloneJobs</span> <span class="p">=</span> <span class="p">@(</span><span class="nb">Get-VBRBackup</span> <span class="n">-WarningAction</span> <span class="n">SilentlyContinue</span> <span class="p">|</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="nb">Where-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">IsAgentStandaloneJob</span> <span class="o">-eq</span> <span class="nv">$true</span> <span class="p">}</span> <span class="p">|</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">ForEach</span><span class="n">-Object</span> <span class="p">{</span> <span class="nv">$_</span><span class="p">.</span><span class="n">GetJob</span><span class="p">()</span> <span class="p">}</span> <span class="p">|</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="nb">Where-Object</span> <span class="p">{</span> <span class="nv">$_</span> <span class="p">})</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nv">$Jobs</span> <span class="p">=</span> <span class="p">@(</span><span class="nv">$Jobs</span><span class="p">)</span> <span class="p">+</span> <span class="nv">$standaloneJobs</span>
+</code></pre></div>
+<p>inside <code>Get-VhcJob.ps1</code>, immediately after the existing <code>Get-VBRJob</code> call. Standalone jobs are appended to the same <code>$Jobs</code> array and flow through the existing projection foreach unchanged.</p>
+<p><code>Get-VBREPJob</code> continues to be collected by <code>Get-VhciAgentJob.ps1</code> for now, but is not consumed by <code>AgentJobAggregator</code> or any downstream renderer. Removing the collection entirely is tracked as future work.</p>
 <h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>Get-VBRTaskSession</code> is a single cmdlet that handles all session types, keeping
-  the processing code path unified (no branching by type).</li>
-<li>The <code>IsEpAgentPlatform</code> flag is a stable, self-describing property on the task
-  object itself, making the intent clear and the logic testable with mock objects.</li>
-<li>Wrapping only the agent collection in <code>try/catch</code> (not the VM collection) means
-  the failure mode is a degraded result (agent sessions absent, warned in logs)
-  rather than a total collector failure.</li>
+<li><strong>Shape parity:</strong> <code>.GetJob()</code> returns a <code>CBackupJob</code> identical in shape to <code>Get-VBRJob</code> output. The existing <code>Select-Object</code> projection (sizing math via <code>GetLastBackup()</code> + <code>Get-VBRRestorePoint</code>, options paths under <code>Options.BackupStorageOptions</code> / <code>Options.GfsPolicy</code> / <code>VssOptions</code>) works for standalone jobs without modification.</li>
+<li><strong>Single projection path:</strong> No parallel column-by-column logic. No synthesized fields except <code>FriendlyType</code> (handled in C# per <a href="../0015-hybrid-friendly-type-rule/">ADR 0015</a>).</li>
+<li><strong>Future-proof:</strong> When Veeam adds new properties to <code>CBackupJob</code>, standalone jobs pick them up for free. With <code>Get-VBREPJob</code> we would have to hand-maintain a column-translation table.</li>
+<li><strong>Sizing already works:</strong> <code>GetLastBackup()</code> returns a valid backup on a standalone <code>CBackupJob</code>. Live test confirmed sum-of-restore-point sizes equal the standalone session's <code>BackupSize</code>.</li>
 </ul>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Agent/computer backup job sessions now appear in <code>VeeamSessionReport.csv</code>.</li>
-<li><code>JobName</code> column contains the clean job name for all session types.</li>
-<li>Single processing loop for all session types; no type-dispatch branching.</li>
-<li>VM and Backup Copy session behaviour is unchanged.</li>
+<li>Standalone agent jobs appear in <code>jobInfo</code> with full configuration (retention, encryption, compression, block size, GFS, indexing, AAIP/VSS).</li>
+<li>Sizing is accurate (live verification: source 30.05 GB, on-disk 17.34 GB).</li>
+<li>Future agent-related options on <code>CBackupJob</code> flow through automatically.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>ProcessingMode</code>, <code>BottleneckDetails</code>, and <code>PrimaryBottleneck</code> are empty for
-  agent sessions: <code>$task.Logger.GetLog()</code> returns no records post-completion for
-  <code>EpAgentBackup</code> sessions (confirmed via live testing).</li>
-<li><code>BackupStats</code> and <code>Progress</code> fields on <code>$task.JobSess</code> are populated for agent
-  sessions (confirmed: <code>BackupStats.BackupSize = 72 GB</code>, <code>DataSize = 136 GB</code>), so
-  the existing ADR 0005 fallback logic is not needed for agent sessions.</li>
+<li>The order of operations matters: <code>Get-VBRBackup | Where-Object | ForEach-Object | Where-Object { $_ }</code> — the trailing <code>Where-Object { $_ }</code> filters out any null returns from <code>.GetJob()</code> (defensive; we have not observed null in practice).</li>
+<li><code>@(...)</code> around the pipeline forces an array even when zero results match, so downstream <code>$standaloneJobs.Count</code> is always safe.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>None identified.</li>
+<li>The standalone path requires a live <code>Connect-VBRServer</code> session (so does <code>Get-VBREPJob</code> — neither cmdlet works against SDK-only contexts, so no regression).</li>
+<li>A subtle trap for future maintainers: <code>Get-VBREPJob</code> is the more discoverable cmdlet (its name implies "endpoint job"), but using it would silently truncate the data we need. This ADR exists to prevent that regression.</li>
 </ul>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
-<p>Live testing on VBR v13 confirmed:
-- <code>Get-VBRComputerBackupJobSession</code> returns 4 sessions for <code>Physical Servers - Linux</code>
-  (1 success, 3 retries/failures) within the reporting window.
-- <code>Get-VBRTaskSession</code> on a <code>VBRSession</code> object returns <code>CBackupTaskSession</code> with
-  <code>Name = 'lab-m01-utl01.lab.garagecloud.net'</code> and <code>JobName</code> containing the machine suffix.
-- <code>$task.JobSess.BackupStats.BackupSize = 72208083488</code> (~67 GB) confirms size data
-  is available via the existing code path.
-- <code>$task.ObjectPlatform.IsEpAgentPlatform = True</code> for the agent task session.</p>
+<p>Live testing on VBR v13 with one known standalone job (<code>Unmanaged-WindowsAgents-VTESTVM03</code>) confirmed:</p>
+<ul>
+<li><code>Get-VBRBackup | ?{IsAgentStandaloneJob}</code> returns exactly one backup (the expected one).</li>
+<li><code>.GetJob()</code> on that backup returns a <code>Veeam.Backup.Core.CBackupJob</code>.</li>
+<li><code>TypeToString</code> = <code>"Windows Agent Backup"</code>.</li>
+<li><code>JobType</code> enum string = <code>"EndpointBackup"</code>.</li>
+<li><code>GetLastBackup()</code> returns a valid <code>Veeam.Backup.Core.CBackup</code> named <code>Unmanaged-WindowsAgents-VTESTVM03</code>.</li>
+<li><code>Options.BackupStorageOptions</code>, <code>Options.GfsPolicy</code>, and <code>VssOptions</code> are fully populated.</li>
+<li>The end-to-end report produces a <code>jobInfo</code> row with <code>JobName=Unmanaged-WindowsAgents-VTESTVM03</code>, <code>JobType=Windows Agent Standalone</code>, <code>SourceSizeGB=30.05</code>, <code>OnDiskGB=17.34</code>.</li>
+</ul>
+<p>Related: <a href="../0015-hybrid-friendly-type-rule/">ADR 0015</a> explains how <code>TypeToString="Windows Agent Backup"</code> is transformed into the displayed <code>"Windows Agent Standalone"</code> label.</p>
 
 
 

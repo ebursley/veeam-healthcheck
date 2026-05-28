@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0012-agent-session-collection-via-get-vbrtasksession/">
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0018-cbackupsession-fast-path-for-session-collection/">
       
       
       
@@ -20,7 +20,7 @@
     
     
       
-        <title>ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession - Veeam Health Check</title>
+        <title>ADR 0018: VBR Session Collection via Veeam.Backup.Core.CBackupSession Fast Path - Veeam Health Check</title>
       
     
     
@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" class="md-skip">
+        <a href="#adr-0018-vbr-session-collection-via-veeambackupcorecbackupsession-fast-path" class="md-skip">
           Skip to content
         </a>
       
@@ -105,7 +105,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession
+              ADR 0018: VBR Session Collection via Veeam.Backup.Core.CBackupSession Fast Path
             
           </span>
         </div>
@@ -549,27 +549,27 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#why-gettasksessions-could-not-be-reused" class="md-nav__link">
+  <a href="#what-the-database-actually-exposes" class="md-nav__link">
     <span class="md-ellipsis">
-      Why GetTaskSessions() could not be reused
+      What the database actually exposes
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#why-get-vbrtasksession-works-for-all-types" class="md-nav__link">
+  <a href="#what-vbr-exposes-for-accessing-that-index" class="md-nav__link">
     <span class="md-ellipsis">
-      Why Get-VBRTaskSession works for all types
+      What VBR exposes for accessing that index
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#jobname-suffix-on-agent-task-sessions" class="md-nav__link">
+  <a href="#the-supportability-question" class="md-nav__link">
     <span class="md-ellipsis">
-      JobName suffix on agent task sessions
+      The supportability question
     </span>
   </a>
   
@@ -641,6 +641,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#relationship-to-other-adrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relationship to other ADRs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#validation" class="md-nav__link">
     <span class="md-ellipsis">
       Validation
@@ -664,7 +673,7 @@
                   
 
   
-    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0012-agent-session-collection-via-get-vbrtasksession.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0018-cbackupsession-fast-path-for-session-collection.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -672,100 +681,304 @@
   
 
 
-<h1 id="adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession">ADR 0012: Agent Backup Session Collection via Get-VBRComputerBackupJobSession and Get-VBRTaskSession<a class="headerlink" href="#adr-0012-agent-backup-session-collection-via-get-vbrcomputerbackupjobsession-and-get-vbrtasksession" title="Permanent link">&para;</a></h1>
+<h1 id="adr-0018-vbr-session-collection-via-veeambackupcorecbackupsession-fast-path">ADR 0018: VBR Session Collection via Veeam.Backup.Core.CBackupSession Fast Path<a class="headerlink" href="#adr-0018-vbr-session-collection-via-veeambackupcorecbackupsession-fast-path" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Accepted</li>
-<li><strong>Date:</strong> 2026-03-13</li>
+<li><strong>Date:</strong> 2026-05-27</li>
 <li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
-<li><strong>Consulted:</strong> GitHub Copilot</li>
-<li><strong>See also:</strong> <a href="../0018-cbackupsession-fast-path-for-session-collection/">ADR 0018</a> updates the collection mechanism — <code>Get-VBRComputerBackupJobSession</code> becomes the fallback when the <code>Veeam.Backup.Core.CBackupSession</code> fast path is unavailable. The downstream <code>Get-VBRTaskSession</code> per-session loop and <code>IsEpAgentPlatform</code> detection described below are unchanged.</li>
+<li><strong>Consulted:</strong> Claude Code (architecture review)</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p><code>Get-VhcBackupSessions</code> used only <code>Get-VBRBackupSession</code>, which silently excludes
-agent/computer backup job sessions (<code>EpAgentBackup</code> type). These sessions are a
-separate family managed by <code>Get-VBRComputerBackupJobSession</code> and do not appear in
-<code>Get-VBRBackupSession</code> output.</p>
-<p>Live investigation confirmed the gap: a job named <code>Physical Servers - Linux</code> produced
-4 sessions visible via <code>CBackupSession::GetByJob()</code> and <code>Get-VBRComputerBackupJobSession</code>,
-but zero rows via <code>Get-VBRBackupSession</code>. Any customer running Windows or Linux agent
-backup jobs via VBR had those sessions silently absent from <code>VeeamSessionReport.csv</code>.</p>
-<h3 id="why-gettasksessions-could-not-be-reused">Why GetTaskSessions() could not be reused<a class="headerlink" href="#why-gettasksessions-could-not-be-reused" title="Permanent link">&para;</a></h3>
-<p>Agent sessions resolve to <code>Veeam.Backup.PowerShell.Infos.VBRSession</code> (a PowerShell
-wrapper type), which does not have a <code>GetTaskSessions()</code> method. The existing code
-called <code>$BackupSessions.GetTaskSessions()</code> on the full collection, which would fail
-on <code>VBRSession</code> objects.</p>
-<h3 id="why-get-vbrtasksession-works-for-all-types">Why Get-VBRTaskSession works for all types<a class="headerlink" href="#why-get-vbrtasksession-works-for-all-types" title="Permanent link">&para;</a></h3>
-<p><code>Get-VBRTaskSession</code> declares its <code>-Session</code> parameter with type
-<code>Veeam.Backup.PowerShell.Infos.VBRSession</code> and a <code>VBRSessionTransformationAttribute</code>
-transformer. This attribute coerces <code>CBackupSession</code> and <code>CBackupCopySession</code> .NET
-objects to the expected wrapper type, so the same cmdlet accepts all three session
-families. Live testing confirmed correct <code>CBackupTaskSession</code> output for VM, Backup
-Copy, and agent sessions.</p>
-<h3 id="jobname-suffix-on-agent-task-sessions">JobName suffix on agent task sessions<a class="headerlink" href="#jobname-suffix-on-agent-task-sessions" title="Permanent link">&para;</a></h3>
-<p>For agent task sessions, Veeam appends the machine name to <code>$task.JobName</code>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Physical Servers - Linux - lab-m01-utl01.lab.garagecloud.net
-</code></pre></div>
-The parent <code>VBRSession.Name</code> contains the clean job name (<code>Physical Servers - Linux</code>).
-For VM and Backup Copy sessions, <code>$task.JobName</code> is already the clean job name.</p>
+<p><code>Get-VhcBackupSessions</code> needs to return all VBR backup sessions created within a
+reporting window (default 7 days) so the downstream session-report code path can
+process them. Two competing constraints drive this:</p>
+<ol>
+<li><strong>Filtering must happen at the database, not in PowerShell</strong>, because large
+   environments hold tens of thousands of sessions and the supported cmdlet's
+   internal SQL command timeout (~600 s) trips on the unfiltered call.</li>
+<li><strong>The collector must work on every supported VBR version</strong>, currently v12 and
+   v13. Solutions that depend on cmdlet shape changes between versions are
+   fragile.</li>
+</ol>
+<p>The commit history shows the difficulty:</p>
+<ul>
+<li><strong>Pre-<code>59e2621</code></strong> — single unfiltered <code>Get-VBRBackupSession | Where-Object {...}</code>
+  call. Worked on v12 and small v13 environments. Timed out on large v13
+  environments.</li>
+<li><strong><code>59e2621</code></strong> — switched to <code>Get-VBRBackupSession -Job $job</code> per job. The
+  <code>-Job</code> parameter does not exist on <code>Get-VBRBackupSession</code> in any released VBR
+  version. Every iteration threw, all sessions were caught as WARNINGs, and the
+  collector returned an empty array on every environment. See
+  veeamhub/veeam-healthcheck#147 for the customer log evidence.</li>
+</ul>
+<p>We need a path that filters at the database layer and works on both v12 and
+v13. No supported PowerShell cmdlet provides this today.</p>
+<h3 id="what-the-database-actually-exposes">What the database actually exposes<a class="headerlink" href="#what-the-database-actually-exposes" title="Permanent link">&para;</a></h3>
+<p>Live inspection of the VBR 13.0.1 configuration database (PostgreSQL) shows
+the <code>public."backup.model.jobsessions"</code> table holds 33 columns and 14
+indexes, including a composite <code>(job_id, creation_time)</code> btree. The indexed
+shape is exactly what we need — given a job id and a cutoff date, the query
+plan is a bounded index scan, not a full table read. This index has existed
+on the SQL/PostgreSQL schemas across v11+.</p>
+<h3 id="what-vbr-exposes-for-accessing-that-index">What VBR exposes for accessing that index<a class="headerlink" href="#what-vbr-exposes-for-accessing-that-index" title="Permanent link">&para;</a></h3>
+<p><code>Veeam.Backup.Core.dll</code> ships with <code>Veeam.Backup.Core.CBackupSession</code>, a
+static-method class with over 40 query methods. Several map directly to the
+index:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Filters by</th>
+<th>Returns children?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GetByJob(Guid jobId)</code></td>
+<td>job id (full history)</td>
+<td>no (top-level only)</td>
+</tr>
+<tr>
+<td><code>GetByJobAndTimeRangeWithLog(Guid, DateTime)</code></td>
+<td>job id + start date</td>
+<td><strong>no</strong> (top-level only)</td>
+</tr>
+<tr>
+<td><code>GetAllSessionsByPolicyJobAndTimeRange(Guid, DateTime, DateTime)</code></td>
+<td>job id + range</td>
+<td><strong>yes</strong> (incl. per-machine children)</td>
+</tr>
+<tr>
+<td><code>GetByTypeAndTimeInterval(EDbJobType, DateTime, DateTime)</code></td>
+<td>type + window</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><code>FindLastByJob(Guid)</code></td>
+<td>most recent for job</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>The first design choice was the narrower <code>GetByJobAndTimeRangeWithLog</code>, but lab
+testing during PR review (#147) showed it silently drops per-machine child
+sessions. Policy jobs (<code>SimpleBackupCopyPolicy</code>, <code>EpAgentPolicy</code>, <code>EpAgentBackup</code>)
+emit per-machine child sessions to <code>backup.model.jobsessions</code> under a synthetic
+<code>&lt;Parent&gt;\&lt;Vm&gt;</code> <code>job_id</code> that <code>Get-VBRJob</code> does not surface. The narrower call
+only returns rows where <code>job_id</code> equals the parent's id exactly. The wider
+<code>GetAllSessionsByPolicyJobAndTimeRange</code> returns both parent and per-machine
+children regardless of policy type — the "Policy" in the name is misleading,
+the underlying query simply joins on the parent-child relationship. This is
+what ADR 0017's <code>jobSessionSummary</code> rollup expects.</p>
+<p>Lab confirmation (VBR 13.0.1):</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Narrower call</th>
+<th>Wider call (chosen)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Backup Copy Job 1</code> (SimpleBackupCopyPolicy)</td>
+<td>1 (orchestrator only)</td>
+<td>3 (1 + 2 children)</td>
+</tr>
+<tr>
+<td><code>Managed-WindowsAgents-Job</code> (EpAgentBackup)</td>
+<td>2</td>
+<td>4 (2 + 2 children)</td>
+</tr>
+<tr>
+<td><code>Managed-WindowsAgents-Policy</code> (EpAgentPolicy)</td>
+<td>4</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-supportability-question">The supportability question<a class="headerlink" href="#the-supportability-question" title="Permanent link">&para;</a></h3>
+<p><code>Veeam.Backup.Core.*</code> types are not part of Veeam's documented PowerShell
+surface. The standard Veeam guidance is to use cmdlets only. However:</p>
+<ol>
+<li><strong>There is no supported cmdlet that does what we need.</strong> The cmdlet's
+   <code>-Job</code> parameter does not exist; there is no <code>-Since</code>/<code>-After</code> filter
+   either.</li>
+<li><strong>The module already uses several <code>Veeam.Backup.Core.*</code> types</strong> for
+   similar "no supported cmdlet exists" cases:</li>
+<li><code>[Veeam.Backup.Core.CNasBackup]::GetByNasPointId</code> in
+     <code>Private/Get-VhciNasJob.ps1</code></li>
+<li><code>[Veeam.Backup.Core.CNasBackupPoint]::Get</code> in the same file</li>
+<li><code>[Veeam.Backup.Core.SBackupOptions]::get_GlobalMFA</code> in
+     <code>Public/Get-VhcVbrInfo.ps1</code></li>
+<li><strong>The internal API surface has been stable.</strong> <code>CBackupSession</code> static
+   query methods have not been renamed across the v11/v12/v13 transitions
+   based on a comparison of <code>Veeam.Backup.Core.dll</code> reflection output across
+   versions (verified for v13.0.1; v11 and v12 dlls show the same method
+   shapes in customer logs from prior support cases).</li>
+</ol>
+<p>The risk is real but bounded. The mitigation (next section) makes the
+coupling automatic to recover from.</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
-<p>In <code>Get-VhcBackupSessions</code>: add <code>Get-VBRComputerBackupJobSession</code> (filtered by
-   <code>$cutoff</code>) to the returned array alongside the existing <code>Get-VBRBackupSession</code>
-   results. Wrap the agent collection in <code>try/catch</code> with a WARNING so that failure
-   (e.g. cmdlet unavailable on older VBR builds) degrades gracefully without
-   aborting the whole collector.</p>
+<p><strong>Primary path: internal .NET method.</strong> Call
+   <code>[Veeam.Backup.Core.CBackupSession]::GetAllSessionsByPolicyJobAndTimeRange($jobId, $since, $until)</code>
+   per job to fetch sessions filtered at the database layer. This method
+   returns the parent job's session plus any per-machine child sessions
+   within the time window.</p>
 </li>
 <li>
-<p>In <code>Get-VhcSessionReport</code>: replace the single <code>$BackupSessions.GetTaskSessions()</code>
-   call with a per-session loop using <code>Get-VBRTaskSession -Session $session</code>. This
-   works for all session types via the implicit coercion described above.</p>
+<p><strong>Fallback path: supported unfiltered cmdlet.</strong> When the type or the
+   specific <code>(Guid, DateTime, DateTime)</code> method overload is not available,
+   fall back to a single unfiltered cmdlet call (<code>Get-VBRBackupSession</code> for
+   VM/Backup Copy, <code>Get-VBRComputerBackupJobSession</code> for agents) with
+   client-side <code>CreationTime &gt; $since</code> filtering. This is the pre-<code>59e2621</code>
+   shape and is known to work on v12 and small v13 environments.</p>
 </li>
 <li>
-<p>Use <code>$task.ObjectPlatform.IsEpAgentPlatform</code> to detect agent task sessions and
-   take <code>JobName</code> from the parent <code>$session.Name</code> instead of <code>$task.JobName</code>.</p>
+<p><strong>Reflection-based probe.</strong> A <code>Test-VhciCBackupSessionFastPath</code> helper
+   uses reflection (<code>'Veeam.Backup.Core.CBackupSession' -as [type]</code> +
+   <code>GetMethod('GetAllSessionsByPolicyJobAndTimeRange', [type[]]@([guid],[datetime],[datetime]))</code>)
+   to determine availability. Probe failures degrade silently to the slow
+   path with an INFO log line.</p>
+</li>
+<li>
+<p><strong>Detect once per helper call; no mid-run switching.</strong> If the probe says
+   yes, every job uses the fast path. A per-job exception in the fast path
+   logs a WARNING and continues to the next job — it does not demote that
+   job to the slow path.</p>
+</li>
+<li>
+<p><strong>Wrap the static call in a mockable PS function.</strong>
+   <code>Invoke-VhciCBackupSessionFetch</code> is a one-line wrapper around the static
+   call, exposed solely so Pester can <code>Mock</code> it without <code>Add-Type</code>.</p>
+</li>
+<li>
+<p><strong>Dedupe agent jobs out of <code>Get-VBRJob</code> results.</strong> <code>Get-VBRJob</code> still
+   returns agent jobs on VBR 13 (with a deprecation warning) and they also
+   appear in <code>Get-VBRComputerBackupJob</code> with identical <code>Id</code>s. The public
+   <code>Get-VhcBackupSessions</code> subtracts the agent-job Id set from the
+   <code>Get-VBRJob</code> result before calling the helper, so each agent job is
+   queried exactly once via the Agent path.</p>
 </li>
 </ol>
+<p>The full helper design is documented in
+<code>docs/superpowers/specs/2026-05-27-vbr-session-fast-path-design.md</code>.</p>
 <h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>Get-VBRTaskSession</code> is a single cmdlet that handles all session types, keeping
-  the processing code path unified (no branching by type).</li>
-<li>The <code>IsEpAgentPlatform</code> flag is a stable, self-describing property on the task
-  object itself, making the intent clear and the logic testable with mock objects.</li>
-<li>Wrapping only the agent collection in <code>try/catch</code> (not the VM collection) means
-  the failure mode is a degraded result (agent sessions absent, warned in logs)
-  rather than a total collector failure.</li>
+<li>
+<p><strong>Performance.</strong> The fast path is an indexed query and returns in hundreds of
+  milliseconds even on databases with millions of session rows. The supported
+  cmdlet does not expose any equivalent filter, so this is the only known path
+  to the indexed query short of opening a direct PostgreSQL connection from
+  the script (rejected: more brittle, requires credentials, bypasses VBR's
+  caching layer).</p>
+</li>
+<li>
+<p><strong>Compatibility.</strong> The reflection probe means the fast path is opt-in based
+  on environment: present and exercised on v13, automatically degraded on v12
+  or any future VBR build that changes the method shape. The slow path is the
+  pre-<code>59e2621</code> code that we know worked on v12.</p>
+</li>
+<li>
+<p><strong>Precedent.</strong> The module already accepts the supportability tradeoff for
+  three other <code>Veeam.Backup.Core.*</code> types where no supported equivalent
+  exists. This decision is consistent with the existing pattern, not a new
+  exception.</p>
+</li>
+<li>
+<p><strong>Failure isolation.</strong> A per-job throw in the fast path logs a WARNING and
+  continues, the same partial-failure tolerance the collector has today.
+  Mid-run switching to slow path was considered and rejected — it would mask
+  real per-job data problems by silently retrying through a different code
+  path and producing different result shapes.</p>
+</li>
+<li>
+<p><strong>Testability.</strong> Wrapping the static call in <code>Invoke-VhciCBackupSessionFetch</code>
+  costs one extra function but means the helper is testable on macOS and
+  Linux CI without any Veeam runtime. This matches the existing pattern (the
+  test file already stubs <code>Get-VBRBackupSession</code> and friends).</p>
+</li>
 </ul>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Agent/computer backup job sessions now appear in <code>VeeamSessionReport.csv</code>.</li>
-<li><code>JobName</code> column contains the clean job name for all session types.</li>
-<li>Single processing loop for all session types; no type-dispatch branching.</li>
-<li>VM and Backup Copy session behaviour is unchanged.</li>
+<li>VBR Health Check Reports are usable on large v13 environments — the
+  SDK-timeout failure mode is gone.</li>
+<li>Per-job filtering at the database scales linearly with active job count
+  rather than total session-history size.</li>
+<li>Issue veeamhub/veeam-healthcheck#147 is resolved on both v12 (slow path
+  works as it always did) and v13 (fast path works and is bounded).</li>
+<li>The module gains a reusable session-collection helper that NAS, tape,
+  replica, and SureBackup collectors can adopt in a follow-up phase by
+  passing different <code>SlowPathCommand</code> scriptblocks.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>ProcessingMode</code>, <code>BottleneckDetails</code>, and <code>PrimaryBottleneck</code> are empty for
-  agent sessions: <code>$task.Logger.GetLog()</code> returns no records post-completion for
-  <code>EpAgentBackup</code> sessions (confirmed via live testing).</li>
-<li><code>BackupStats</code> and <code>Progress</code> fields on <code>$task.JobSess</code> are populated for agent
-  sessions (confirmed: <code>BackupStats.BackupSize = 72 GB</code>, <code>DataSize = 136 GB</code>), so
-  the existing ADR 0005 fallback logic is not needed for agent sessions.</li>
+<li>The internal <code>Veeam.Backup.Core.CBackupSession</code> type is now a documented
+  dependency of the module. The probe makes the dependency soft (degrades on
+  removal/rename) rather than hard.</li>
+<li>The fast path returns <code>CBackupSession</code> objects for agent jobs, where the
+  slow path returns <code>VBRSession</code> (PowerShell wrapper) objects. Downstream
+  <code>Get-VBRTaskSession</code> accepts both per ADR 0012, so this is expected to be
+  transparent — but it is the one risk surface that needs manual end-to-end
+  verification before merge.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>None identified.</li>
+<li>Coupling to an unsupported internal API. Mitigated by the reflection
+  probe; nonetheless, if Veeam renames or removes
+  <code>GetAllSessionsByPolicyJobAndTimeRange</code> in a future major version, the
+  slow path becomes the only path on that version. Acceptable, since "slow
+  but working" is the current pre-<code>59e2621</code> baseline.</li>
+<li>One extra <code>Get-VBRComputerBackupJob</code> call in <code>Get-VhcBackupSessions</code> to
+  produce the agent-job list the fast path iterates. Cheap (returns a small
+  metadata list, not session data) and only paid once per run.</li>
+</ul>
+<h2 id="relationship-to-other-adrs">Relationship to other ADRs<a class="headerlink" href="#relationship-to-other-adrs" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>ADR 0012 (Agent Backup Session Collection)</strong> — the operative cmdlet for
+  agent sessions when the fast path is unavailable. Its downstream
+  <code>Get-VBRTaskSession</code> per-session loop and <code>IsEpAgentPlatform</code> detection
+  are unchanged by this ADR. ADR 0012 now carries a "See also" pointer to
+  this ADR for the updated collection mechanism.</li>
 </ul>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
-<p>Live testing on VBR v13 confirmed:
-- <code>Get-VBRComputerBackupJobSession</code> returns 4 sessions for <code>Physical Servers - Linux</code>
-  (1 success, 3 retries/failures) within the reporting window.
-- <code>Get-VBRTaskSession</code> on a <code>VBRSession</code> object returns <code>CBackupTaskSession</code> with
-  <code>Name = 'lab-m01-utl01.lab.garagecloud.net'</code> and <code>JobName</code> containing the machine suffix.
-- <code>$task.JobSess.BackupStats.BackupSize = 72208083488</code> (~67 GB) confirms size data
-  is available via the existing code path.
-- <code>$task.ObjectPlatform.IsEpAgentPlatform = True</code> for the agent task session.</p>
+<p>The fast path was validated against a VBR 13.0.1 lab in two phases.</p>
+<p><strong>Design-phase validation</strong> with the narrower <code>GetByJobAndTimeRangeWithLog</code>:</p>
+<ul>
+<li>Returned 2 sessions for <code>Managed-WindowsAgents-Job</code> over a 7-day window
+  in 312 ms.</li>
+<li><code>psql</code> direct inspection of <code>public."backup.model.jobsessions"</code> confirmed
+  the index plan.</li>
+</ul>
+<p><strong>PR-review validation</strong> that motivated switching to <code>GetAllSessionsByPolicyJobAndTimeRange</code>:</p>
+<ul>
+<li><code>Backup Copy Job 1</code>: narrower call returned 1 session (orchestrator only);
+  wider call returned 3 sessions (1 orchestrator + 2 per-machine children).
+  The narrower call silently dropped the children, which is what the
+  reporter flagged as "missing BC sessions in jobSessionSummary".</li>
+<li><code>Managed-WindowsAgents-Job</code>: narrower 2 → wider 4 (2 + 2 per-machine
+  children).</li>
+<li><code>Managed-WindowsAgents-Policy</code>: narrower 4 → wider 5.</li>
+<li>End-to-end run produces 11 task-rows in <code>VeeamSessionReport.csv</code>,
+  including 2 rows for <code>Backup Copy Job 1\Unmanaged-WindowsAgents-VTESTVM03</code>
+  (incremental and full) with <code>DataSizeGB</code>/<code>BackupSizeGB</code> populated.</li>
+<li>Verified the agent-job dedupe: agent jobs no longer appear twice in the
+  combined output (previously the same agent job was queried via both
+  <code>Get-VBRJob</code> and <code>Get-VBRComputerBackupJob</code> paths).</li>
+</ul>
+<p>Implementation includes:</p>
+<ul>
+<li>Pester unit tests in <code>Private/Get-VhciJobSessions.Tests.ps1</code> (GJS-1
+  through GJS-8) covering both branches without a live VBR runtime.</li>
+<li>Rewritten <code>Public/Get-VhcBackupSessions.Tests.ps1</code> (ISC-1 through ISC-7)
+  asserting the new call shape.</li>
+<li>A manual end-to-end run of <code>Get-VhcSessionReport</code> against the lab,
+  confirming <code>CBackupSession</code> agent-session objects flow through
+  <code>Get-VBRTaskSession</code> correctly (no adapter layer needed).</li>
+</ul>
 
 
 

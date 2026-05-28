@@ -1,0 +1,909 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Generate comprehensive configuration reports for your Veeam environment in minutes.">
+      
+      
+      
+        <link rel="canonical" href="https://veeamhub.github.io/veeam-healthcheck/adr/0016-jobname-based-session-type-lookup/">
+      
+      
+      
+      
+      <link rel="icon" href="../../images/health-check-icon.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.25">
+    
+    
+      
+        <title>ADR 0016: Resolve Session-Level Friendly Type via JobName Lookup with Policy-Child Prefix Matching - Veeam Health Check</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="light-green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#adr-0016-resolve-session-level-friendly-type-via-jobname-lookup-with-policy-child-prefix-matching" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Veeam Health Check" class="md-header__button md-logo" aria-label="Veeam Health Check" data-md-component="logo">
+      
+  <img src="../../images/health-check-icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Veeam Health Check
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ADR 0016: Resolve Session-Level Friendly Type via JobName Lookup with Policy-Child Prefix Matching
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="light-green"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/VeeamHub/veeam-healthcheck" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VeeamHub/veeam-healthcheck
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../features/" class="md-tabs__link">
+        
+  
+    
+  
+  Features
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../timeline/" class="md-tabs__link">
+        
+  
+    
+  
+  Feature Timeline
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Veeam Health Check" class="md-nav__button md-logo" aria-label="Veeam Health Check" data-md-component="logo">
+      
+  <img src="../../images/health-check-icon.png" alt="logo">
+
+    </a>
+    Veeam Health Check
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/VeeamHub/veeam-healthcheck" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    VeeamHub/veeam-healthcheck
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../timeline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Timeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Context and Problem Statement
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Context and Problem Statement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-jobid-was-not-used" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why JobId was not used
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-jobs-emit-per-machine-child-sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Policy jobs emit per-machine child sessions
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Considered Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Considered Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-accept-the-collapse-render-eendpoint-as-a-single-bucket" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option A — Accept the collapse, render EEndPoint as a single bucket
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-match-sessions-to-jobs-by-jobid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option B — Match sessions to jobs by JobId
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-exact-jobname-match-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option C — Exact JobName match only
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-d-exact-match-fall-through-to-prefix-match-on-then-parser-fallback-chosen" class="md-nav__link">
+    <span class="md-ellipsis">
+      Option D — Exact match, fall through to prefix match on " - ", then parser fallback (chosen)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decision
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rationale
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consequences
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      Positive
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      Neutral
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      Negative
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/VeeamHub/veeam-healthcheck/edit/master/docs/adr/0016-jobname-based-session-type-lookup.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="adr-0016-resolve-session-level-friendly-type-via-jobname-lookup-with-policy-child-prefix-matching">ADR 0016: Resolve Session-Level Friendly Type via JobName Lookup with Policy-Child Prefix Matching<a class="headerlink" href="#adr-0016-resolve-session-level-friendly-type-via-jobname-lookup-with-policy-child-prefix-matching" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-05-26</li>
+<li><strong>Decider:</strong> Ben Thomas (@comnam90)</li>
+<li><strong>Consulted:</strong> Claude Code (architecture review)</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p><code>CJobSessionSummaryTable</code> renders the <code>jobSessionSummary</code> and <code>jobSessionSummaryByJob</code> JSON sections. Per-session metrics (durations, success rate, change rate, dedup ratio, sizes) come from the SQL database via <code>CGlobals.DtParser.JobSessions</code>. Each session row exposes a <code>JobType</code> field — but for <em>every</em> agent session, this field is <code>EEndPoint</code>, regardless of whether the source job was a managed <code>EpAgentBackup</code>, a managed <code>EpAgentPolicy</code>, or a standalone <code>EndpointBackup</code> job.</p>
+<p><code>CJobTypesParser.GetJobType("EEndPoint")</code> returns <code>"Endpoint Backup"</code>. Before this work, every agent session — managed Backup, managed Policy, standalone — collapsed under that single label in the report. The user observed: <em>"in the job summary, they're bundled together under 'Endpoint Backup Jobs' where they are actually 'Windows Agent Backup', 'Windows Agent Policy', and 'Windows Agent Standalone'."</em></p>
+<p>The right friendly type for each session lives in <code>AgentJobRecord.FriendlyType</code> (see <a href="../0015-hybrid-friendly-type-rule/">ADR 0015</a>) — but those records are keyed by <em>job</em>, not session. We need a join.</p>
+<h3 id="why-jobid-was-not-used">Why <code>JobId</code> was not used<a class="headerlink" href="#why-jobid-was-not-used" title="Permanent link">&para;</a></h3>
+<p>The session-row type (<code>CJobSessionInfo</code>) carries a <code>JobName</code> field but its <code>JobId</code> semantics weren't verified to match <code>CBackupJob.Id</code>. <code>JobName</code> is the de-facto join column already used throughout the renderer (<code>stuff.Where(x =&gt; x.JobName == ...)</code> patterns in <code>CJobSessSummaryHelper</code>). Switching to <code>JobId</code> would require auditing every caller to confirm ID parity; switching to <code>JobName</code> carries no such risk.</p>
+<h3 id="policy-jobs-emit-per-machine-child-sessions">Policy jobs emit per-machine child sessions<a class="headerlink" href="#policy-jobs-emit-per-machine-child-sessions" title="Permanent link">&para;</a></h3>
+<p>Veeam policy jobs spawn one child session per protected machine. The child session's <code>JobName</code> follows the convention <code>&lt;ParentJobName&gt; - &lt;VmFqdn&gt;</code>, e.g.:</p>
+<ul>
+<li>Parent session: <code>Managed-WindowsAgents-Policy</code> (one session for the policy run)</li>
+<li>Child session: <code>Managed-WindowsAgents-Policy - vtestvm02.lab.garagecloud.net</code> (one per VM)</li>
+</ul>
+<p><code>AgentJobs</code> contains the parent job (<code>Managed-WindowsAgents-Policy</code>), not the child names — so an exact-match lookup against <code>JobName</code> finds the parent session but misses the child sessions.</p>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-accept-the-collapse-render-eendpoint-as-a-single-bucket">Option A — Accept the collapse, render <code>EEndPoint</code> as a single bucket<a class="headerlink" href="#option-a-accept-the-collapse-render-eendpoint-as-a-single-bucket" title="Permanent link">&para;</a></h3>
+<p>Don't change the session-level rendering. Group <code>jobSessionSummaryByJob</code> by raw <code>JobType</code> as today.</p>
+<p><strong>Cons:</strong> Directly contradicts the user-stated goal. Defeats the purpose of <a href="../0015-hybrid-friendly-type-rule/">ADR 0015</a>.</p>
+<h3 id="option-b-match-sessions-to-jobs-by-jobid">Option B — Match sessions to jobs by <code>JobId</code><a class="headerlink" href="#option-b-match-sessions-to-jobs-by-jobid" title="Permanent link">&para;</a></h3>
+<p>Add <code>JobId</code> to <code>AgentJobRecord</code> and key the dictionary by it.</p>
+<p><strong>Pros:</strong> Robust against naming collisions (e.g. two jobs with very similar names).
+<strong>Cons:</strong> Requires verifying the session DTO's <code>JobId</code> matches <code>CBackupJob.Id</code> across all session families (VM, Backup Copy, Agent, …). Not yet confirmed. Larger scope.</p>
+<h3 id="option-c-exact-jobname-match-only">Option C — Exact <code>JobName</code> match only<a class="headerlink" href="#option-c-exact-jobname-match-only" title="Permanent link">&para;</a></h3>
+<p>Use <code>AgentJobs.ToDictionary(a =&gt; a.JobName)</code> and look up <code>session.JobName</code>. Fall back to <code>CJobTypesParser.GetJobType(rawJobType)</code> when not found.</p>
+<p><strong>Pros:</strong> Simple. Works for non-policy agent sessions.
+<strong>Cons:</strong> Misses policy child sessions (always shows <code>"Endpoint Backup"</code> for them). Verified live: child session <code>Managed-WindowsAgents-Policy - vtestvm02.lab.garagecloud.net</code> falls through to the parser.</p>
+<h3 id="option-d-exact-match-fall-through-to-prefix-match-on-then-parser-fallback-chosen">Option D — Exact match, fall through to prefix match on <code>" - "</code>, then parser fallback (chosen)<a class="headerlink" href="#option-d-exact-match-fall-through-to-prefix-match-on-then-parser-fallback-chosen" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Try <code>agentJobsByName[session.JobName]</code>.</li>
+<li>If not found, look for the first occurrence of <code>" - "</code> (space-dash-space) in <code>session.JobName</code>. Take the substring before that delimiter as the prefix and retry the lookup.</li>
+<li>If still not found, fall back to <code>CJobTypesParser.GetJobType(rawJobType)</code>.</li>
+</ol>
+<p><strong>Pros:</strong> Resolves both parent and child policy sessions to the same <code>FriendlyType</code>. Non-policy sessions (no <code>" - "</code> in the name) and orphaned sessions (job deleted) still fall through to the parser, preserving existing behavior. The lookup is <code>O(1)</code> per session.
+<strong>Cons:</strong> Couples to Veeam's child-session naming convention. If Veeam ever changes the delimiter from <code>" - "</code>, child sessions revert to the parser fallback (degraded, not broken).</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Option D. The resolution logic lives in <code>CJobSessionSummaryTable.ResolveSessionType()</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">private</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">ResolveSessionType</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="n">Dictionary</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="n">AgentJobRecord</span><span class="o">&gt;</span><span class="w"> </span><span class="n">agentJobsByName</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">jobName</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">rawJobType</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">lookupName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jobName</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kt">string</span><span class="p">.</span><span class="n">Empty</span><span class="p">;</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">agentJobsByName</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">lookupName</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="k">record</span><span class="p">))</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">record</span><span class="p">.</span><span class="n">FriendlyType</span><span class="p">;</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="c1">// Policy jobs emit per-machine child sessions with names like</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="c1">// &quot;&lt;ParentJobName&gt; - &lt;VmFqdn&gt;&quot;.</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="n">childDelimiter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot; - &quot;</span><span class="p">;</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">delim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lookupName</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="n">childDelimiter</span><span class="p">,</span><span class="w"> </span><span class="n">StringComparison</span><span class="p">.</span><span class="n">Ordinal</span><span class="p">);</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">delim</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="kt">string</span><span class="w"> </span><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lookupName</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">delim</span><span class="p">);</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">agentJobsByName</span><span class="p">.</span><span class="n">TryGetValue</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">var</span><span class="w"> </span><span class="n">parentRecord</span><span class="p">))</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">parentRecord</span><span class="p">.</span><span class="n">FriendlyType</span><span class="p">;</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">CJobTypesParser</span><span class="p">.</span><span class="n">GetJobType</span><span class="p">(</span><span class="n">rawJobType</span><span class="p">);</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>RenderByJob</code> additionally <strong>regroups</strong> sessions by the resolved <code>FriendlyType</code> (not by raw <code>JobType</code>) before iterating. This produces distinct HTML section headings — <code>"Windows Agent Backup Jobs"</code>, <code>"Windows Agent Policy Jobs"</code>, <code>"Windows Agent Standalone Jobs"</code> — instead of the prior single <code>"Endpoint Backup Jobs"</code> heading.</p>
+<p><code>RenderFlat</code> does not regroup; it only replaces the <code>JobType</code> column value per row.</p>
+<h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><code>JobName</code> is the existing join key.</strong> No new schema, no ID-parity audit. The same dictionary is reused across both render paths (<code>RenderFlat</code> HTML/JSON, <code>RenderByJob</code> HTML/JSON, plus the grouping projection).</li>
+<li><strong>Prefix matching is cheap and convention-aligned.</strong> Veeam's per-machine session naming has been stable across major VBR versions. The fallback chain ensures that even if the convention changes, behavior degrades gracefully (back to the parser label) rather than breaking the renderer.</li>
+<li><strong>Regrouping <code>RenderByJob</code> is the linchpin fix.</strong> The section heading is what the user actually sees in the report. Replacing per-row labels without regrouping would leave the heading saying "Endpoint Backup Jobs" while individual rows showed different types — confusing.</li>
+<li><strong>Orphan sessions stay readable.</strong> Sessions whose parent job has been deleted (no <code>AgentJobs</code> entry) fall through to <code>CJobTypesParser.GetJobType("EEndPoint")</code> → <code>"Endpoint Backup"</code>. Not ideal, but no worse than the previous behavior and reflects the reality that the original job context is gone.</li>
+</ul>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Each session row in <code>jobSessionSummaryByJob</code> shows its actual friendly type. Live verification: managed-backup sessions show <code>"Windows Agent Backup"</code>, managed-policy parent and per-machine child sessions both show <code>"Windows Agent Policy"</code>, standalone sessions show <code>"Windows Agent Standalone"</code>.</li>
+<li>HTML section headings in <code>RenderByJob</code> separate managed-backup, managed-policy, and standalone into distinct sections — no more single "Endpoint Backup Jobs" bucket.</li>
+<li>Behavior preserved for non-agent sessions (Backup, Replica, etc. — they don't match agent <code>AgentJobs</code> entries and fall through to the parser as today).</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Orphaned sessions (parent job deleted) still display <code>"Endpoint Backup"</code> via the fallback. Reflects ground truth — we can't recover the original job's type once it's deleted. Acceptable.</li>
+<li>The dictionary is rebuilt three times across the two render methods (RenderFlat HTML, RenderFlat JSON, RenderByJob). <code>CDataFormer.AgentJobs</code> is itself lazy-cached so the underlying list materializes once per <code>CDataFormer</code> instance; the <code>ToDictionary</code> calls are O(n) over a small set.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Coupling to Veeam's <code>" - "</code> delimiter convention. If Veeam changes it, child sessions revert to the parser fallback (visible degradation in the report, not a runtime failure). Mitigation: integration test the next time we bump the supported VBR version.</li>
+<li>The <code>RenderByJob</code> regrouping changes the section-iteration order — now sorted by <code>FriendlyType</code> rather than by raw enum. No downstream consumer depends on the previous ordering.</li>
+</ul>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<p>Live VBR test produced the following <code>jobSessionSummaryByJob</code> rows from a real report run (dev VBR with one managed-backup, one managed-policy, one standalone, plus one orphaned policy session from a deleted job):</p>
+<table>
+<thead>
+<tr>
+<th>Session JobName</th>
+<th>Resolved JobTypes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Managed-WindowsAgents-Job</code></td>
+<td><code>Windows Agent Backup</code> ✅</td>
+</tr>
+<tr>
+<td><code>Managed-WindowsAgents-Policy</code></td>
+<td><code>Windows Agent Policy</code> ✅ (exact match)</td>
+</tr>
+<tr>
+<td><code>Managed-WindowsAgents-Policy - vtestvm02.lab.garagecloud.net</code></td>
+<td><code>Windows Agent Policy</code> ✅ (prefix match)</td>
+</tr>
+<tr>
+<td><code>Unmanaged-WindowsAgents-VTESTVM03</code></td>
+<td><code>Windows Agent Standalone</code> ✅</td>
+</tr>
+<tr>
+<td><code>Managed-WindowsAgent-Policy</code> (singular "Agent" — deleted job)</td>
+<td><code>Endpoint Backup</code> (parser fallback, as expected)</td>
+</tr>
+<tr>
+<td><code>Total</code></td>
+<td><code>Other</code> (parser fallback for empty <code>JobType</code>, as expected)</td>
+</tr>
+</tbody>
+</table>
+<p>527/527 unit tests pass with no regressions.</p>
+<p>Related: <a href="../0014-standalone-agent-jobs-via-getbackup-getjob/">ADR 0014</a>, <a href="../0015-hybrid-friendly-type-rule/">ADR 0015</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.081f42fc.min.js"></script>
+      
+    
+  </body>
+</html>
