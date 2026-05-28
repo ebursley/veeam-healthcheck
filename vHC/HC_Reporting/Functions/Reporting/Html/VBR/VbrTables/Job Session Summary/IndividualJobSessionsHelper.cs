@@ -64,132 +64,105 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Job_Session_Su
                 }
         }
 
-        private List<string> ReturnJobSessionsNamesList()
-        {
-            var targetDate = CGlobals.GetToolStart.AddDays(-CGlobals.ReportDays);
-
-            List<string> csv = new();
-            var res = CGlobals.DtParser.JobSessions; // .Where(c => c.CreationTime >= targetDate).ToList();
-            if (res == null)
-                    return null;
-                else
-                {
-                    var p = res.Select(c => c.Name).ToList();
-
-                    // csv = csv.Where(c => c.CreationTime >= targetDate).ToList();
-                    // csv = csv.Where(x => x.Name == jobName).ToList();
-
-                    // csv = csv.OrderBy(y => y.CreationTime).ToList();
-                    csv.Reverse();
-                    return p.Distinct().ToList();
-                }
-        }
-
         public void ParseIndividualSessions(bool scrub)
         {
-            // if (scrub) { _scrubber = new(); }
             this.scrubber = CGlobals.Scrubber;
 
-            List<string> processedJobs = new();
+            string folderName = "\\JobSessionReports";
+
+            // Wipe the output folder before generating so files from previous
+            // runs (e.g. for jobs that have since been renamed or deleted)
+            // don't linger.
+            this.CleanFolder(folderName);
+
+            var allSessions = this.ReturnJobSessionsList();
+
+            // Group sessions by the same rollup key the summary table uses, so
+            // per-machine child sessions land in the same HTML file as their
+            // parent. See ADR 0019.
+            var groups = allSessions
+                .GroupBy(s => CSessionGroupKey.Of(s))
+                .ToList();
+
             double percentCounter = 0;
+            int totalSessions = allSessions.Count;
 
-            // var csv = ReturnJobSessionsList();
-            var namesList = this.ReturnJobSessionsNamesList();
-            var totalSessions = this.ReturnJobSessionsList().Count();
-
-            foreach (var name in namesList)
+            foreach (var group in groups)
             {
-              try
-              {
-                var jName = name;
-                var jobSessions = this.ReturnJobSessionsList(name);
-                this.LogJobSessionParseProgress(percentCounter, totalSessions);
+                var displayName = group
+                    .Select(s => CSessionGroupKey.DisplayName(s))
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n))
+                    ?? group.First().JobName ?? string.Empty;
 
-                // string outDir = "";// CVariables.desiredDir + "\\Original";
-                string folderName = "\\JobSessionReports";
-
-                string mainDir = this.SetMainDir(folderName, name);
-                string scrubDir = this.SetScrubDir(folderName, name);
-
-                if (name.Contains("/") || name.Contains("\\"))
+                try
                 {
-                    jName = this.FixInvalidJobName(name);
-                }
+                    var sessionsForJob = group.ToList();
 
-                // string docName = outDir + "\\";
+                    this.LogJobSessionParseProgress(percentCounter, totalSessions);
 
-                string mainString = this.ReturnTableHeaderString(jName);
-                File.WriteAllText(mainDir, mainString);
+                    string mainDir = this.SetMainDir(folderName, displayName);
+                    string scrubDir = this.SetScrubDir(folderName, displayName);
 
-                string scrubString = this.ReturnTableHeaderString(jName);
-                File.WriteAllText(scrubDir, scrubString);
+                    string mainString = this.ReturnTableHeaderString(displayName);
+                    File.WriteAllText(mainDir, mainString);
 
-                int counter = 1;
+                    string scrubString = this.ReturnTableHeaderString(displayName);
+                    File.WriteAllText(scrubDir, scrubString);
 
-                // test
-                foreach (var cs in jobSessions)
-                {
-                    string info = string.Format("Parsing {0} of {1} Job Sessions to HTML", counter, totalSessions);
-                    counter++;
-
-                    // log.Info(logStart + info, false);
-                    try
+                    foreach (var cs in sessionsForJob)
                     {
-                        int matches = 0;
-                        if (name == cs.JobName)
+                        try
                         {
-                            matches++;
-
-                            // mainString += FormHtmlString(cs, mainString, false);
                             File.AppendAllText(mainDir, this.FormHtmlString(cs, mainString, false));
                             File.AppendAllText(scrubDir, this.FormHtmlString(cs, scrubString, true));
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        this.log.Error("Exception at individual job session parse:");
-                        this.log.Error(e.Message);
-                    }
+                        catch (Exception e)
+                        {
+                            this.log.Error("Exception at individual job session parse:");
+                            this.log.Error(e.Message);
+                        }
 
-                    percentCounter++;
+                        percentCounter++;
+                    }
                 }
-
-                // counter = 1;
-                ////File.AppendAllText(mainDir, mainString);
-                // mainString = null;
-
-                // foreach (var cs in jobSessions)
-                // {
-                //    //string info = string.Format("Parsing {0} of {1} Job Sessions to HTML", counter, totalSessions);
-                //    counter++;
-                //    //log.Info(logStart + info, false);
-                //    try
-                //    {
-                //        //int matches = 0;
-                //        if (name == cs.JobName)
-                //        {
-                //           // matches++;
-                //            //mainString += FormHtmlString(cs, mainString, false);
-
-                // }
-                //    }
-                //    catch (Exception e) { log.Error(e.Message); }
-
-                // percentCounter++;
-                // }
-
-                scrubString = null;
-
-                // percentCounter++;
-              }
-              catch (Exception e)
-              {
-                  this.log.Error($"Exception generating individual session HTML for job '{name}':");
-                  this.log.Error(e.Message);
-              }
+                catch (Exception e)
+                {
+                    this.log.Error($"Exception generating individual session HTML for job '{displayName}':");
+                    this.log.Error(e.Message);
+                }
             }
 
             this.LogJobSessionParseProgress(100, 100);
+        }
+
+        private void CleanFolder(string folderName)
+        {
+            try
+            {
+                var mainDir = CGlobals.desiredPath + CVariables.unsafeSuffix + folderName;
+                if (Directory.Exists(mainDir))
+                {
+                    foreach (var f in Directory.GetFiles(mainDir, "*.html"))
+                    {
+                        try { File.Delete(f); }
+                        catch (Exception e) { this.log.Warning("Could not delete stale session report file: " + f + " - " + e.Message); }
+                    }
+                }
+
+                var scrubDir = CGlobals.desiredPath + CVariables.safeSuffix + folderName;
+                if (Directory.Exists(scrubDir))
+                {
+                    foreach (var f in Directory.GetFiles(scrubDir, "*.html"))
+                    {
+                        try { File.Delete(f); }
+                        catch (Exception e) { this.log.Warning("Could not delete stale session report file: " + f + " - " + e.Message); }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                this.log.Warning("CleanFolder failed: " + e.Message);
+            }
         }
 
         private string SetMainDir(string folderName, CJobSessionInfo cs)

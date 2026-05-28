@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml.Linq;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
 using VeeamHealthCheck.Functions.Reporting.DataTypes;
 using VeeamHealthCheck.Functions.Reporting.Html.DataFormers;
@@ -68,9 +67,35 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             double totalRetries = 0;
             SessionStats totalStats = new();
 
+            // Group all sessions by their stable rollup key. Children inherit the
+            // parent's PolicyTag (GUID), so grouping by CSessionGroupKey.Of merges
+            // per-machine sessions under the parent without any name parsing.
+            // See ADR 0019.
+            var groups = helper.JobSessionInfoList()
+                .GroupBy(s => CSessionGroupKey.Of(s))
+                .Select(g => new
+                {
+                    // DisplayName: pick the first non-empty PolicyName/JobName in the group.
+                    // The filter skips empty values (BC orchestrator parents leave PolicyName
+                    // empty - children supply it). Multiple non-empty values in the same group
+                    // shouldn't happen because Task 1's PS layer canonicalizes PolicyName via
+                    // $jobIdMap; if it ever does (mid-window rename), JobSessionInfoList's
+                    // CreationTime descending order means the most recent wins. See ADR 0019.
+                    DisplayName = g
+                        .Select(s => CSessionGroupKey.DisplayName(s))
+                        .FirstOrDefault(n => !string.IsNullOrEmpty(n))
+                        ?? (g.First().JobName ?? string.Empty),
+                    SessionNames = new HashSet<string>(
+                        g.Select(s => s.Name).Where(n => !string.IsNullOrEmpty(n)),
+                        StringComparer.Ordinal),
+                })
+                .ToList();
+
             int totalProtectedInstances = 0;
-            foreach (var j in helper.JobNameList().Distinct())
+            foreach (var group in groups)
             {
+                var j = group.DisplayName;
+
                 // log.Debug( logStart + "Parsing Sessions for job: " + j);
                 try
                 {
@@ -84,7 +109,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     List<double> dataSize = new();
                     List<double> backupSize = new();
 
-                    SessionStats thisSession = helper.SessionStats(j);
+                    SessionStats thisSession = helper.SessionStats(group.SessionNames);
                     durations = thisSession.JobDuration;
                     vmNames = thisSession.VmNames;
                     dataSize = thisSession.DataSize;
@@ -95,13 +120,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     retries = thisSession.RetryCounts;
                     totalFailedSessions += thisSession.FailCounts;
                     totalRetries += thisSession.RetryCounts;
-                    info.JobType = CJobTypesParser.GetJobType(thisSession.JobType);
-
                     // log.Debug(logStart + "Job Type: " + thisSession.JobType + " parsed to: " + info.JobType);
+                    CJobCsvInfos jobInfo = null;
                     try
                     {
                         CCsvParser csv = new();
-                        var jobInfo = csv.JobCsvParser().Where(x => x.Name == j).FirstOrDefault();
+                        jobInfo = csv.JobCsvParser().Where(x => x.Name == j).FirstOrDefault();
                         if (jobInfo != null)
                         {
                             info.UsedVmSizeTB = jobInfo.OriginalSize / 1024 / 1024 / 1024 / 1024;
@@ -113,6 +137,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                         log.Error(e.ToString());
                         info.UsedVmSizeTB = 0;
                     }
+
+                    // ResolveJobFriendlyType: TypeToString (Veeam-API label, plug-in types) →
+                    // GetJobType (enum switch) → raw type. When jobInfo is null (no _Jobs.csv match
+                    // or CSV parse failure), fall back to the session-reported type so rolled-up
+                    // child sessions keep their own enum value rather than the parent's. ADR 0019, 0020.
+                    info.JobType = jobInfo != null
+                        ? CJobTypesParser.ResolveJobFriendlyType(jobInfo)
+                        : CJobTypesParser.GetJobType(thisSession.JobType);
 
                     List<TimeSpan> nonZeros = CJobSessSummaryHelper.AddNonZeros(durations);
 

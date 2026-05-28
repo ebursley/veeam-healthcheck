@@ -13,6 +13,7 @@ using CsvHelper;
 using VeeamHealthCheck.Functions.Analysis.DataModels;
 using VeeamHealthCheck.Functions.Collection.DB;
 using VeeamHealthCheck.Functions.Reporting.CsvHandlers;
+using VeeamHealthCheck.Functions.Reporting.DataFormers.AgentJobs;
 using VeeamHealthCheck.Functions.Reporting.DataTypes;
 using VeeamHealthCheck.Functions.Reporting.Html.Shared;
 using VeeamHealthCheck.Functions.Reporting.Html.VBR;
@@ -56,6 +57,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
         private bool _cachedProxyScrub;
         private List<CManagedServer> _cachedServerData;
         private bool _cachedServerScrub;
+        private IReadOnlyList<AgentJobRecord> _cachedAgentJobs;
 
         // Use null-coalescing to ensure we always have a valid list, even if CSV files are missing
         private readonly IEnumerable<dynamic> viProxy;
@@ -78,6 +80,23 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
             }
         }
 
+        /// <summary>
+        /// Unified view of all Veeam Agent jobs (managed and standalone) sourced
+        /// from _Jobs.csv. Filtered and friendly-typed by AgentJobAggregator.
+        /// Cached for the lifetime of this CDataFormer instance.
+        /// </summary>
+        public IReadOnlyList<AgentJobRecord> AgentJobs
+        {
+            get
+            {
+                if (_cachedAgentJobs == null)
+                {
+                    var rows = new CCsvParser().JobCsvParser();
+                    _cachedAgentJobs = AgentJobAggregator.Build(rows);
+                }
+                return _cachedAgentJobs;
+            }
+        }
 
         #region XML Conversions
 

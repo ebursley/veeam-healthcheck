@@ -676,8 +676,11 @@ exit 0
                 AppDomain.CurrentDomain.BaseDirectory,
                 "..", "..", "..", "..", "HC_Reporting"));
             var moduleRoot   = Path.Combine(projectRoot, "Tools", "Scripts", "HealthCheck", "VBR", "vHC-VbrConfig");
-            var funcPath     = Path.Combine(moduleRoot, "Public", "Get-VhcBackupSessions.ps1");
+            var funcPath     = Path.Combine(moduleRoot, "Public",  "Get-VhcBackupSessions.ps1");
             var writeLogPath = Path.Combine(moduleRoot, "Public",  "Write-LogFile.ps1");
+            var probePath    = Path.Combine(moduleRoot, "Private", "Test-VhciCBackupSessionFastPath.ps1");
+            var fetchPath    = Path.Combine(moduleRoot, "Private", "Invoke-VhciCBackupSessionFetch.ps1");
+            var helperPath   = Path.Combine(moduleRoot, "Private", "Get-VhciJobSessions.ps1");
 
             var tmpDir        = Path.Combine(Path.GetTempPath(), $"vhc-agtsess-{Guid.NewGuid():N}");
             var tmpScriptPath = Path.Combine(tmpDir, "Test-AgentSessions.ps1");
@@ -686,17 +689,28 @@ exit 0
             var scriptContent = $@"
 $ErrorActionPreference = 'Stop'
 . '{writeLogPath}'
+. '{probePath}'
+. '{fetchPath}'
+. '{helperPath}'
 . '{funcPath}'
 
 $script:LogPath  = '{tmpDir}'
 $script:LogLevel = 'ERROR'
 
 # Stub VBR cmdlets - no Veeam install required.
-# Get-VBRJob returns empty (no VM/Copy jobs to iterate); Get-VBRBackupSession is
-# therefore never called via -Job; Get-VBRComputerBackupJobSession returns one
-# agent session so the assertion below validates the agent-session fallback path.
+# Get-VBRJob and Get-VBRComputerBackupJob return empty / a single fake agent job
+# respectively. The probe Test-VhciCBackupSessionFastPath returns $false because
+# Veeam.Backup.Core.dll is not loaded in this test environment, so the helper
+# takes the slow path and invokes the SlowPathCommand scriptblock once per
+# family. Get-VBRComputerBackupJobSession returns one agent session whose
+# CreationTime is within the 14-day cutoff, so it survives client-side
+# filtering and reaches the assertion below.
 function Get-VBRJob {{ return @() }}
 function Get-VBRBackupSession {{ return @() }}
+function Get-VBRComputerBackupJob {{
+    return @([pscustomobject]@{{ Name = 'Agent Job'; Id = [guid]::NewGuid(); Mode = 'ManagedByBackupServer' }})
+}}
+function Get-VBREPJob {{ return @() }}
 function Get-VBRComputerBackupJobSession {{
     return @([pscustomobject]@{{ Name = 'Agent Job'; CreationTime = (Get-Date) }})
 }}
@@ -776,6 +790,10 @@ $script:ReportPath = '{tmpDir}'
 $script:VBRServer  = 'test'
 $script:LogPath    = '{tmpDir}'
 $script:LogLevel   = 'ERROR'
+
+if (-not (Get-Command Get-VBRJob               -ErrorAction SilentlyContinue)) {{ function global:Get-VBRJob               {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {{ function global:Get-VBRComputerBackupJob {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBREPJob             -ErrorAction SilentlyContinue)) {{ function global:Get-VBREPJob             {{ param([string]$ErrorAction) }} }}
 
 # Stub Get-VBRTaskSession to return one mock agent task session.
 # JobName on the task has the machine suffix that Veeam appends; the function must
@@ -876,6 +894,10 @@ $script:ReportPath = '{tmpDir}'
 $script:VBRServer  = 'test'
 $script:LogPath    = '{tmpDir}'
 $script:LogLevel   = 'ERROR'
+
+if (-not (Get-Command Get-VBRJob               -ErrorAction SilentlyContinue)) {{ function global:Get-VBRJob               {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {{ function global:Get-VBRComputerBackupJob {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBREPJob             -ErrorAction SilentlyContinue)) {{ function global:Get-VBREPJob             {{ param([string]$ErrorAction) }} }}
 
 # Stub Get-VBRTaskSession returning an agent task session with BottleneckInfo populated
 # but Logger returning empty log records, simulating agent session post-completion state.
@@ -983,6 +1005,10 @@ $script:ReportPath = '{tmpDir}'
 $script:VBRServer  = 'test'
 $script:LogPath    = '{tmpDir}'
 $script:LogLevel   = 'ERROR'
+
+if (-not (Get-Command Get-VBRJob               -ErrorAction SilentlyContinue)) {{ function global:Get-VBRJob               {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)) {{ function global:Get-VBRComputerBackupJob {{ param([string]$ErrorAction) }} }}
+if (-not (Get-Command Get-VBREPJob             -ErrorAction SilentlyContinue)) {{ function global:Get-VBREPJob             {{ param([string]$ErrorAction) }} }}
 
 function Get-VBRTaskSession {{
     param($Session)

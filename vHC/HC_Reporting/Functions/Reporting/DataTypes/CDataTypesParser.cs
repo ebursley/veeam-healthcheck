@@ -694,6 +694,9 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
                         jInfo.VmName = s.VmName;
                         jInfo.JobName = s.JobName;
                         jInfo.JobType = s.JobType;
+                        jInfo.JobId = ParseGuidOrNull(s.JobId);
+                        jInfo.PolicyName = s.PolicyName;
+                        jInfo.PolicyTag = ParseGuidOrNull(s.PolicyTag);
                         eInfoList.Add(jInfo);
                     }
 
@@ -1156,6 +1159,13 @@ return proxyList;
                 return i;
             }
             catch (Exception) { return 0; };
+        }
+
+        private static Guid? ParseGuidOrNull(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return null;
+            if (Guid.TryParse(input, out var g) && g != Guid.Empty) return g;
+            return null;
         }
     }
 }

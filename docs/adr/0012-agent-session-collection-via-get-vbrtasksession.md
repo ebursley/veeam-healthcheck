@@ -4,6 +4,7 @@
 * **Date:** 2026-03-13
 * **Decider:** Ben Thomas (@comnam90)
 * **Consulted:** GitHub Copilot
+* **See also:** [ADR 0018](0018-cbackupsession-fast-path-for-session-collection.md) updates the collection mechanism — `Get-VBRComputerBackupJobSession` becomes the fallback when the `Veeam.Backup.Core.CBackupSession` fast path is unavailable. The downstream `Get-VBRTaskSession` per-session loop and `IsEpAgentPlatform` detection described below are unchanged.
 
 ## Context and Problem Statement
 

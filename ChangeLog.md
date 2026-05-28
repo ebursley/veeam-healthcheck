@@ -1,3 +1,25 @@
+VBR Session Accuracy & Agent Job Overhaul (2026-05-28)
+- Session report now uses GUID-based grouping (JobId) to correctly roll up policy child
+  sessions into their parent row — fixes duplicate and missing rows for policy jobs.
+- Renamed jobs are canonicalised by JobId so session history follows the job, not the name.
+- Policy per-VM child sessions are rolled up to the parent; agent job duplicates are dropped.
+- Unmanaged (standalone) agents are now covered; only ManagedByBackupServer jobs are deduped.
+- Per-parent session report files are written separately; stale files from prior runs are
+  cleaned up automatically.
+- JobId, PolicyName, and PolicyTag are emitted in session CSV and exposed on CJobSessionInfo
+  for downstream consumers.
+- Agent job FriendlyType is resolved correctly for both managed and standalone agent rows
+  (EndpointBackup, EpAgentBackup, EpAgentPolicy all map to human-readable strings).
+- Agent jobs are counted via the AgentJobs collection — eliminates double-counting in the
+  Job Session Summary totals row.
+- CJobInfoTable type resolution aligned with CJobSessSummary (ADR 0020) — job type display
+  is now consistent between the Info table and the Session Summary table.
+- Job Summary missingJobs logic fixed: Agent Backup and Agent Standalone are correctly
+  included or excluded based on whether agent jobs exist in the environment.
+- Get-VBR* PowerShell cmdlets wrapped in try/catch in Get-VhcSessionReport to prevent
+  collection failures from crashing the report on environments with snap-in issues.
+- Scrub mode now redacts agent-jobs dictionary keys (server names) alongside values.
+
 vHC Platform Identification (2026-05-06)
 - Added Platform column to Managed Server and Job Info HTML tables.
 - New PowerShell helper Get-VhciPlatformMap (exported from vHC-VbrConfig) collects host→platform

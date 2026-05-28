@@ -121,12 +121,13 @@ namespace VhcXTests.TestData
         /// </summary>
         public static string GenerateJobs()
         {
-            // 42-column schema matching CJobCsvInfos [Index(0..41)]
-            // Booleans at indices 9,26,28,30,32; doubles at 13,35; IsJobEnabled at 40, IsScheduleDisabled at 41 (Optional)
-            return @"""Name"",""JobType"",""SheduleEnabledTime"",""ScheduleOptions"",""RestorePoints"",""RepoName"",""Algorithm"",""FullBackupScheduleKind"",""FullBackupDays"",""TransformFullToSyntethic"",""TransformIncrementsToSyntethic"",""TransformToSyntethicDays"",""PwdKeyId"",""OriginalSize"",""RetentionType"",""RetentionCount"",""RetainDaysToKeep"",""DeletedVmRetentionDays"",""DeletedVmRetention"",""CompressionLevel"",""Deduplication"",""BlockSize"",""IntegrityChecks"",""SpecificStorageEncryption"",""StgEncryptionEnabled"",""KeepFirstFullBackup"",""EnableFullBackup"",""BackupIsAttached"",""GfsWeeklyIsEnabled"",""GfsWeeklyCount"",""GfsMonthlyEnabled"",""GfsMonthlyCount"",""GfsYearlyEnabled"",""GfsYearlyCount"",""IndexingType"",""OnDiskGB"",""AAIPEnabled"",""VSSEnabled"",""VSSIgnoreErrors"",""GuestFSIndexingEnabled"",""IsJobEnabled"",""IsScheduleDisabled""
-""Daily Backup"",""Backup"",""01/01/2026 01:00:00 a.m."",""Start time: [01/01/2026 1:00:00 a.m.]"",""14"",""Default Backup Repository"",""Increment"",""Daily"",""Sunday"",""False"",""False"",""Sunday"",""00000000-0000-0000-0000-000000000000"",""1099511627776"",""Days"",""14"",""14"",""14"",""False"",""5"",""True"",""KbBlockSize1024"",""True"",""False"",""True"",""False"",""False"",""False"",""False"",""4"",""False"",""1"",""False"",""1"",""None"",""102.5"",""False"",""True"",""False"","""",""True"",""False""
-""Weekly Full"",""Backup"","""",""Start time: [07/01/2026 10:00:00 p.m.]"",""7"",""Default Backup Repository"",""Increment"",""Daily"",""Sunday"",""False"",""False"",""Sunday"",""enc-key-guid-1"",""0"",""Days"",""7"",""7"",""14"",""False"",""5"",""True"",""KbBlockSize1024"",""True"",""False"",""True"",""False"",""False"",""False"",""False"",""4"",""False"",""1"",""False"",""1"",""None"",""0"",""False"",""True"",""False"","""",""False"",""True""
-""Copy to Cloud"",""SimpleBackupCopyPolicy"",""01/01/2026 03:00:00 a.m."",""Start time: [01/01/2026 3:00:00 a.m.]"",""30"",""Cloud Repository"",""Increment"",""Daily"",""Sunday"",""False"",""False"","""",""enc-key-guid-2"",""0"",""Days"",""30"",""30"",""14"",""False"",""5"",""True"",""KbBlockSize1024"",""True"",""False"",""True"",""False"",""False"",""False"",""False"",""4"",""False"",""1"",""False"",""1"",""None"",""65.4"",""False"",""True"",""True"","""",""True"",""False""";
+            // 44-column schema matching CJobCsvInfos [Index(0..43)] in production.
+            // Booleans at indices 9,26,28,30,32; doubles at 13,35; IsJobEnabled at 40,
+            // IsScheduleDisabled at 41, Platform at 42, TypeToString at 43 (all [Optional]).
+            return @"""Name"",""JobType"",""SheduleEnabledTime"",""ScheduleOptions"",""RestorePoints"",""RepoName"",""Algorithm"",""FullBackupScheduleKind"",""FullBackupDays"",""TransformFullToSyntethic"",""TransformIncrementsToSyntethic"",""TransformToSyntethicDays"",""PwdKeyId"",""OriginalSize"",""RetentionType"",""RetentionCount"",""RetainDaysToKeep"",""DeletedVmRetentionDays"",""DeletedVmRetention"",""CompressionLevel"",""Deduplication"",""BlockSize"",""IntegrityChecks"",""SpecificStorageEncryption"",""StgEncryptionEnabled"",""KeepFirstFullBackup"",""EnableFullBackup"",""BackupIsAttached"",""GfsWeeklyIsEnabled"",""GfsWeeklyCount"",""GfsMonthlyEnabled"",""GfsMonthlyCount"",""GfsYearlyEnabled"",""GfsYearlyCount"",""IndexingType"",""OnDiskGB"",""AAIPEnabled"",""VSSEnabled"",""VSSIgnoreErrors"",""GuestFSIndexingEnabled"",""IsJobEnabled"",""IsScheduleDisabled"",""Platform"",""TypeToString""
+""Daily Backup"",""Backup"",""01/01/2026 01:00:00 a.m."",""Start time: [01/01/2026 1:00:00 a.m.]"",""14"",""Default Backup Repository"",""Increment"",""Daily"",""Sunday"",""False"",""False"",""Sunday"",""00000000-0000-0000-0000-000000000000"",""1099511627776"",""Days"",""14"",""14"",""14"",""False"",""5"",""True"",""KbBlockSize1024"",""True"",""False"",""True"",""False"",""False"",""False"",""False"",""4"",""False"",""1"",""False"",""1"",""None"",""102.5"",""False"",""True"",""False"","""",""True"",""False"","""",""""
+""Weekly Full"",""Backup"","""",""Start time: [07/01/2026 10:00:00 p.m.]"",""7"",""Default Backup Repository"",""Increment"",""Daily"",""Sunday"",""False"",""False"",""Sunday"",""enc-key-guid-1"",""0"",""Days"",""7"",""7"",""14"",""False"",""5"",""True"",""KbBlockSize1024"",""True"",""False"",""True"",""False"",""False"",""False"",""False"",""4"",""False"",""1"",""False"",""1"",""None"",""0"",""False"",""True"",""False"","""",""False"",""True"","""",""""
+""Copy to Cloud"",""SimpleBackupCopyPolicy"",""01/01/2026 03:00:00 a.m."",""Start time: [01/01/2026 3:00:00 a.m.]"",""30"",""Cloud Repository"",""Increment"",""Daily"",""Sunday"",""False"",""False"","""",""enc-key-guid-2"",""0"",""Days"",""30"",""30"",""14"",""False"",""5"",""True"",""KbBlockSize1024"",""True"",""False"",""True"",""False"",""False"",""False"",""False"",""4"",""False"",""1"",""False"",""1"",""None"",""65.4"",""False"",""True"",""True"","""",""True"",""False"","""",""""";
         }
 
         #endregion
@@ -292,9 +293,12 @@ namespace VhcXTests.TestData
         private const string ServerHeaderLegacy =
             "\"Info\",\"ParentId\",\"Id\",\"Uid\",\"Name\",\"Reference\",\"Description\",\"IsUnavailable\",\"Type\",\"ApiVersion\",\"PhysHostId\",\"ProxyServicesCreds\",\"Cores\",\"CPUCount\",\"RAM\",\"OSInfo\"";
 
-        // Jobs CSV header with Platform column appended
+        // Jobs CSV header with Platform and TypeToString columns appended.
+        // TypeToString carries the Veeam Console UI label for the job's JobType
+        // (e.g. "Windows Agent Backup"); the C# aggregator uses it as the primary
+        // source of FriendlyType.
         private const string JobHeaderWithPlatform =
-            "\"Name\",\"JobType\",\"SheduleEnabledTime\",\"ScheduleOptions\",\"RestorePoints\",\"RepoName\",\"Algorithm\",\"FullBackupScheduleKind\",\"FullBackupDays\",\"TransformFullToSyntethic\",\"TransformIncrementsToSyntethic\",\"TransformToSyntethicDays\",\"PwdKeyId\",\"OriginalSize\",\"RetentionType\",\"RetentionCount\",\"RetainDaysToKeep\",\"DeletedVmRetentionDays\",\"DeletedVmRetention\",\"CompressionLevel\",\"Deduplication\",\"BlockSize\",\"IntegrityChecks\",\"SpecificStorageEncryption\",\"StgEncryptionEnabled\",\"KeepFirstFullBackup\",\"EnableFullBackup\",\"BackupIsAttached\",\"GfsWeeklyIsEnabled\",\"GfsWeeklyCount\",\"GfsMonthlyEnabled\",\"GfsMonthlyCount\",\"GfsYearlyEnabled\",\"GfsYearlyCount\",\"IndexingType\",\"OnDiskGB\",\"AAIPEnabled\",\"VSSEnabled\",\"VSSIgnoreErrors\",\"GuestFSIndexingEnabled\",\"IsJobEnabled\",\"IsScheduleDisabled\",\"Platform\"";
+            "\"Name\",\"JobType\",\"SheduleEnabledTime\",\"ScheduleOptions\",\"RestorePoints\",\"RepoName\",\"Algorithm\",\"FullBackupScheduleKind\",\"FullBackupDays\",\"TransformFullToSyntethic\",\"TransformIncrementsToSyntethic\",\"TransformToSyntethicDays\",\"PwdKeyId\",\"OriginalSize\",\"RetentionType\",\"RetentionCount\",\"RetainDaysToKeep\",\"DeletedVmRetentionDays\",\"DeletedVmRetention\",\"CompressionLevel\",\"Deduplication\",\"BlockSize\",\"IntegrityChecks\",\"SpecificStorageEncryption\",\"StgEncryptionEnabled\",\"KeepFirstFullBackup\",\"EnableFullBackup\",\"BackupIsAttached\",\"GfsWeeklyIsEnabled\",\"GfsWeeklyCount\",\"GfsMonthlyEnabled\",\"GfsMonthlyCount\",\"GfsYearlyEnabled\",\"GfsYearlyCount\",\"IndexingType\",\"OnDiskGB\",\"AAIPEnabled\",\"VSSEnabled\",\"VSSIgnoreErrors\",\"GuestFSIndexingEnabled\",\"IsJobEnabled\",\"IsScheduleDisabled\",\"Platform\",\"TypeToString\"";
 
         // Legacy Jobs CSV header without Platform column
         private const string JobHeaderLegacy =
@@ -423,7 +427,8 @@ namespace VhcXTests.TestData
                    $"\"\"," +
                    $"\"True\"," +
                    $"\"False\"," +
-                   $"\"{platform.Replace("\"", "\"\"")}\"";
+                   $"\"{platform.Replace("\"", "\"\"")}\"," +
+                   $"\"\"";
         }
 
         /// <summary>
@@ -524,6 +529,7 @@ namespace VhcXTests.TestData
                    "\"\"," +
                    "\"True\"," +
                    "\"False\"," +
+                   "\"\"," +
                    "\"\"";
         }
 

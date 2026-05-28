@@ -40,6 +40,23 @@ function Get-VhcJob {
         Add-VhciModuleError -CollectorName 'Jobs' -ErrorMessage $_.Exception.Message
     }
 
+    # Standalone (unmanaged) agent jobs are not returned by Get-VBRJob.
+    # Enumerate them via the backup objects they own; .GetJob() returns
+    # a CBackupJob with the same shape Get-VBRJob produces, so they flow
+    # through the projection below unchanged.
+    try {
+        $standaloneBackups = @(Get-VBRBackup -WarningAction SilentlyContinue |
+            Where-Object { $_.IsAgentStandaloneJob -eq $true })
+        $standaloneJobs = @($standaloneBackups | ForEach-Object { $_.GetJob() } | Where-Object { $_ })
+        Write-LogFile "Standalone agent jobs collected: $($standaloneJobs.Count)"
+        if ($standaloneJobs.Count -gt 0) {
+            $Jobs = @($Jobs) + $standaloneJobs
+        }
+    } catch {
+        Write-LogFile "Standalone agent job collection failed: $($_.Exception.Message)" -LogLevel "ERROR"
+        Add-VhciModuleError -CollectorName 'Jobs' -ErrorMessage $_.Exception.Message
+    }
+
     try {
         $configBackup = Get-VBRConfigurationBackupJob
     } catch {
@@ -153,7 +170,8 @@ function Get-VhcJob {
                 if ($script:PlatformMap -and $script:PlatformMap.ContainsKey($key)) {
                     $script:PlatformMap[$key]
                 } else { '' }
-            }}
+            }},
+            @{n = 'TypeToString';                  e = { $Job.TypeToString } }
 
         $AllJobs.Add($JobDetails) | Out-Null
     }

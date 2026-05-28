@@ -33,6 +33,39 @@ function Get-VhcSessionReport {
 
     Write-LogFile "Generating session report for $(@($BackupSessions).Count) sessions..."
 
+    # Build a JobId -> canonical-name lookup from the active job lists.
+    # When a job is renamed in Veeam, existing sessions retain the historical
+    # name. The fast-path query is by job_id, so it returns these alongside
+    # current-name sessions and they would otherwise appear as their own row
+    # in jobSessionSummary. Looking the JobId up here and overriding the
+    # CSV's JobName collapses historical and current sessions onto the same
+    # row, letting the C# rollup aggregate them as one job.
+    $vbrJobs = @()
+    try {
+        $vbrJobs = @(Get-VBRJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBRJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    $agentJobs = @()
+    try {
+        $agentJobs = @(Get-VBRComputerBackupJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBRComputerBackupJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    $epJobs = @()
+    try {
+        $epJobs = @(Get-VBREPJob -ErrorAction SilentlyContinue)
+    } catch {
+        Write-LogFile "Get-VBREPJob unavailable: $($_.Exception.Message)" -LogLevel 'WARNING'
+    }
+
+    $jobIdMap = @{}
+    foreach ($j in $vbrJobs + $agentJobs + $epJobs) {
+        if ($null -ne $j.Id -and $null -ne $j.Name) { $jobIdMap[$j.Id] = $j.Name }
+    }
+
     [System.Collections.ArrayList]$allOutput = @()
 
     # Use Get-VBRTaskSession per session to resolve task-level detail (one row per machine).
@@ -83,6 +116,33 @@ function Get-VhcSessionReport {
                 # session Name for the clean job name instead. See ADR 0012.
                 $jobName = if ($task.ObjectPlatform.IsEpAgentPlatform) { $session.Name } else { $task.JobName }
 
+                # If this session belongs to a currently-active job (by JobId),
+                # override with the canonical name. Catches historical-name
+                # sessions retained after a Veeam job rename, plus any other
+                # case where $task.JobName / $session.Name disagrees with the
+                # active job list. Per-machine child sessions have a different
+                # JobId from the parent and fall through unchanged so the C#
+                # rollup can still detect them as children.
+                if ($null -ne $session.JobId -and $jobIdMap.ContainsKey($session.JobId)) {
+                    $jobName = $jobIdMap[$session.JobId]
+                }
+
+                # Capture parent-link properties exposed by VBR on every session.
+                # Children carry the parent's PolicyTag (GUID) and PolicyName,
+                # enabling the C# layer to roll up per-machine sessions under the
+                # parent without any name-prefix parsing. See ADR 0019.
+                $policyName = ''
+                $policyTag  = [guid]::Empty
+                try { if ($session.Info.PolicyName) { $policyName = $session.Info.PolicyName } } catch {}
+                try { if ($session.Info.PolicyTag)  { $policyTag  = $session.Info.PolicyTag  } } catch {}
+
+                # If the PolicyTag points at a currently-active job, canonicalize
+                # the PolicyName to the job's current Name (handles renames the
+                # same way $jobName is already canonicalized above).
+                if ($policyTag -ne [guid]::Empty -and $jobIdMap.ContainsKey($policyTag)) {
+                    $policyName = $jobIdMap[$policyTag]
+                }
+
                 $row = [pscustomobject][ordered]@{
                     'JobName'           = $jobName
                     'VMName'            = $task.Name
@@ -110,6 +170,9 @@ function Get-VhcSessionReport {
                     'PrimaryBottleneck' = $PrimaryBottleneckDetails
                     'JobType'           = $task.ObjectPlatform.Platform
                     'JobAlgorithm'      = $task.JobSess.Info.SessionAlgorithm
+                    'JobId'             = if ($session.JobId) { "$($session.JobId)" } else { '' }
+                    'PolicyName'        = $policyName
+                    'PolicyTag'         = if ($policyTag -ne [guid]::Empty) { "$policyTag" } else { '' }
                 }
                 if ($row) { $null = $allOutput.Add($row) }
             } catch {
@@ -129,7 +192,8 @@ function Get-VhcSessionReport {
             'JobName'=''; 'VMName'=''; 'Status'=''; 'IsRetry'=''; 'ProcessingMode'='';
             'JobDuration'=''; 'TaskDuration'=''; 'TaskAlgorithm'=''; 'CreationTime'='';
             'BackupSizeGB'=''; 'DataSizeGB'=''; 'DedupRatio'=''; 'CompressRatio'='';
-            'BottleneckDetails'=''; 'PrimaryBottleneck'=''; 'JobType'=''; 'JobAlgorithm'=''
+            'BottleneckDetails'=''; 'PrimaryBottleneck'=''; 'JobType'=''; 'JobAlgorithm'='';
+            'JobId'=''; 'PolicyName'=''; 'PolicyTag'=''
         } | ConvertTo-Csv -NoTypeInformation | Select-Object -First 1)
         Out-File -FilePath $csvPath -InputObject $headerLine -Encoding UTF8
     }
