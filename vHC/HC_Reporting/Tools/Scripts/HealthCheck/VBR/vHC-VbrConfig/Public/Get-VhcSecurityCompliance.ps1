@@ -148,19 +148,28 @@ function Get-VhcSecurityCompliance {
         # ---------------------------------------------------------------
         $OutObj = [System.Collections.ArrayList]::new()
         Write-LogFile "Processing $($SecurityCompliances.Count) compliance rules..."
-        Write-LogFile "SecurityComplianceRuleNames has $($Config.SecurityComplianceRuleNames.PSObject.Properties.Count) entries"
+        Write-LogFile "SecurityComplianceRuleNames has $(@($Config.SecurityComplianceRuleNames.PSObject.Properties).Count) entries"
 
         $unmappedTypes  = [System.Collections.Generic.List[string]]::new()
         $processedCount = 0
         $skippedCount   = 0
         $errorCount     = 0
 
+        # NOTE: as of VBR v13 RTM, Get-VBRSecurityComplianceAnalyzerResults exposes only
+        # Id, Note, Status, Type - no human-readable label property. Console labels must come
+        # from VbrConfig.json.SecurityComplianceRuleNames (refreshed to match v13 RTM Console
+        # verbatim). If a future VBR release adds a label property (e.g. Description), prefer
+        # it over the JSON mapping at the resolution block below.
+
         foreach ($SecurityCompliance in $SecurityCompliances) {
             try {
                 $complianceType   = $null
                 $complianceStatus = $null
 
-                if ($SecurityCompliance.Type) {
+                # NOTE: use explicit $null check, not truthiness. A zero-valued enum member
+                # (e.g. the first member of VBRSecurityComplianceAnalyzerRuleType) is falsy
+                # under `if ($x)` and would silently drop a real rule (see Get-VhciComplianceResults).
+                if ($null -ne $SecurityCompliance.Type) {
                     $complianceType = $SecurityCompliance.Type.ToString()
                 }
                 else {
@@ -169,7 +178,7 @@ function Get-VhcSecurityCompliance {
                     continue
                 }
 
-                if ($SecurityCompliance.Status) {
+                if ($null -ne $SecurityCompliance.Status) {
                     $complianceStatus = $SecurityCompliance.Status.ToString()
                 }
                 else {
@@ -178,10 +187,10 @@ function Get-VhcSecurityCompliance {
                     continue
                 }
 
-                # Resolve rule name - fall back to raw type string for unknown rules
-                # so that new compliance checks remain visible even when VbrConfig.json is stale.
+                # Resolve rule name from VbrConfig.json mapping; raw type string as final
+                # fallback so new/unmapped rules remain visible when the JSON is stale.
                 $ruleName = $Config.SecurityComplianceRuleNames.$complianceType
-                if (-not $ruleName) {
+                if ([string]::IsNullOrWhiteSpace($ruleName)) {
                     $unmappedTypes.Add($complianceType)
                     $ruleName = $complianceType
                 }

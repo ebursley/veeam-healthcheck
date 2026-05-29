@@ -97,6 +97,44 @@ The C# layer reads this manifest via `CCsvValidator.LoadManifest()` and surfaces
 failures in the HTML report (`DataCollectionSummaryTable()`), CLI warnings, and
 GUI amber status indicators.
 
+## Maintenance / Diagnostic Scripts
+
+These scripts are **not part of the VHC report pipeline** — they are developer and
+maintainer tools that talk directly to the VBR REST API (port 9419, OAuth2).
+They require PowerShell 7 and the VBR REST API to be enabled on the target server.
+
+| Script | Purpose |
+|--------|---------|
+| `Check-CorruptionGuard-REST.ps1` | Reports Storage-level Corruption Guard settings for all jobs. Useful for verifying `backupHealth` field shapes before adding REST-based collection to the main pipeline. |
+| `Check-SecurityComplianceDrift-REST.ps1` | Fetches live compliance results from a lab VBR, diffs rule types against `VbrConfig.json.SecurityComplianceRuleNames`, and reports any unmapped rules (i.e. new rules added since the last JSON update). Run this against your lab whenever a new VBR version is installed to detect label drift before it reaches customer reports. |
+
+### Check-SecurityComplianceDrift-REST.ps1 — quick start
+
+```powershell
+# Set once per shell session (add to your profile for convenience)
+$env:VBR_LAB_PRIMARY  = "vbr-v13.corp.example.com"   # VPN-on host
+$env:VBR_LAB_FALLBACK = "vbr-v13-dmz.example.com"    # VPN-off reachable host
+$env:VBR_LAB_USER     = "veeamadmin"
+$env:VBR_LAB_PASSWORD = "hunter2"                    # gitignored; do not commit
+
+# Run (probes primary first, falls back automatically based on reachability)
+.\Check-SecurityComplianceDrift-REST.ps1
+
+# Trigger a fresh scan before checking (non-destructive, waits up to 5 min)
+.\Check-SecurityComplianceDrift-REST.ps1 -RunScan
+
+# Export a JSON report for sharing or CI comparison
+.\Check-SecurityComplianceDrift-REST.ps1 -Json -OutFile drift.json
+```
+
+**Exit codes:** `0` = no drift | `1` = drift detected | `2` = no lab reachable | `3` = auth/API error
+
+**When drift is found:** look up the rule's console label in the Veeam Help Center
+Security Analyzer documentation, add the entry to `VbrConfig.json.SecurityComplianceRuleNames`,
+and bump `SecurityComplianceRulesValidatedForVbrVersion` to the current VBR version.
+
+---
+
 ## Platform Identification
 
 Starting with VBR 12.1, the health check collector can identify the hypervisor

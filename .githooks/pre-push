@@ -1,0 +1,50 @@
+#!/bin/sh
+# pre-push: SCA drift check against configured VBR labs
+#
+# Runs automatically before every git push. Warns if label drift is detected
+# but does NOT block the push (exit 0 always) so connectivity issues never
+# prevent commits from going up.
+#
+# Setup (one-time per clone):
+#   git config core.hooksPath .githooks
+#
+# To skip for a single push:
+#   git push --no-verify
+
+SCRIPT_DIR="$(git rev-parse --show-toplevel)/vHC/HC_Reporting/Tools/Scripts/HealthCheck/VBR"
+DRIFT_SCRIPT="$SCRIPT_DIR/Check-SecurityComplianceDrift-REST.ps1"
+LABS_CONFIG="$SCRIPT_DIR/labs-config.json"
+
+# If neither the drift script nor a labs config exists, skip silently
+if [ ! -f "$DRIFT_SCRIPT" ]; then
+  exit 0
+fi
+
+if ! command -v pwsh >/dev/null 2>&1; then
+  echo "[pre-push] pwsh not found - skipping SCA drift check"
+  exit 0
+fi
+
+if [ -f "$LABS_CONFIG" ]; then
+  echo "[pre-push] Running SCA drift check against all configured labs..."
+  pwsh -File "$DRIFT_SCRIPT" -LabsConfig "$LABS_CONFIG"
+  EXIT_CODE=$?
+elif [ -n "$VBR_LAB_PRIMARY" ] || [ -n "$VBR_LAB_FALLBACK" ]; then
+  echo "[pre-push] Running SCA drift check (env-var lab)..."
+  pwsh -File "$DRIFT_SCRIPT"
+  EXIT_CODE=$?
+else
+  echo "[pre-push] No labs configured - skipping SCA drift check (create labs-config.json to enable)"
+  exit 0
+fi
+
+if [ $EXIT_CODE -eq 1 ]; then
+  echo ""
+  echo "[pre-push] WARNING: SCA label drift detected. Update VbrConfig.json before merging."
+  echo "           Push continues - fix drift before opening a PR to dev/master."
+  echo "           Run Check-SecurityComplianceDrift-REST.ps1 for details."
+  echo ""
+fi
+
+# Always exit 0 - drift is a warning, not a blocker
+exit 0
