@@ -1,5 +1,42 @@
 #Requires -Version 5.1
 
+function Resolve-VhciComplianceLabel {
+    param(
+        $Rule,
+        [Parameter(Mandatory=$true)][string]$ComplianceType,
+        [Parameter(Mandatory=$true)]$Config
+    )
+
+    # Tier 1: SDK-provided property (forward-compat if Veeam ever adds a label)
+    if ($null -ne $Rule) {
+        foreach ($prop in @('Description','DisplayName','Caption','Title','Label')) {
+            $member = Get-Member -InputObject $Rule -Name $prop -ErrorAction SilentlyContinue
+            if ($null -ne $member) {
+                $val = $Rule.$prop
+                if (-not [string]::IsNullOrWhiteSpace($val)) {
+                    return [pscustomobject]@{ Label=$val; Source='SdkProperty'; IsMapped=$true }
+                }
+            }
+        }
+    }
+
+    # Tier 2: VbrConfig.json mapping
+    $jsonLabel = $Config.SecurityComplianceRuleNames.$ComplianceType
+    if (-not [string]::IsNullOrWhiteSpace($jsonLabel)) {
+        return [pscustomobject]@{ Label=$jsonLabel; Source='JsonMap'; IsMapped=$true }
+    }
+
+    # Tier 3: PascalCase to readable (ASCII-safe, no ?? or ?:)
+    if (-not [string]::IsNullOrWhiteSpace($ComplianceType)) {
+        $expanded = $ComplianceType -creplace '([a-z])([A-Z])', '$1 $2'
+        $label = $expanded.Substring(0,1).ToUpper() + $expanded.Substring(1).ToLower()
+        return [pscustomobject]@{ Label=$label; Source='PascalCaseFallback'; IsMapped=$false }
+    }
+
+    # Tier 4: Raw enum fallback
+    return [pscustomobject]@{ Label=$ComplianceType; Source='RawEnum'; IsMapped=$false }
+}
+
 function Get-VhcSecurityCompliance {
     <#
     .Synopsis
@@ -187,13 +224,9 @@ function Get-VhcSecurityCompliance {
                     continue
                 }
 
-                # Resolve rule name from VbrConfig.json mapping; raw type string as final
-                # fallback so new/unmapped rules remain visible when the JSON is stale.
-                $ruleName = $Config.SecurityComplianceRuleNames.$complianceType
-                if ([string]::IsNullOrWhiteSpace($ruleName)) {
-                    $unmappedTypes.Add($complianceType)
-                    $ruleName = $complianceType
-                }
+                $resolved = Resolve-VhciComplianceLabel -Rule $SecurityCompliance -ComplianceType $complianceType -Config $Config
+                if (-not $resolved.IsMapped) { $unmappedTypes.Add($complianceType) }
+                $ruleName = $resolved.Label
 
                 # Resolve status - fall back to raw status string for unknown values
                 $statusDisplay = if ($StatusObj.ContainsKey($complianceStatus)) {
@@ -207,6 +240,9 @@ function Get-VhcSecurityCompliance {
                 $inObj = [pscustomobject][ordered]@{
                     'Best Practice' = $ruleName
                     'Status'        = $statusDisplay
+                    'RuleType'      = $complianceType
+                    'IsMapped'      = $resolved.IsMapped
+                    'LabelSource'   = $resolved.Source
                 }
                 [void]$OutObj.Add($inObj)
                 $processedCount++
@@ -251,6 +287,34 @@ function Get-VhcSecurityCompliance {
         }
         else {
             Write-LogFile "No compliance data to export - OutObj is empty" -LogLevel "WARNING"
+        }
+
+        # Emit catalog of all known SDK enum values with mapping status
+        try {
+            $enumType = $null
+            try { $enumType = [Veeam.Backup.PowerShell.Infos.VBRBestPracticeType] } catch { }
+            if ($null -ne $enumType) {
+                $catalogRows = [System.Collections.ArrayList]::new()
+                foreach ($enumName in [Enum]::GetNames($enumType)) {
+                    $catResolved = Resolve-VhciComplianceLabel -Rule $null -ComplianceType $enumName -Config $Config
+                    [void]$catalogRows.Add([pscustomobject][ordered]@{
+                        'RuleType'     = $enumName
+                        'MappedLabel'  = $catResolved.Label
+                        'IsMapped'     = $catResolved.IsMapped
+                        'LabelSource'  = $catResolved.Source
+                        'VbrVersion'   = $VBRVersion
+                        'ValidatedFor' = $Config.SecurityComplianceRulesValidatedForVbrVersion
+                    })
+                }
+                $catalogRows | Export-VhciCsv -FileName '_SecurityComplianceCatalog.csv'
+                Write-LogFile "Wrote SecurityComplianceCatalog with $($catalogRows.Count) rule types"
+            } else {
+                Write-LogFile "VBRBestPracticeType enum not loadable - skipping catalog emit" -LogLevel "WARNING"
+            }
+        } catch {
+            $catErr = if ($_.Exception.Message) { $_.Exception.Message.ToString() } else { "Unknown error" }
+            Write-LogFile "Failed to emit SecurityComplianceCatalog: $catErr" -LogLevel "WARNING"
+            Add-VhciModuleError -CollectorName 'SecurityCompliance' -ErrorMessage "Catalog emit failed: $catErr"
         }
 
         Export-VhciComplianceMeta -DurationSeconds $scanDuration.TotalSeconds -Status 'Completed' -StartedAt $scanStart

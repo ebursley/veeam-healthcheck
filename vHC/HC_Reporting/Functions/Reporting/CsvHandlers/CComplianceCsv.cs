@@ -1,4 +1,4 @@
-﻿using CsvHelper.Configuration.Attributes;
+using CsvHelper.Configuration.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,11 +9,23 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
 {
     public class CComplianceCsv
     {
-        [Index(0)]
+        [Name("Best Practice")]
         public string BestPractice { get; set; }
 
-        [Index(1)]
-        public String Status { get; set; }
+        [Name("Status")]
+        public string Status { get; set; }
+
+        [Name("RuleType")]
+        [Optional]
+        public string RuleType { get; set; }
+
+        [Name("IsMapped")]
+        [Optional]
+        public bool? IsMapped { get; set; }
+
+        [Name("LabelSource")]
+        [Optional]
+        public string LabelSource { get; set; }
     }
 }
 
