@@ -50,7 +50,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ----------------------------------------------------------
-# Load .env file (does NOT override existing env vars)
+# Load .env file (.env always wins locally; CI runners have no .env)
 # ----------------------------------------------------------
 $dotEnvPath = Join-Path $PSScriptRoot ".env"
 if (Test-Path $dotEnvPath) {
@@ -58,9 +58,7 @@ if (Test-Path $dotEnvPath) {
         if ($line -match '^\s*#' -or $line -match '^\s*$') { continue }
         if ($line -match '^\s*([^=]+?)\s*=\s*(.*?)\s*$') {
             $k = $Matches[1]; $v = $Matches[2] -replace '^[''"]|[''"]$'
-            if (-not (Get-Item "env:$k" -ErrorAction SilentlyContinue)) {
-                Set-Item "env:$k" $v
-            }
+            Set-Item "env:$k" $v
         }
     }
     Write-Host "Loaded .env from $dotEnvPath"
@@ -127,6 +125,7 @@ function Invoke-LabDriftCheck {
 
     $baseUrl = "https://${LabHost}:${LabPort}"
 
+    Write-Host "[$LabName] Authenticating as $LabUser ..." -NoNewline
     try {
         $tok = Invoke-RestMethod -SkipCertificateCheck `
             -Method      POST `
@@ -137,10 +136,12 @@ function Invoke-LabDriftCheck {
     } catch {
         $detail = ""
         try { $detail = $_.ErrorDetails.Message } catch { }
+        Write-Host " failed" -ForegroundColor Red
         Write-Host "[$LabName] ERROR: Auth failed - $($_.Exception.Message)$(if ($detail) { " | $detail" })" -ForegroundColor Red
         $result.Error = "AuthFailed: $($_.Exception.Message)"
         return $result
     }
+    Write-Host " ok" -ForegroundColor Green
     $result.AuthOk = $true
 
     $hdrs = @{ "Authorization" = "Bearer $($tok.access_token)"; "x-api-version" = $ApiVersion }
