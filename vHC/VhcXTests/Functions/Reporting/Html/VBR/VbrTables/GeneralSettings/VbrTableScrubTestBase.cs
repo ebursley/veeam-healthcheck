@@ -28,6 +28,7 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.GeneralSettings
                 Path.Combine(Path.GetTempPath(), tempDirPrefix + Guid.NewGuid()));
             VbrDir = Path.Combine(TestBaseDir, "VBR");
             Directory.CreateDirectory(VbrDir);
+            Directory.CreateDirectory(Path.Combine(TestBaseDir, "Original")); // scrubber writes vHC_KeyFile.xml here
 
             CGlobals.desiredPath = TestBaseDir;
             CGlobals.IMPORT = true;
