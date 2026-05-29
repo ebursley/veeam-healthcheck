@@ -12,6 +12,8 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes.NAS
 
         public string FileShareID { get; set; }
 
+        public string ParentServerID { get; set; }
+
         public string FileShareType { get; set; }
 
         public string TotalFilesCount { get; set; }

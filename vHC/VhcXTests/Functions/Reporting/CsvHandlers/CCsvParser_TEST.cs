@@ -454,6 +454,57 @@ namespace VhcXTests.Functions.Reporting.CsvHandlers
 
         #endregion
 
+        #region NAS Share Size Tests
+
+        [Fact]
+        public void GetDynamicNasShareSize_V12CombinedLine_ParsesAllFields()
+        {
+            // v12 format: single combined line, no ParentServerID column
+            var csv =
+                "FileShareID,FileShareType,TotalShareSize,TotalFilesCount,TotalFoldersCount," +
+                "AvgIncrementSize,AvgFilesCountPerInc,AvgFoldersCountPerInc," +
+                "FileProxy,ProxyIDs,BackupMode,CacheRepository,BackupIOControlLevel\r\n" +
+                "share-001,NFS,41710468504,100000,5000,1048576,200,10," +
+                "proxy01,{proxy-id-001},Direct,repo01,3\r\n";
+
+            VbrCsvSampleGenerator.CreateCsvFile(_vbrDir, "NasSharesize.csv", csv);
+
+            var parser = new CCsvParser(_vbrDir);
+            var results = parser.GetDynamicNasShareSize().ToList();
+
+            Assert.Single(results);
+            Assert.Equal("share-001", results[0].FileShareID);
+            Assert.Equal("41710468504", results[0].TotalShareSize);
+            Assert.Equal("proxy01", results[0].FileProxy);
+            Assert.Null(results[0].ParentServerID);
+        }
+
+        [Fact]
+        public void GetDynamicNasShareSize_V13ParentChildJoined_ParsesAllFields()
+        {
+            // v13 format: child row already merged with parent fields (join done in PS1)
+            var csv =
+                "FileShareID,ParentServerID,FileShareType,TotalShareSize,TotalFilesCount,TotalFoldersCount," +
+                "AvgIncrementSize,AvgFilesCountPerInc,AvgFoldersCountPerInc," +
+                "FileProxy,ProxyIDs,BackupMode,CacheRepository,BackupIOControlLevel\r\n" +
+                "child-001,parent-001,SMB,20971520,50000,2500,524288,100,5," +
+                "proxy02,{proxy-id-002},Manual,repo02,2\r\n";
+
+            VbrCsvSampleGenerator.CreateCsvFile(_vbrDir, "NasSharesize.csv", csv);
+
+            var parser = new CCsvParser(_vbrDir);
+            var results = parser.GetDynamicNasShareSize().ToList();
+
+            Assert.Single(results);
+            Assert.Equal("child-001", results[0].FileShareID);
+            Assert.Equal("parent-001", results[0].ParentServerID);
+            Assert.Equal("20971520", results[0].TotalShareSize);
+            Assert.Equal("proxy02", results[0].FileProxy);
+            Assert.Equal("Manual", results[0].BackupMode);
+        }
+
+        #endregion
+
         #region CCsvReader Tests
 
         [Fact]
