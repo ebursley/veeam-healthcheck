@@ -133,9 +133,11 @@ function Invoke-LabDriftCheck {
             -Uri         "$baseUrl/api/oauth2/token" `
             -Headers     @{ "x-api-version" = $ApiVersion } `
             -ContentType "application/x-www-form-urlencoded" `
-            -Body        "grant_type=password&username=$LabUser&password=$([uri]::EscapeDataString($LabPass))"
+            -Body        @{ grant_type = "password"; username = $LabUser; password = $LabPass }
     } catch {
-        Write-Host "[$LabName] ERROR: Auth failed - $($_.Exception.Message)" -ForegroundColor Red
+        $detail = ""
+        try { $detail = $_.ErrorDetails.Message } catch { }
+        Write-Host "[$LabName] ERROR: Auth failed - $($_.Exception.Message)$(if ($detail) { " | $detail" })" -ForegroundColor Red
         $result.Error = "AuthFailed: $($_.Exception.Message)"
         return $result
     }
