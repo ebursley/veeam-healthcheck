@@ -49,8 +49,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
                         }
 
-                        string role = row.TryGetValue("Role", out var r) ? (string)(r ?? "") : "";
+                        string role = row.TryGetValue("Role", out var r) ? (string)(r ?? "") : ""; // Role is a Veeam-internal enum string, not PII — intentionally not scrubbed
                         string description = row.TryGetValue("Description", out var d) ? (string)(d ?? "") : "";
+                        if (scrub)
+                        {
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
+                        }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
                         s += this.form.TableData(role, string.Empty);

@@ -31,7 +31,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
                         string userName = (string)(item.username ?? "");
                         return scrub ? CGlobals.Scrubber.ScrubItem(userName, ScrubItemType.Item) : userName;
                     })
-                    .Column("Description", string.Empty, item => (string)(item.description ?? ""))
+                    .Column("Description", string.Empty, item =>
+                    {
+                        string description = (string)(item.description ?? "");
+                        return scrub ? CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item) : description;
+                    })
                     .Column("Last Modified", string.Empty, item => (string)(item.lastmodified ?? ""));
 
                 if (data == null || !data.Any())

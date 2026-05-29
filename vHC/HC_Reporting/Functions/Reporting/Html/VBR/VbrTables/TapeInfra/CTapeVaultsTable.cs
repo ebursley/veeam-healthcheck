@@ -26,7 +26,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
                         string name = (string)(item.name ?? "");
                         return scrub ? CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item) : name;
                     }, leftAlign: true)
-                    .Column("Description", string.Empty, item => (string)(item.description ?? ""))
+                    .Column("Description", string.Empty, item =>
+                    {
+                        string description = (string)(item.description ?? "");
+                        return scrub ? CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item) : description;
+                    })
                     .Column("Protect", string.Empty, item => (string)(item.protect ?? ""));
 
                 if (data == null || !data.Any())
