@@ -73,7 +73,7 @@ if ([string]::IsNullOrEmpty($ReportPath)) {
         elseif ($_ -match "NasBackupSourceShareStats") {
             $nasBackupSourceShareStats += $_
         }
-        # Check child before parent — "SmbServer" is a substring of "SmbServerChildShare"
+        # Check child before parent -- "SmbServer" is a substring of "SmbServerChildShare"
         elseif ($_ -match "SmbServerChildShare|NfsServerChildShare") {
             $childShares += $_
         }

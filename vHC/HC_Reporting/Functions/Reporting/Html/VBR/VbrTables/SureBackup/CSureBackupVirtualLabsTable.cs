@@ -32,9 +32,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.SureBackup
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicSureBackupVirtualLabs();
+                var data = c.GetDynamicSureBackupVirtualLabs().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='5' style='text-align: center; padding: 20px; color: #666;'><em>No SureBackup virtual labs detected.</em></td></tr>";
                 }

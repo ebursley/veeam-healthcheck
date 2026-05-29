@@ -18,7 +18,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicTapeServers();
+                var data = c.GetDynamicTapeServers().ToList();
 
                 var table = new CSectionTable<dynamic>("tapeservers", "Tape Servers")
                     .WithIcon("T", "#f0f9ff", "#0369a1")
@@ -34,7 +34,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
                     })
                     .Column("State", string.Empty, item => (string)(item.state ?? ""));
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                     return table.RenderEmpty("No tape servers detected.");
 
                 return table.Render(data);

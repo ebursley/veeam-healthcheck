@@ -30,9 +30,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.SureBackup
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicSureBackupAppGroups();
+                var data = c.GetDynamicSureBackupAppGroups().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='3' style='text-align: center; padding: 20px; color: #666;'><em>No SureBackup application groups detected.</em></td></tr>";
                 }

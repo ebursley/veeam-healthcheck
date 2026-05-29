@@ -266,7 +266,8 @@ if ($Lab) {
         $timeout = if ($cfg.options -and $cfg.options.connectTimeoutSeconds) { [int]$cfg.options.connectTimeoutSeconds } else { $defaultTimeout }
         $defaultTimeout = $timeout
         foreach ($labEntry in $cfg.labs) {
-            $labEnabled  = [string]($labEntry.PSObject.Properties['enabled']?.Value)
+            $enabledProp = $labEntry.PSObject.Properties['enabled']
+            $labEnabled  = if ($enabledProp) { [string]$enabledProp.Value } else { '' }
             if ($labEnabled -eq 'False') { continue }
 
             $userVarName = [string]$labEntry.userEnvVar

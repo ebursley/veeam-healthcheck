@@ -33,9 +33,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Replication
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicFailoverPlans();
+                var data = c.GetDynamicFailoverPlans().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='6' style='text-align: center; padding: 20px; color: #666;'><em>No failover plans detected.</em></td></tr>";
                 }

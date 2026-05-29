@@ -32,9 +32,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicCloudGateways();
+                var data = c.GetDynamicCloudGateways().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='5' style='text-align: center; padding: 20px; color: #666;'><em>No cloud gateways detected.</em></td></tr>";
                 }

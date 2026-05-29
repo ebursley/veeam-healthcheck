@@ -17,7 +17,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicTapeVaults();
+                var data = c.GetDynamicTapeVaults().ToList();
 
                 var table = new CSectionTable<dynamic>("tapevaults", "Tape Vaults")
                     .WithIcon("V", "#fefce8", "#a16207")
@@ -33,7 +33,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
                     })
                     .Column("Protect", string.Empty, item => (string)(item.protect ?? ""));
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                     return table.RenderEmpty("No tape vaults detected.");
 
                 return table.Render(data);

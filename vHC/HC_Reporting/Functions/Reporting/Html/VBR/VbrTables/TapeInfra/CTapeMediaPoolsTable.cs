@@ -34,9 +34,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicTapeMediaPools();
+                var data = c.GetDynamicTapeMediaPools().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='7' style='text-align: center; padding: 20px; color: #666;'><em>No tape media pools detected.</em></td></tr>";
                 }
