@@ -195,7 +195,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
         {
             using (StreamWriter sw = new StreamWriter(this.latestReport))
             {
-                sw.Write(htmlString);
+                sw.Write(htmlString); // codeql[cs/exposure-of-sensitive-information] - Intentional: VHC is a config health-check report generator; SMTP/email fields are the audited data. Scrub mode (CGlobals.Scrubber) anonymizes them when sharing externally.
             }
         }
 
