@@ -3,6 +3,7 @@
 using System;
 using System.Reflection;
 using VeeamHealthCheck.Shared;
+using VeeamHealthCheck.Shared.Logging;
 using VeeamHealthCheck.Startup;
 using Xunit;
 
@@ -713,6 +714,101 @@ namespace VhcXTests
 
             // Assert
             Assert.False(result, $"Partial match '{partialMatch}' should NOT be detected as local (no dot separator)");
+        }
+
+        #endregion
+
+        #region Issue #152 — /outdir sets CGlobals.desiredPath immediately
+
+        /// <summary>
+        /// Parsing /outdir=D:\custom\path must set CGlobals.desiredPath to D:\custom\path.
+        ///
+        /// Before the fix the /outdir case only assigned the local variable targetDir;
+        /// CGlobals.desiredPath was never updated so downstream consumers (CLogger,
+        /// CScrubHandler) kept writing to the default C:\temp\vHC\Original\ path.
+        /// </summary>
+        [Fact]
+        public void ApplyFlagsForTest_OutdirArg_SetsCGlobalsDesiredPath()
+        {
+            // Arrange
+            string originalDesiredPath = CGlobals.desiredPath;
+            try
+            {
+                CGlobals.desiredPath = null; // clear before test
+                var parser = new CArgsParser(new string[] { });
+
+                // Act — invoke ApplyFlagsForTest which mirrors the /outdir branch
+                parser.ApplyFlagsForTest(new[] { @"/outdir=D:\custom\path" });
+
+                // Assert
+                Assert.Equal(@"D:\custom\path", CGlobals.desiredPath);
+            }
+            finally
+            {
+                CGlobals.desiredPath = originalDesiredPath;
+                CGlobals.mainlog = new VeeamHealthCheck.Shared.Logging.CLogger("HealthCheck");
+            }
+        }
+
+        /// <summary>
+        /// After /outdir is parsed, CGlobals.mainlog.logFile must contain the
+        /// custom directory, not the hardcoded C:\temp\vHC path.
+        ///
+        /// CLogger reads CVariables.unsafeDir in its constructor; unsafeDir is
+        /// already dynamic (expression-bodied property). We must ensure mainlog
+        /// is re-created after desiredPath is updated.
+        /// </summary>
+        [Fact]
+        public void ApplyFlagsForTest_OutdirArg_ReinitializesMainLogToNewPath()
+        {
+            // Arrange
+            string originalDesiredPath = CGlobals.desiredPath;
+            var originalMainLog = CGlobals.mainlog;
+            try
+            {
+                var parser = new CArgsParser(new string[] { });
+
+                // Act
+                parser.ApplyFlagsForTest(new[] { @"/outdir=D:\custom\logs" });
+
+                // Assert: logFile path must contain the custom output directory
+                Assert.Contains(@"D:\custom\logs", CGlobals.mainlog.logFile,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                CGlobals.desiredPath = originalDesiredPath;
+                CGlobals.mainlog = originalMainLog;
+            }
+        }
+
+        /// <summary>
+        /// /outdir= with case-insensitive variant (OUTDIR) must also set desiredPath.
+        /// </summary>
+        [Theory]
+        [InlineData(@"/outdir=D:\Reports")]
+        [InlineData(@"/OUTDIR=D:\Reports")]
+        [InlineData(@"/Outdir=D:\Reports")]
+        public void ApplyFlagsForTest_OutdirVariantCasing_SetsCGlobalsDesiredPath(string arg)
+        {
+            // Arrange
+            string originalDesiredPath = CGlobals.desiredPath;
+            var originalMainLog = CGlobals.mainlog;
+            try
+            {
+                var parser = new CArgsParser(new string[] { });
+
+                // Act
+                parser.ApplyFlagsForTest(new[] { arg });
+
+                // Assert
+                Assert.Equal(@"D:\Reports", CGlobals.desiredPath);
+            }
+            finally
+            {
+                CGlobals.desiredPath = originalDesiredPath;
+                CGlobals.mainlog = originalMainLog;
+            }
         }
 
         #endregion
