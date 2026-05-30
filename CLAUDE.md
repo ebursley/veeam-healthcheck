@@ -99,6 +99,32 @@ Each product has separate:
 
 Example: `EscapePasswordForPowerShell_SpecialCharacters_ProperlyEscapes`
 
+## Commit / PR Convention: `Fixes #N`
+
+When a commit or PR resolves an open GitHub issue, the commit message OR the PR body **must** include one of GitHub's auto-close keywords followed by the issue number:
+
+- `Fixes #N`
+- `Closes #N`
+- `Resolves #N`
+
+This is what the release-notes generator scrapes to populate the **🐛 Issues Resolved** section of the GitHub release, and it's what GitHub uses to auto-close the issue when the PR merges to `master`.
+
+**Do not use** `(#N)` shorthand alone — that's GitHub's PR-reference syntax and does not auto-close anything. Past releases (e.g., v3.0.1.169) shipped fixes for #112, #152, #155 that had to be closed manually because the commits used `(#112)` or omitted the link.
+
+Examples:
+
+```
+# good — auto-closes #152 on merge to master
+fix(outdir): update CGlobals.desiredPath immediately on /outdir argument
+
+Fixes #152
+
+# bad — references the issue but doesn't close it
+fix(nas): fix Get-NasInfo.ps1 for VBR v13 (#112)
+```
+
+If a PR resolves multiple issues, list them: `Fixes #112, fixes #152, fixes #155`.
+
 ## Important Notes
 
 - Tests require Windows (WPF dependency) - non-Windows builds skip test compilation
