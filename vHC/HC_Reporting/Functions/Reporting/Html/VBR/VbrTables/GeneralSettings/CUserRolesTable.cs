@@ -30,9 +30,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicUserRoles();
+                var data = c.GetDynamicUserRoles().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='3' style='text-align: center; padding: 20px; color: #666;'><em>No user role assignments detected.</em></td></tr>";
                 }
@@ -42,15 +42,22 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
                     {
                         s += "<tr>";
 
+                        // CsvHelper's FastDynamicObject implements IDictionary<string, object> and
+                        // PrepareHeaderForMatch lowercases keys. TryGetValue avoids RuntimeBinderException
+                        // when a real-world CSV omits a column (e.g. _UserRoles.csv has no Description column).
                         var row = (IDictionary<string, object>)item;
-                        string name = row.TryGetValue("Name", out var n) ? (string)(n ?? "") : "";
+                        string name = row.TryGetValue("name", out var n) ? (string)(n ?? "") : "";
                         if (scrub)
                         {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
                         }
 
-                        string role = row.TryGetValue("Role", out var r) ? (string)(r ?? "") : "";
-                        string description = row.TryGetValue("Description", out var d) ? (string)(d ?? "") : "";
+                        string role = row.TryGetValue("role", out var r) ? (string)(r ?? "") : ""; // Role is a Veeam-internal enum string, not PII — intentionally not scrubbed
+                        string description = row.TryGetValue("description", out var d) ? (string)(d ?? "") : "";
+                        if (scrub)
+                        {
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
+                        }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
                         s += this.form.TableData(role, string.Empty);

@@ -33,9 +33,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Replication
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicFailoverPlans();
+                var data = c.GetDynamicFailoverPlans().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='6' style='text-align: center; padding: 20px; color: #666;'><em>No failover plans detected.</em></td></tr>";
                 }
@@ -46,11 +46,15 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Replication
                         s += "<tr>";
 
                         string name = (string)(item.name ?? "");
+                        string description = (string)(item.description ?? "");
                         if (scrub)
+                        {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
+                        }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
-                        s += this.form.TableData((string)(item.description ?? ""), string.Empty);
+                        s += this.form.TableData(description, string.Empty);
                         s += this.form.TableData((string)(item.platformtype ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.vmcount ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.prefailoverscript ?? ""), string.Empty);

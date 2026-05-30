@@ -62,6 +62,7 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
         public readonly string nasShareSize = "NasSharesize";
         public readonly string nasObjectSize = "NasObjectSourceStorageSize";
         public readonly string compliance = "SecurityCompliance";
+        public readonly string complianceCatalog = "_SecurityComplianceCatalog";
         public readonly string complianceMeta = "SecurityComplianceMeta";
         public readonly string allServersRequirements = "AllServersRequirementsComparison";
 
@@ -679,6 +680,17 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
 
 
             return Enumerable.Empty<CComplianceCsv>();
+        }
+
+        public IEnumerable<CComplianceCatalogCsv> ComplianceCatalogCsv()
+        {
+            var res = this.VbrFileReader(this.complianceCatalog);
+            if (res != null)
+            {
+                return res.GetRecords<CComplianceCatalogCsv>().ToList();
+            }
+
+            return Enumerable.Empty<CComplianceCatalogCsv>();
         }
 
         public CComplianceMetaCsv ComplianceMetaCsv()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,6 +17,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
 
         public CEmailNotificationTable() { }
 
+        [SuppressMessage(
+            "Security",
+            "cs/exposure-of-sensitive-information",
+            Justification = "Intentional by design: VHC is a configuration health-check report generator. SMTP server and email addresses are part of the VBR configuration being audited. The 'scrub' parameter (when true) anonymizes these fields via CGlobals.Scrubber for sharing reports externally. End user controls scrub mode via CLI/GUI.")]
         public string Render(bool scrub)
         {
             string s = this.form.SectionStartWithButton("emailnotification", "Email Notification", "Email Notification");

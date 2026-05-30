@@ -32,9 +32,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicCloudGateways();
+                var data = c.GetDynamicCloudGateways().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='5' style='text-align: center; padding: 20px; color: #666;'><em>No cloud gateways detected.</em></td></tr>";
                 }
@@ -46,14 +46,16 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
 
                         string name = (string)(item.name ?? "");
                         string ipAddress = (string)(item.ipaddress ?? "");
+                        string description = (string)(item.description ?? "");
                         if (scrub)
                         {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Server);
                             ipAddress = CGlobals.Scrubber.ScrubItem(ipAddress, ScrubItemType.Server);
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
                         }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
-                        s += this.form.TableData((string)(item.description ?? ""), string.Empty);
+                        s += this.form.TableData(description, string.Empty);
                         s += this.form.TableData(ipAddress, string.Empty);
                         s += this.form.TableData((string)(item.incomingport ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.isenabled ?? ""), string.Empty);

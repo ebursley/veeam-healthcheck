@@ -394,3 +394,7 @@ mempalace.yaml
 MEMORY/
 SESSION_HANDOFF.md
 progress-*.md
+
+# Local VBR lab config (contains server addresses - keep out of git)
+labs-config.json
+.env

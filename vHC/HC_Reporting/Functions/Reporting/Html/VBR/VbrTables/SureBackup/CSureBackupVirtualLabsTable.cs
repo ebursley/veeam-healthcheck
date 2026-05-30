@@ -32,9 +32,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.SureBackup
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicSureBackupVirtualLabs();
+                var data = c.GetDynamicSureBackupVirtualLabs().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='5' style='text-align: center; padding: 20px; color: #666;'><em>No SureBackup virtual labs detected.</em></td></tr>";
                 }
@@ -46,14 +46,16 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.SureBackup
 
                         string name = (string)(item.name ?? "");
                         string server = (string)(item.server ?? "");
+                        string description = (string)(item.description ?? "");
                         if (scrub)
                         {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
                             server = CGlobals.Scrubber.ScrubItem(server, ScrubItemType.Server);
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
                         }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
-                        s += this.form.TableData((string)(item.description ?? ""), string.Empty);
+                        s += this.form.TableData(description, string.Empty);
                         s += this.form.TableData((string)(item.platform ?? ""), string.Empty);
                         s += this.form.TableData(server, string.Empty);
                         s += this.form.TableData((string)(item.proxyappliance ?? ""), string.Empty);

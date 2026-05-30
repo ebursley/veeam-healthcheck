@@ -14,11 +14,13 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
         readonly CCsvParser csv = new();
         readonly IEnumerable<CComplianceCsv> csvResults;
         readonly CComplianceMetaCsv meta;
+        readonly IEnumerable<CComplianceCatalogCsv> catalogResults;
 
         public CComplianceTable()
         {
-            this.csvResults = this.csv.ComplianceCsv() ?? new List<CComplianceCsv>();
-            this.meta = this.csv.ComplianceMetaCsv();
+            this.csvResults     = this.csv.ComplianceCsv() ?? new List<CComplianceCsv>();
+            this.meta           = this.csv.ComplianceMetaCsv();
+            this.catalogResults = this.csv.ComplianceCatalogCsv() ?? new List<CComplianceCatalogCsv>();
 
             CGlobals.FullReportJson.ComplianceScan = new ComplianceScanMeta
             {
@@ -146,6 +148,12 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
                     return t;
                 }
 
+                int driftCount = this.catalogResults != null ? this.catalogResults.Count(c => !c.IsMapped) : 0;
+                if (driftCount > 0)
+                {
+                    t += $"<p class=\"compliance-drift-callout\"><strong>Catalog drift detected:</strong> {driftCount} compliance rule type(s) in the VBR SDK have no label mapping. Affected rows are shown with their raw enum name and a NEW badge. Add them to <code>VbrConfig.json</code> SecurityComplianceRuleNames to resolve.</p>";
+                }
+
                 t += this.form.SectionStartWithButton("ComplianceTable", "Compliance Table", "complianceButton");
                 t += this.form.TableHeaderLeftAligned("Best Practice", "Name of the excluded sytem.");
                 t += this.form.TableHeader("Status", "Platform of the excluded item.");
@@ -154,8 +162,13 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.Security
 
                 foreach (var res in this.csvResults)
                 {
+                    string labelCell = res.BestPractice;
+                    if (res.IsMapped == false)
+                    {
+                        labelCell += " <span class=\"badge badge-new\" title=\"Unmapped rule type: add to VbrConfig.json\">NEW</span>";
+                    }
                     t += this.form.TableRowStart();
-                    t += this.form.TableDataLeftAligned(res.BestPractice, string.Empty);
+                    t += this.form.TableDataLeftAligned(labelCell, string.Empty);
                     t += this.form.TableData(ComplianceBadge(res.Status.ToString()), string.Empty);
                     t += this.form.TableRowEnd();
                 }

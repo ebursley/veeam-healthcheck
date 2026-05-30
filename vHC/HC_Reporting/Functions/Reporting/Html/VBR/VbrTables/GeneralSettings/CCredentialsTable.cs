@@ -17,7 +17,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicCredentials();
+                var data = c.GetDynamicCredentials().ToList();
 
                 var table = new CSectionTable<dynamic>("credentials", "Credentials")
                     .WithIcon("C", "#f0fdf4", "#15803d")
@@ -31,10 +31,14 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.GeneralSetting
                         string userName = (string)(item.username ?? "");
                         return scrub ? CGlobals.Scrubber.ScrubItem(userName, ScrubItemType.Item) : userName;
                     })
-                    .Column("Description", string.Empty, item => (string)(item.description ?? ""))
+                    .Column("Description", string.Empty, item =>
+                    {
+                        string description = (string)(item.description ?? "");
+                        return scrub ? CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item) : description;
+                    })
                     .Column("Last Modified", string.Empty, item => (string)(item.lastmodified ?? ""));
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                     return table.RenderEmpty("No credentials detected.");
 
                 return table.Render(data);

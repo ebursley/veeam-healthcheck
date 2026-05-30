@@ -133,6 +133,9 @@ jobs:
     needs: build-and-test
     runs-on: [self-hosted, CONSOLE_HOST]
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      issues: write
 
     steps:
     - name: Pre-run cleanup
@@ -678,6 +681,17 @@ jobs:
 
         Write-Host "✅ HTML table row validation complete" -ForegroundColor Green
 
+    - name: Check SCA label drift
+      if: success() || failure()
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        & "${{ github.workspace }}\.github\scripts\Invoke-SecurityComplianceDriftCheck.ps1" `
+          -CatalogPath 'C:\temp\vHC\Original\VBR\*\*\_SecurityComplianceCatalog.csv' `
+          -Repo '${{ github.repository }}' `
+          -RunUrl '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+
     - name: Collect performance metrics
       if: always()
       run: |
@@ -733,6 +747,9 @@ jobs:
     needs: build-and-test
     runs-on: [self-hosted, vbr-13-sql]
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      issues: write
 
     steps:
     - name: Pre-run cleanup
@@ -1277,6 +1294,17 @@ jobs:
         }
 
         Write-Host "✅ HTML table row validation complete" -ForegroundColor Green
+
+    - name: Check SCA label drift
+      if: success() || failure()
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        & "${{ github.workspace }}\.github\scripts\Invoke-SecurityComplianceDriftCheck.ps1" `
+          -CatalogPath 'C:\temp\vHC\Original\VBR\*\*\_SecurityComplianceCatalog.csv' `
+          -Repo '${{ github.repository }}' `
+          -RunUrl '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
 
     - name: Collect performance metrics
       if: always()

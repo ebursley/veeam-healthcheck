@@ -30,9 +30,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.SureBackup
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicSureBackupAppGroups();
+                var data = c.GetDynamicSureBackupAppGroups().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='3' style='text-align: center; padding: 20px; color: #666;'><em>No SureBackup application groups detected.</em></td></tr>";
                 }
@@ -43,11 +43,15 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.SureBackup
                         s += "<tr>";
 
                         string name = (string)(item.name ?? "");
+                        string description = (string)(item.description ?? "");
                         if (scrub)
+                        {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.Item);
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
+                        }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
-                        s += this.form.TableData((string)(item.description ?? ""), string.Empty);
+                        s += this.form.TableData(description, string.Empty);
                         s += this.form.TableData((string)(item.vmcount ?? ""), string.Empty);
 
                         s += "</tr>";

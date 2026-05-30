@@ -1,0 +1,27 @@
+{
+  "_comment": "Copy this file to labs-config.json (gitignored) and fill in your lab details.",
+  "_comment2": "Credentials are read from environment variables - never hardcode passwords here.",
+  "labs": [
+    {
+      "name": "Linux VBR Lab (no VPN needed)",
+      "host": "vbr-linux.example.com",
+      "port": 9419,
+      "userEnvVar": "VBR_LAB_USER",
+      "passwordEnvVar": "VBR_LAB_PASSWORD",
+      "enabled": true
+    },
+    {
+      "name": "Windows VBR Lab (VPN required)",
+      "host": "192.168.20.x",
+      "port": 9419,
+      "userEnvVar": "VBR_LAB_WIN_USER",
+      "passwordEnvVar": "VBR_LAB_WIN_PASSWORD",
+      "enabled": true
+    }
+  ],
+  "options": {
+    "connectTimeoutSeconds": 5,
+    "blockOnDrift": false,
+    "skipUnreachable": true
+  }
+}

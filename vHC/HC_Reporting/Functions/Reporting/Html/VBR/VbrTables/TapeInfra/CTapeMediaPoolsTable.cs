@@ -34,9 +34,9 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
             try
             {
                 CCsvParser c = new();
-                var data = c.GetDynamicTapeMediaPools();
+                var data = c.GetDynamicTapeMediaPools().ToList();
 
-                if (data == null || !data.Any())
+                if (!data.Any())
                 {
                     s += "<tr><td colspan='7' style='text-align: center; padding: 20px; color: #666;'><em>No tape media pools detected.</em></td></tr>";
                 }
@@ -47,12 +47,16 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.TapeInfra
                         s += "<tr>";
 
                         string name = (string)(item.name ?? "");
+                        string description = (string)(item.description ?? "");
                         if (scrub)
+                        {
                             name = CGlobals.Scrubber.ScrubItem(name, ScrubItemType.MediaPool);
+                            description = CGlobals.Scrubber.ScrubItem(description, ScrubItemType.Item);
+                        }
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
                         s += this.form.TableData((string)(item.type ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.description ?? ""), string.Empty);
+                        s += this.form.TableData(description, string.Empty);
                         s += this.form.TableData((string)(item.mediacount ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.retentionpolicy ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.encryption ?? ""), string.Empty);

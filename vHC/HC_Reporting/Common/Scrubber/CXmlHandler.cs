@@ -12,7 +12,7 @@ namespace VeeamHealthCheck.Scrubber
 {
     public class CScrubHandler
     {
-        private readonly string matchListPath = CVariables.unsafeDir + @"\vHC_KeyFile.xml";
+        private string matchListPath => CVariables.unsafeDir + @"\vHC_KeyFile.xml";
         private Dictionary<string, string> matchDictionary;
         private readonly Dictionary<string, int> typeCounters = new();
         private readonly XDocument doc;

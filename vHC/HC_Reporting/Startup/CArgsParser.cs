@@ -239,6 +239,7 @@ namespace VeeamHealthCheck.Startup
                         if (!string.IsNullOrEmpty(parsedOutDir))
                         {
                             targetDir = parsedOutDir;
+                            this.ApplyOutDir(parsedOutDir); // apply immediately so CVariables.unsafeDir resolves correctly
                             CGlobals.Logger.Info("Output directory overridden: " + targetDir, false);
                         }
                         break;
@@ -625,9 +626,21 @@ namespace VeeamHealthCheck.Startup
                         {
                             CGlobals.CredFilePath = this.ParsePath(a);
                         }
+                        else if (a.StartsWith("/outdir=", StringComparison.OrdinalIgnoreCase)
+                            && a.Length > "/outdir=".Length)
+                        {
+                            this.ApplyOutDir(this.ParsePath(a));
+                        }
                         break;
                 }
             }
+        }
+
+        private void ApplyOutDir(string parsedOutDir)
+        {
+            if (string.IsNullOrEmpty(parsedOutDir)) return;
+            CGlobals.desiredPath = parsedOutDir;
+            CGlobals.mainlog = new CLogger("HealthCheck");
         }
 
         /// <summary>

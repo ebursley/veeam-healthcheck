@@ -754,6 +754,8 @@ html.dark-theme .heat-5 { background-color: #6a2020; }
 .compliance-stat  { flex:1; min-width:140px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:.75rem 1rem; text-align:center; }
 .compliance-count { font-size:1.5rem; font-weight:700; }
 .compliance-label { font-size:.75rem; color:var(--text-secondary); }
+.compliance-drift-callout { background-color:#fff4e5; border-left:4px solid #d97706; padding:.75rem 1rem; margin:1rem 0; color:#78350f; font-size:.95rem; border-radius:0 4px 4px 0; }
+.badge-new { display:inline-block; padding:.15rem .5rem; margin-left:.4rem; font-size:.75rem; font-weight:600; background-color:#d97706; color:#fff; border-radius:.25rem; text-transform:uppercase; vertical-align:middle; }
 
 /* ── Infrastructure chip grid ────────────────────────────── */
 .infra-grid  { display:flex; flex-wrap:wrap; gap:.5rem; padding:.5rem 0; }
