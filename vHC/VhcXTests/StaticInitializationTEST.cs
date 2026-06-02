@@ -12,6 +12,7 @@ namespace VhcXTests
     /// Regression test for GitHub Actions hang issue caused by circular dependency
     /// between CVariables.desiredDir and CGlobals.desiredPath
     /// </summary>
+    [Collection("GlobalState")]
     public class StaticInitializationTEST
     {
         /// <summary>

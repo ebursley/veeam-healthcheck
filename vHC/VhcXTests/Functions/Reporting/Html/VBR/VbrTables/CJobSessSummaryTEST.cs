@@ -16,6 +16,7 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables
     /// These tests verify the data transformation pipeline from CSV to XML/report data.
     /// </summary>
     [Trait("Category", "DataTransformation")]
+    [Collection("GlobalState")]
     public class CJobSessSummaryTEST : IDisposable
     {
         private readonly string _testDataDir;

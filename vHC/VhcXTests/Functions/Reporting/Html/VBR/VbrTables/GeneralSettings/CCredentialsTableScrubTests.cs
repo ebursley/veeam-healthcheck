@@ -7,6 +7,7 @@ using Xunit;
 namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.GeneralSettings
 {
     [Trait("Category", "Scrubbing")]
+    [Collection("GlobalState")]
     public class CCredentialsTableScrubTests : VbrTableScrubTestBase
     {
         // FileFinder matches "_Credentials.csv"; PrepareHeaderForMatch lowercases headers

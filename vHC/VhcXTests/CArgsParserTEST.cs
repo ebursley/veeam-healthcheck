@@ -9,6 +9,7 @@ using Xunit;
 
 namespace VhcXTests
 {
+    [Collection("GlobalState")]
     public class CArgsParserTests
     {
         // Helper method to access private ParsePath method via reflection

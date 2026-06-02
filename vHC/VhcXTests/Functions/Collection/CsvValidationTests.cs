@@ -290,6 +290,7 @@ namespace VeeamHealthCheck.Tests.Collection
     }
 
     [Trait("Category", "CsvValidation")]
+    [Collection("GlobalState")]
     public class CGlobalsValidationTests
     {
         [Fact]

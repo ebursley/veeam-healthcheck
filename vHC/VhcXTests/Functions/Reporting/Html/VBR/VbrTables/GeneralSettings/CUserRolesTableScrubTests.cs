@@ -7,6 +7,7 @@ using Xunit;
 namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.GeneralSettings
 {
     [Trait("Category", "Scrubbing")]
+    [Collection("GlobalState")]
     public class CUserRolesTableScrubTests : VbrTableScrubTestBase
     {
         // FileFinder matches "_UserRoles.csv"; row dict keys match CSV header casing exactly.

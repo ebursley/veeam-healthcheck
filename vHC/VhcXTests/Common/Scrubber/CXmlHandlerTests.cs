@@ -19,6 +19,7 @@ namespace VhcXTests.Common.Scrubber
     /// CVariables.unsafeDir once at construction. The fix converts the field to
     /// an expression-bodied property so it re-evaluates on every access.
     /// </summary>
+    [Collection("GlobalState")]
     public class CXmlHandlerTests : IDisposable
     {
         private readonly string _originalDesiredPath;
