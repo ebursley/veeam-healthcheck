@@ -519,6 +519,19 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
                 this.form.NavLink("repos", VbrLocalizationHelper.NavRepoInfoLink) +
                 this.form.NavLink("sobr", VbrLocalizationHelper.NavSobrInfoLink));
 
+            // Cloud Connect
+            nav += this.form.NavSection("Cloud Connect",
+                this.form.NavLink("cloudgateways", "Gateways") +
+                this.form.NavLink("cloudgatewaypools", "Gateway Pools") +
+                this.form.NavLink("cloudtenants", "Tenants") +
+                this.form.NavLink("cloudtenantbackup", "Tenant Backup Storage") +
+                this.form.NavLink("cloudtenantreplica", "Tenant Replica Resources") +
+                this.form.NavLink("cloudhardwareplans", "Hardware Plans") +
+                this.form.NavLink("cloudhardwareplandatastores", "HW Plan Datastores") +
+                this.form.NavLink("cloudreplicas", "Replicas") +
+                this.form.NavLink("cloudfailoverplans", "Failover Plans") +
+                this.form.NavLink("cloudfailoverplanobjects", "Failover Plan VMs"));
+
             // Backup Jobs
             nav += this.form.NavSection("Backup Jobs",
                 this.form.NavLink("jobsesssum", VbrLocalizationHelper.NavJobSessSumLink) +

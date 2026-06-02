@@ -1509,6 +1509,54 @@ namespace VeeamHealthCheck.Html.VBR
             return table.Render(scrub);
         }
 
+        public string AddCloudGatewayPoolsTable(bool scrub)
+        {
+            var table = new CCloudGatewayPoolsTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudTenantBackupResourcesTable(bool scrub)
+        {
+            var table = new CCloudTenantBackupResourcesTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudTenantReplicationResourcesTable(bool scrub)
+        {
+            var table = new CCloudTenantReplicationResourcesTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudHardwarePlansTable(bool scrub)
+        {
+            var table = new CCloudHardwarePlansTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudHardwarePlanDatastoresTable(bool scrub)
+        {
+            var table = new CCloudHardwarePlanDatastoresTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudReplicasTable(bool scrub)
+        {
+            var table = new CCloudReplicasTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudFailoverPlansTable(bool scrub)
+        {
+            var table = new CCloudFailoverPlansTable();
+            return table.Render(scrub);
+        }
+
+        public string AddCloudFailoverPlanObjectsTable(bool scrub)
+        {
+            var table = new CCloudFailoverPlanObjectsTable();
+            return table.Render(scrub);
+        }
+
         // SureBackup Details
         public string AddSureBackupAppGroupsTable(bool scrub)
         {

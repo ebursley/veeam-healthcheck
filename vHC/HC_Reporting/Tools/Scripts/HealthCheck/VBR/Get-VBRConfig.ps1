@@ -230,6 +230,7 @@ $collectorResults.Add((Invoke-VhcCollector -Name 'EntraId'          -Action { Ge
 $collectorResults.Add((Invoke-VhcCollector -Name 'CapacityTier'     -Action { Get-VhcCapacityTier }))
 $collectorResults.Add((Invoke-VhcCollector -Name 'ArchiveTier'      -Action { Get-VhcArchiveTier }))
 $collectorResults.Add((Invoke-VhcCollector -Name 'ObjectStorageRepos' -Action { Get-VhciObjectStorageRepos }))
+$collectorResults.Add((Invoke-VhcCollector -Name 'CloudConnect'      -Action { Get-VhcCloudConnect }))
 $collectorResults.Add((Invoke-VhcCollector -Name 'TrafficRules'     -Action { Get-VhcTrafficRules }))
 $collectorResults.Add((Invoke-VhcCollector -Name 'RegistrySettings' -Action {
     Get-VhcRegistrySettings -RemoteExecution $RemoteExecution.IsPresent

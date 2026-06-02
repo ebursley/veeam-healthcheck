@@ -8,6 +8,7 @@
         'Get-VhcArchiveTier',
         'Get-VhcBackupSessions',
         'Get-VhcCapacityTier',
+        'Get-VhcCloudConnect',
         'Get-VhcConcurrencyData',
         'Get-VhcEntraId',
         'Get-VhcJob',

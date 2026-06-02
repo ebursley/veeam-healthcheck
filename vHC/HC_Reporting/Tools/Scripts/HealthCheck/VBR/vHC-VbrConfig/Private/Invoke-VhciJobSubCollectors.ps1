@@ -48,10 +48,6 @@ function Invoke-VhciJobSubCollectors {
         Write-LogFile "Get-VhciReplication failed: $($_.Exception.Message)" -LogLevel "ERROR"
         Add-VhciModuleError -CollectorName 'Jobs' -ErrorMessage $_.Exception.Message
     }
-    try { Get-VhciCloudConnect } catch {
-        Write-LogFile "Get-VhciCloudConnect failed: $($_.Exception.Message)" -LogLevel "ERROR"
-        Add-VhciModuleError -CollectorName 'Jobs' -ErrorMessage $_.Exception.Message
-    }
     try { Get-VhciCredentialsAndNotifications } catch {
         Write-LogFile "Get-VhciCredentialsAndNotifications failed: $($_.Exception.Message)" -LogLevel "ERROR"
         Add-VhciModuleError -CollectorName 'Jobs' -ErrorMessage $_.Exception.Message
