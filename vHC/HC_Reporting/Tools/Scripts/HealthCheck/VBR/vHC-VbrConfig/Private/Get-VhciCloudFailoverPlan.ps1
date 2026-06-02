@@ -4,7 +4,7 @@ function Get-VhciCloudFailoverPlan {
     <#
     .Synopsis
         Collects Cloud and Tenant failover plans (excludes Local plans).
-        Returns @{ Plans = []; Objects = [] } — plan summary rows and per-VM detail rows.
+        Returns @{ Plans = []; Objects = [] } -- plan summary rows and per-VM detail rows.
     #>
     [CmdletBinding()]
     param()

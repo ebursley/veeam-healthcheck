@@ -25,7 +25,7 @@ function Get-VhcCloudConnect {
     }
 
     try {
-        # ── Gateways ─────────────────────────────────────────────────────────
+        # -- Gateways ---------------------------------------------------------
         Write-LogFile "Collecting Cloud Gateways..."
         $cloudGateways = @(Get-VBRCloudGateway)
         Write-LogFile "Found $($cloudGateways.Count) cloud gateways"
@@ -41,7 +41,7 @@ function Get-VhcCloudConnect {
 
         $gatewayOutput | Export-VhciCsv -FileName '_CloudGateways.csv'
 
-        # ── Gateway Pools (one row per pool × member gateway) ─────────────────
+        # -- Gateway Pools (one row per pool x member gateway) -----------------
         Write-LogFile "Collecting Cloud Gateway Pools..."
         $gatewayPools = @(Get-VBRCloudGatewayPool)
         Write-LogFile "Found $($gatewayPools.Count) gateway pools"
@@ -71,7 +71,7 @@ function Get-VhcCloudConnect {
         }
         $poolRows | Export-VhciCsv -FileName '_CloudGatewayPools.csv'
 
-        # ── Tenants ───────────────────────────────────────────────────────────
+        # -- Tenants -----------------------------------------------------------
         Write-LogFile "Collecting Cloud Tenants..."
         $cloudTenants = @(Get-VBRCloudTenant)
         Write-LogFile "Found $($cloudTenants.Count) cloud tenants"
@@ -94,14 +94,14 @@ function Get-VhcCloudConnect {
 
         $tenantOutput | Export-VhciCsv -FileName '_CloudTenants.csv'
 
-        # ── Tenant backup/replication resources ───────────────────────────────
+        # -- Tenant backup/replication resources -------------------------------
         if ($cloudTenants.Count -gt 0) {
             $resources = Get-VhciCloudTenantResource -Tenants $cloudTenants
             $resources.Backup      | Export-VhciCsv -FileName '_CloudTenantBackupResources.csv'
             $resources.Replication | Export-VhciCsv -FileName '_CloudTenantReplicationResources.csv'
         }
 
-        # ── Hardware Plans (one summary row + separate datastore detail) ──────
+        # -- Hardware Plans (one summary row + separate datastore detail) ------
         Write-LogFile "Collecting Cloud Hardware Plans..."
         $hwPlans = @(Get-VBRCloudHardwarePlan)
         Write-LogFile "Found $($hwPlans.Count) hardware plans"
@@ -132,11 +132,11 @@ function Get-VhcCloudConnect {
         }
         $dsRows | Export-VhciCsv -FileName '_CloudHardwarePlanDatastores.csv'
 
-        # ── Replicas ──────────────────────────────────────────────────────────
+        # -- Replicas ----------------------------------------------------------
         $replicas = Get-VhciCloudReplica
         $replicas | Export-VhciCsv -FileName '_CloudReplicas.csv'
 
-        # ── Failover Plans ────────────────────────────────────────────────────
+        # -- Failover Plans ----------------------------------------------------
         $fpResult = Get-VhciCloudFailoverPlan
         $fpResult.Plans   | Export-VhciCsv -FileName '_CloudFailoverPlans.csv'
         $fpResult.Objects | Export-VhciCsv -FileName '_CloudFailoverPlanObjects.csv'

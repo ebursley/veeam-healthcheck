@@ -4,7 +4,7 @@ function Get-VhciCloudTenantResource {
     <#
     .Synopsis
         Expands per-tenant backup quota resources and hardware-plan replication resources.
-        Returns @{ Backup = []; Replication = [] } — two flat arrays ready for Export-VhciCsv.
+        Returns @{ Backup = []; Replication = [] } -- two flat arrays ready for Export-VhciCsv.
     .Parameter Tenants
         Array of VBRCloudTenant objects from Get-VBRCloudTenant.
     #>
@@ -18,7 +18,7 @@ function Get-VhciCloudTenantResource {
     $replicationRows = [System.Collections.Generic.List[pscustomobject]]::new()
 
     foreach ($tenant in $Tenants) {
-        # ── Backup storage resources (per quota repo) ─────────────────────────
+        # -- Backup storage resources (per quota repo) -------------------------
         foreach ($r in @($tenant.Resources)) {
             $backupRows.Add([pscustomobject]@{
                 TenantId                = $tenant.Id
@@ -39,7 +39,7 @@ function Get-VhciCloudTenantResource {
             })
         }
 
-        # ── Replication resources (per hardware plan subscription) ─────────────
+        # -- Replication resources (per hardware plan subscription) -------------
         $replResources = $null
         try { $replResources = $tenant.ReplicationResources } catch {}
 
