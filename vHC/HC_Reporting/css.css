@@ -278,7 +278,11 @@ body {
   overflow-x: auto;
 }
 
-.section-card.open .section-body {
+/* Direct-child combinator so a card's "open" state controls ONLY its own
+   immediate body. With the previous descendant selector, an open parent section
+   (e.g. Job Info) forced every nested subsection body visible, so subsections
+   could never be collapsed independently (issue #145). */
+.section-card.open > .section-body {
   display: block;
 }
 
