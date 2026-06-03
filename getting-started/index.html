@@ -502,6 +502,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Remote Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unattended-fleet-execution-scripting-many-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unattended / fleet execution (scripting many servers)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -708,6 +723,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Remote Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unattended-fleet-execution-scripting-many-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unattended / fleet execution (scripting many servers)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -898,6 +928,31 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">VeeamHealthCheck</span><span class="p">.</span><span class="n">exe</span> <span class="p">/</span><span class="n">run</span> <span class="p">/</span><span class="n">host</span><span class="p">=</span><span class="n">vbrserver</span><span class="p">.</span><span class="n">veeam</span><span class="p">.</span><span class="n">local</span>
 </code></pre></div>
 <p>Credentials are prompted and stored securely in Windows Credential Manager.</p>
+<h3 id="unattended-fleet-execution-scripting-many-servers">Unattended / fleet execution (scripting many servers)<a class="headerlink" href="#unattended-fleet-execution-scripting-many-servers" title="Permanent link">&para;</a></h3>
+<p>For non-interactive runs (CI, scripts, running across many VBR servers) supply credentials
+with a <strong>credfile</strong> instead of an interactive prompt. A credfile is a JSON map of
+host → <code>{ Username, PasswordBase64 }</code>, where <code>PasswordBase64</code> is the base64 of the
+UTF‑8 plaintext password. One file can hold credentials for an entire fleet:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;vbr01.corp.local&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;Username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;svc-vhc&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;PasswordBase64&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;base64-pw&gt;&quot;</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;vbr02.corp.local&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;Username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;svc-vhc&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;PasswordBase64&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;base64-pw&gt;&quot;</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;vbr15.corp.local&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;Username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;svc-vhc&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;PasswordBase64&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;base64-pw&gt;&quot;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c"># generate a PasswordBase64 value</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="no">[Convert]</span><span class="p">::</span><span class="n">ToBase64String</span><span class="p">(</span><span class="no">[Text.Encoding]</span><span class="p">::</span><span class="n">UTF8</span><span class="p">.</span><span class="n">GetBytes</span><span class="p">(</span><span class="nv">$plaintextPassword</span><span class="p">))</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c"># run unattended against one host using the credfile</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">VeeamHealthCheck</span><span class="p">.</span><span class="n">exe</span> <span class="p">/</span><span class="n">run</span> <span class="p">/</span><span class="n">remote</span> <span class="p">/</span><span class="n">host</span><span class="p">=</span><span class="n">vbr01</span><span class="p">.</span><span class="n">corp</span><span class="p">.</span><span class="n">local</span> <span class="p">/</span><span class="n">credfile</span><span class="p">=</span><span class="n">C</span><span class="p">:\</span><span class="n">creds</span><span class="p">\</span><span class="n">fleet</span><span class="p">.</span><span class="n">json</span> <span class="p">/</span><span class="n">silent</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c"># loop a fleet</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">foreach</span> <span class="p">(</span><span class="nv">$h</span> <span class="k">in</span> <span class="s1">&#39;vbr01.corp.local&#39;</span><span class="p">,</span><span class="s1">&#39;vbr02.corp.local&#39;</span><span class="p">)</span> <span class="p">{</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  <span class="n">VeeamHealthCheck</span><span class="p">.</span><span class="n">exe</span> <span class="p">/</span><span class="n">run</span> <span class="p">/</span><span class="n">remote</span> <span class="p">/</span><span class="n">host</span><span class="p">=</span><span class="nv">$h</span> <span class="p">/</span><span class="n">credfile</span><span class="p">=</span><span class="n">C</span><span class="p">:\</span><span class="n">creds</span><span class="p">\</span><span class="n">fleet</span><span class="p">.</span><span class="n">json</span> <span class="p">/</span><span class="n">silent</span> <span class="p">/</span><span class="n">outdir</span><span class="p">=</span><span class="n">D</span><span class="p">:\</span><span class="n">Reports</span><span class="p">\</span><span class="nv">$h</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>/silent</code> makes the run fail fast (exit code) instead of prompting. Prefer <code>/credfile=</code>
+over passing a password inline — inline passwords leak into process arguments, shell
+history, and CI logs. Treat the credfile as a secret and delete it after use.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
