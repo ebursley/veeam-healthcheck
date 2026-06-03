@@ -186,13 +186,20 @@ jobs:
         Write-Host "Target VBR: $env:VBR_HOST" -ForegroundColor Yellow
         Write-Host "Working directory: $(Split-Path $exePath)" -ForegroundColor Yellow
         
-        $creds = "$env:VBR_USERNAME`:$env:VBR_PASSWORD"
-        
+        # /creds=user:pass is NOT a supported flag (it is silently ignored, and would
+        # leak the password into process args + CI logs). The tool takes credentials via
+        # a credfile: JSON map of host -> { Username, PasswordBase64 }. One file can hold
+        # many hosts (fleet). PasswordBase64 = base64(UTF8(plaintext)).
+        $pwB64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($env:VBR_PASSWORD))
+        $credFile = Join-Path $env:RUNNER_TEMP ("vbr-creds-" + [guid]::NewGuid().ToString() + ".json")
+        @{ "$env:VBR_HOST" = @{ Username = $env:VBR_USERNAME; PasswordBase64 = $pwB64 } } |
+          ConvertTo-Json -Depth 4 | Set-Content -Path $credFile -Encoding UTF8
+
         # Run from the extracted directory so it can find relative paths
         Push-Location (Split-Path $exePath)
         try {
           $process = Start-Process -FilePath $exePath `
-            -ArgumentList "/run", "/remote", "/host=$env:VBR_HOST", "/creds=$creds" `
+            -ArgumentList "/run", "/remote", "/host=$env:VBR_HOST", "/credfile=$credFile", "/silent" `
             -NoNewWindow -PassThru -Wait
           
           $exitCode = $process.ExitCode
@@ -800,13 +807,18 @@ jobs:
         Write-Host "Target VBR: $env:VBR_HOST" -ForegroundColor Yellow
         Write-Host "Working directory: $(Split-Path $exePath)" -ForegroundColor Yellow
         
-        $creds = "$env:VBR_USERNAME`:$env:VBR_PASSWORD"
-        
+        # /creds=user:pass is NOT a supported flag (silently ignored; leaks password into
+        # args/logs). Supply credentials via a transient credfile: host -> { Username, PasswordBase64 }.
+        $pwB64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($env:VBR_PASSWORD))
+        $credFile = Join-Path $env:RUNNER_TEMP ("vbr-creds-" + [guid]::NewGuid().ToString() + ".json")
+        @{ "$env:VBR_HOST" = @{ Username = $env:VBR_USERNAME; PasswordBase64 = $pwB64 } } |
+          ConvertTo-Json -Depth 4 | Set-Content -Path $credFile -Encoding UTF8
+
         # Run from the extracted directory so it can find relative paths
         Push-Location (Split-Path $exePath)
         try {
           $process = Start-Process -FilePath $exePath `
-            -ArgumentList "/run", "/creds=$creds" `
+            -ArgumentList "/run", "/credfile=$credFile", "/silent" `
             -NoNewWindow -PassThru -Wait
           
           $exitCode = $process.ExitCode

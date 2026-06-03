@@ -211,12 +211,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
 
         private void CloudConnectSection()
         {
-            string dir = CVariables.vbrDir;
-            if (!System.IO.Directory.Exists(dir))
-                return;
-            bool hasGateways = System.IO.Directory.GetFiles(dir, "*_CloudGateways.csv").Length > 0;
-            bool hasTenants  = System.IO.Directory.GetFiles(dir, "*_CloudTenants.csv").Length > 0;
-            if (!hasGateways && !hasTenants)
+            // Render the Cloud Connect section only when its collection data exists.
+            // CHtmlCompiler.BuildSidebar gates the matching nav links on the same
+            // condition so navigation never points at an unrendered section.
+            if (!CVariables.HasCloudConnectData())
                 return;
 
             this.HTMLSTRING += this.tables.AddCloudConnectHeader();
