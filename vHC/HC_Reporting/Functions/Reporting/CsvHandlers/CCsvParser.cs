@@ -95,6 +95,14 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
         // Cloud Connect
         public readonly string cloudGateways = "CloudGateways";
         public readonly string cloudTenants = "CloudTenants";
+        public readonly string cloudGatewayPools = "CloudGatewayPools";
+        public readonly string cloudTenantBackupResources = "CloudTenantBackupResources";
+        public readonly string cloudTenantReplicationResources = "CloudTenantReplicationResources";
+        public readonly string cloudHardwarePlans = "CloudHardwarePlans";
+        public readonly string cloudHardwarePlanDatastores = "CloudHardwarePlanDatastores";
+        public readonly string cloudReplicas = "CloudReplicas";
+        public readonly string cloudFailoverPlans = "CloudFailoverPlans";
+        public readonly string cloudFailoverPlanObjects = "CloudFailoverPlanObjects";
 
         // SureBackup Details
         public readonly string sureBackupAppGroups = "SureBackupAppGroups";
@@ -429,6 +437,46 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
         public IEnumerable<dynamic> GetDynamicCloudTenants()
         {
             return this.VbrGetDynamicCsvRecs(this.cloudTenants, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudGatewayPools()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudGatewayPools, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudTenantBackupResources()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudTenantBackupResources, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudTenantReplicationResources()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudTenantReplicationResources, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudHardwarePlans()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudHardwarePlans, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudHardwarePlanDatastores()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudHardwarePlanDatastores, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudReplicas()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudReplicas, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudFailoverPlans()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudFailoverPlans, CVariables.vbrDir);
+        }
+
+        public IEnumerable<dynamic> GetDynamicCloudFailoverPlanObjects()
+        {
+            return this.VbrGetDynamicCsvRecs(this.cloudFailoverPlanObjects, CVariables.vbrDir);
         }
 
         // SureBackup Details

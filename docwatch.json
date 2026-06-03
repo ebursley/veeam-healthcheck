@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.1",
+  "project": {
+    "name": "veeam-healthcheck",
+    "description": "Veeam Health Check tool — generates configuration and sizing reports for VBR installations",
+    "notify": {
+      "github_issues": false,
+      "ntfy_url": null
+    }
+  },
+  "watches": [
+    {
+      "id": "vhc-1",
+      "claim": "VBR v12+: VMware proxy supports 2 concurrent tasks per core and 1 task per 1 GB RAM",
+      "description": "Proxy task capacity formula for v12+ — doubling the v11 ratio. Used in CProxyDataFormer.cs to calculate max concurrency.",
+      "products": ["vbr"],
+      "keywords": ["proxy", "concurrent tasks", "vmware proxy", "vSphere proxy", "task per core", "v12"],
+      "content_keywords": ["sizing", "concurrency", "proxy capacity", "task multiplier"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-2",
+      "claim": "VBR v11: VMware proxy supports 1 concurrent task per core and 1 task per 2 GB RAM",
+      "description": "Proxy task capacity formula for v11 — lower ratio than v12+. Used in CProxyDataFormer.cs version branch.",
+      "products": ["vbr"],
+      "keywords": ["proxy", "concurrent tasks", "vmware proxy", "task per core", "v11"],
+      "content_keywords": ["sizing", "concurrency", "proxy capacity", "task multiplier", "version 11"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-3",
+      "claim": "VBR repository and gateway servers support 3 concurrent tasks per CPU core and require 4 GB RAM per task",
+      "description": "Repository/gateway concurrency formula in CDataTypesParser.cs — coreTasks = cores × 3, memTasks = RAM ÷ 4.",
+      "products": ["vbr"],
+      "keywords": ["repository", "gateway", "concurrent tasks", "task per core", "repository sizing", "backup repository"],
+      "content_keywords": ["sizing", "concurrency", "repository capacity", "storage repository"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-4",
+      "claim": "VBR NAS/file proxy (GP proxy) requires 2 CPU cores and 4 GB RAM per concurrent task",
+      "description": "GP proxy is far more resource-intensive than VP proxy. Encoded in VbrConfig.json as 2 cores/task and 4 GB/task.",
+      "products": ["vbr"],
+      "keywords": ["NAS proxy", "file proxy", "GP proxy", "unstructured data", "NAS backup", "concurrent tasks"],
+      "content_keywords": ["sizing", "NAS", "file share", "SMB", "NFS", "proxy capacity"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-5",
+      "claim": "VBR CDP proxy requires a fixed minimum of 4 CPU cores and 8 GB RAM regardless of task count",
+      "description": "CDP proxy sizing is not per-task; it has a fixed floor. Encoded in VbrConfig.json as CDP_cores=4, CDP_ram=8.",
+      "products": ["vbr"],
+      "keywords": ["CDP proxy", "continuous data protection", "CDP sizing", "replication proxy"],
+      "content_keywords": ["sizing", "CDP", "continuous data protection", "replication"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-6",
+      "claim": "VBR Backup Server requires minimum 4 CPU cores and 8 GB RAM for OS overhead on v12, and 8 cores / 16 GB RAM on v13+",
+      "description": "OS overhead floor for the backup server itself, before any task math. Version-branched in Invoke-VhcConcurrencyAnalysis.ps1.",
+      "products": ["vbr"],
+      "keywords": ["backup server", "system requirements", "minimum requirements", "hardware requirements", "v13", "v12"],
+      "content_keywords": ["sizing", "backup server requirements", "OS overhead", "minimum CPU", "minimum RAM"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-7",
+      "claim": "VBR v13 Security Compliance Analyzer results are accessible via Get-VBRSecurityComplianceAnalyzerResults and expose Id, Note, Status, and Type fields",
+      "description": "SCA rule collection depends on this cmdlet signature. The health check maps rule IDs to human-readable guidance from VbrConfig.json.",
+      "products": ["vbr"],
+      "keywords": ["security compliance", "SCA", "Get-VBRSecurityComplianceAnalyzerResults", "compliance analyzer", "hardening"],
+      "content_keywords": ["security", "compliance", "hardening", "best practices", "MFA", "immutability", "3-2-1"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-8",
+      "claim": "VBR NAS backup job sessions write unstructured data statistics under '=====UNSTRUCTURED DATA====' and '=====NAS INFRASTRUCTURE====' sections in the VMC.log file",
+      "description": "NAS log parsing in Get-NasInfo.ps1 depends on these exact section headers in VMC.log to extract share stats.",
+      "products": ["vbr"],
+      "keywords": ["NAS backup", "VMC.log", "unstructured data", "NAS infrastructure", "file share backup", "log format"],
+      "content_keywords": ["NAS", "log parsing", "unstructured", "file share", "SMB", "NFS"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-9",
+      "claim": "VBR Gateway server minimum OS floor is 2 CPU cores and 4 GB RAM",
+      "description": "Gateway server OS overhead minimum used in multi-role server calculations. Corrected from earlier 1-core assumption per ADR 0010.",
+      "products": ["vbr"],
+      "keywords": ["gateway server", "backup gateway", "gateway sizing", "object storage gateway", "NAS gateway"],
+      "content_keywords": ["sizing", "gateway", "minimum requirements", "OS overhead"],
+      "pages": [],
+      "severity": "high",
+      "change_type_filter": ["modified", "added"]
+    },
+    {
+      "id": "vhc-10",
+      "claim": "VBR stores its active database configuration (PostgreSQL vs MSSQL, connection details) in the Windows registry at HKLM:\\SOFTWARE\\Veeam\\Veeam Backup and Replication",
+      "description": "Registry path used by Get-SqlSName.ps1 to discover the active database backend. SqlActiveConfiguration key determines PostgreSQL vs MSSQL branch.",
+      "products": ["vbr"],
+      "keywords": ["registry", "database configuration", "PostgreSQL", "MSSQL", "SQL configuration", "backup server registry"],
+      "content_keywords": ["registry", "database", "configuration", "SqlActiveConfiguration"],
+      "pages": [],
+      "severity": "medium",
+      "change_type_filter": ["modified", "added"]
+    }
+  ]
+}

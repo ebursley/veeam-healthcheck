@@ -13,6 +13,7 @@ namespace VhcXTests.Functions.Reporting.Html
     /// Focus: Ensuring graceful handling of missing/empty CSV data (Issue #47).
     /// </summary>
     [Trait("Category", "Unit")]
+    [Collection("GlobalState")]
     public class CBackupServerTableHelperTEST : IDisposable
     {
         private CDataTypesParser originalParser;

@@ -13,6 +13,7 @@ namespace VhcXTests.Functions.Reporting.Html
     /// These tests focus on what can be tested without extensive mocking.
     /// </summary>
     [Trait("Category", "Unit")]
+    [Collection("GlobalState")]
     public class CHtmlExporterTEST : IDisposable
     {
         private readonly string _testOutputDir;

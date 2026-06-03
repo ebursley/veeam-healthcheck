@@ -102,5 +102,25 @@ namespace VeeamHealthCheck
         {
             return unsafeDir + VbrDir;
         }
+
+        /// <summary>
+        /// True when the resolved VBR data directory contains Cloud Connect collection
+        /// output (gateways or tenants). Single source of truth shared by the report
+        /// body (CHtmlBodyHelper.CloudConnectSection) and the sidebar nav
+        /// (CHtmlCompiler.BuildSidebar) so the Cloud Connect navigation links are only
+        /// emitted when their target section actually renders. Without this guard, a VBR
+        /// server with no Cloud Connect configured produces 10 dead "#cloud*" nav links,
+        /// which the CI HTML validator flags as a release-blocking defect.
+        /// </summary>
+        public static bool HasCloudConnectData()
+        {
+            string dir = vbrDir;
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return false;
+
+            bool hasGateways = Directory.GetFiles(dir, "*_CloudGateways.csv").Length > 0;
+            bool hasTenants = Directory.GetFiles(dir, "*_CloudTenants.csv").Length > 0;
+            return hasGateways || hasTenants;
+        }
     }
 }

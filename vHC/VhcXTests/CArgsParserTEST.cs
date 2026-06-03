@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2021, Adam Congdon <adam.congdon2@gmail.com>
 // MIT License
 using System;
+using System.IO;
 using System.Reflection;
 using VeeamHealthCheck.Shared;
 using VeeamHealthCheck.Shared.Logging;
@@ -9,6 +10,7 @@ using Xunit;
 
 namespace VhcXTests
 {
+    [Collection("GlobalState")]
     public class CArgsParserTests
     {
         // Helper method to access private ParsePath method via reflection
@@ -721,32 +723,37 @@ namespace VhcXTests
         #region Issue #152 — /outdir sets CGlobals.desiredPath immediately
 
         /// <summary>
-        /// Parsing /outdir=D:\custom\path must set CGlobals.desiredPath to D:\custom\path.
+        /// Parsing /outdir=&lt;dir&gt; must set CGlobals.desiredPath to that directory.
         ///
         /// Before the fix the /outdir case only assigned the local variable targetDir;
         /// CGlobals.desiredPath was never updated so downstream consumers (CLogger,
         /// CScrubHandler) kept writing to the default C:\temp\vHC\Original\ path.
+        ///
+        /// Uses a runtime temp directory (not a hardcoded D:\ path) so the test is
+        /// portable to any host / CI agent regardless of available drive letters.
         /// </summary>
         [Fact]
         public void ApplyFlagsForTest_OutdirArg_SetsCGlobalsDesiredPath()
         {
             // Arrange
             string originalDesiredPath = CGlobals.desiredPath;
+            string outDir = Path.Combine(Path.GetTempPath(), "vHC_OutdirTest_" + Guid.NewGuid());
             try
             {
                 CGlobals.desiredPath = null; // clear before test
                 var parser = new CArgsParser(new string[] { });
 
                 // Act — invoke ApplyFlagsForTest which mirrors the /outdir branch
-                parser.ApplyFlagsForTest(new[] { @"/outdir=D:\custom\path" });
+                parser.ApplyFlagsForTest(new[] { "/outdir=" + outDir });
 
                 // Assert
-                Assert.Equal(@"D:\custom\path", CGlobals.desiredPath);
+                Assert.Equal(outDir, CGlobals.desiredPath);
             }
             finally
             {
                 CGlobals.desiredPath = originalDesiredPath;
                 CGlobals.mainlog = new VeeamHealthCheck.Shared.Logging.CLogger("HealthCheck");
+                try { Directory.Delete(outDir, recursive: true); } catch { /* best-effort cleanup */ }
             }
         }
 
@@ -764,50 +771,56 @@ namespace VhcXTests
             // Arrange
             string originalDesiredPath = CGlobals.desiredPath;
             var originalMainLog = CGlobals.mainlog;
+            string outDir = Path.Combine(Path.GetTempPath(), "vHC_OutdirLogTest_" + Guid.NewGuid());
             try
             {
                 var parser = new CArgsParser(new string[] { });
 
                 // Act
-                parser.ApplyFlagsForTest(new[] { @"/outdir=D:\custom\logs" });
+                parser.ApplyFlagsForTest(new[] { "/outdir=" + outDir });
 
                 // Assert: logFile path must contain the custom output directory
-                Assert.Contains(@"D:\custom\logs", CGlobals.mainlog.logFile,
+                Assert.Contains(outDir, CGlobals.mainlog.logFile,
                     StringComparison.OrdinalIgnoreCase);
             }
             finally
             {
                 CGlobals.desiredPath = originalDesiredPath;
                 CGlobals.mainlog = originalMainLog;
+                try { Directory.Delete(outDir, recursive: true); } catch { /* best-effort cleanup */ }
             }
         }
 
         /// <summary>
         /// /outdir= with case-insensitive variant (OUTDIR) must also set desiredPath.
+        /// InlineData carries only the flag-name casing under test; the output path is a
+        /// runtime temp directory so the test is portable to any host (no hardcoded D:\).
         /// </summary>
         [Theory]
-        [InlineData(@"/outdir=D:\Reports")]
-        [InlineData(@"/OUTDIR=D:\Reports")]
-        [InlineData(@"/Outdir=D:\Reports")]
-        public void ApplyFlagsForTest_OutdirVariantCasing_SetsCGlobalsDesiredPath(string arg)
+        [InlineData("/outdir=")]
+        [InlineData("/OUTDIR=")]
+        [InlineData("/Outdir=")]
+        public void ApplyFlagsForTest_OutdirVariantCasing_SetsCGlobalsDesiredPath(string flag)
         {
             // Arrange
             string originalDesiredPath = CGlobals.desiredPath;
             var originalMainLog = CGlobals.mainlog;
+            string outDir = Path.Combine(Path.GetTempPath(), "vHC_OutdirCasingTest_" + Guid.NewGuid());
             try
             {
                 var parser = new CArgsParser(new string[] { });
 
-                // Act
-                parser.ApplyFlagsForTest(new[] { arg });
+                // Act — the flag-name casing is what's under test; path is runtime-portable
+                parser.ApplyFlagsForTest(new[] { flag + outDir });
 
                 // Assert
-                Assert.Equal(@"D:\Reports", CGlobals.desiredPath);
+                Assert.Equal(outDir, CGlobals.desiredPath);
             }
             finally
             {
                 CGlobals.desiredPath = originalDesiredPath;
                 CGlobals.mainlog = originalMainLog;
+                try { Directory.Delete(outDir, recursive: true); } catch { /* best-effort cleanup */ }
             }
         }
 

@@ -85,6 +85,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.RepositoryInfoSection();
             this.log.Info(this.logStart + "Repository Info section completed.");
 
+            this.log.Info(this.logStart + "Generating Cloud Connect section...");
+            this.CloudConnectSection();
+            this.log.Info(this.logStart + "Cloud Connect section completed.");
+
             this.log.Info(this.logStart + "Generating Job Tables section...");
             this.JobTablesSection();
             this.log.Info(this.logStart + "Job Tables section completed.");
@@ -203,6 +207,78 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.RepoTable();
 
             this.HTMLSTRING += this.tables.AddRepositoryInfoFooter();
+        }
+
+        private void CloudConnectSection()
+        {
+            // Render the Cloud Connect section only when its collection data exists.
+            // CHtmlCompiler.BuildSidebar gates the matching nav links on the same
+            // condition so navigation never points at an unrendered section.
+            if (!CVariables.HasCloudConnectData())
+                return;
+
+            this.HTMLSTRING += this.tables.AddCloudConnectHeader();
+            this.CloudGatewaysTable();
+            this.CloudGatewayPoolsTable();
+            this.CloudTenantsTable();
+            this.CloudTenantBackupResourcesTable();
+            this.CloudTenantReplicationResourcesTable();
+            this.CloudHardwarePlansTable();
+            this.CloudHardwarePlanDatastoresTable();
+            this.CloudReplicasTable();
+            this.CloudFailoverPlansTable();
+            this.CloudFailoverPlanObjectsTable();
+            this.HTMLSTRING += this.tables.AddCloudConnectFooter();
+        }
+
+        private void CloudGatewaysTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudGatewaysTable(this.SCRUB);
+        }
+
+        private void CloudGatewayPoolsTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudGatewayPoolsTable(this.SCRUB);
+        }
+
+        private void CloudTenantsTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudTenantsTable(this.SCRUB);
+        }
+
+        private void CloudTenantBackupResourcesTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudTenantBackupResourcesTable(this.SCRUB);
+        }
+
+        private void CloudTenantReplicationResourcesTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudTenantReplicationResourcesTable(this.SCRUB);
+        }
+
+        private void CloudHardwarePlansTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudHardwarePlansTable(this.SCRUB);
+        }
+
+        private void CloudHardwarePlanDatastoresTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudHardwarePlanDatastoresTable(this.SCRUB);
+        }
+
+        private void CloudReplicasTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudReplicasTable(this.SCRUB);
+        }
+
+        private void CloudFailoverPlansTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudFailoverPlansTable(this.SCRUB);
+        }
+
+        private void CloudFailoverPlanObjectsTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudFailoverPlanObjectsTable(this.SCRUB);
         }
 
         private void JobTablesSection()
