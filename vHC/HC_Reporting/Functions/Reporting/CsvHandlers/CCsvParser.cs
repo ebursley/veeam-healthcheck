@@ -600,6 +600,60 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
             return Enumerable.Empty<CBnRCsvInfo>();
         }
 
+        // The canonical VBR-info CSV suffix. Collection writes every CSV as
+        // "{vbrServerName}_{token}.csv" and the containing folder is also named after the
+        // VBR server (see CVariables.GetVbrDirWithTimestamp). The filename prefix is therefore
+        // the authoritative VBR server name for BOTH live runs and imports — and, unlike the
+        // PgHost/MsHost columns inside vbrinfo.csv, it is immune to the database living on a
+        // separate host (issue #158).
+        private const string VbrInfoCsvSuffix = "_vbrinfo.csv";
+
+        /// <summary>
+        /// Extracts the VBR server name from a collected CSV file name of the form
+        /// "{server}_vbrinfo.csv" (e.g. "vbr-v13-rtm.home.lab_vbrinfo.csv" -> "vbr-v13-rtm.home.lab").
+        /// Anchors on the known "_vbrinfo.csv" suffix so server names containing dots (FQDNs) are
+        /// preserved and tokens that themselves contain underscores cannot corrupt the result.
+        /// Returns null when the name does not match the expected pattern.
+        /// </summary>
+        public static string ExtractServerNameFromCsvFileName(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return null;
+
+            fileName = Path.GetFileName(fileName);
+            if (!fileName.EndsWith(VbrInfoCsvSuffix, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            string server = fileName.Substring(0, fileName.Length - VbrInfoCsvSuffix.Length);
+            return string.IsNullOrWhiteSpace(server) ? null : server;
+        }
+
+        /// <summary>
+        /// Resolves the VBR server name by locating the "{server}_vbrinfo.csv" file beneath the
+        /// supplied collection directory and reading its filename prefix. This is the source of
+        /// truth for report naming because collection itself derived the same name when it wrote
+        /// the folder/files. Works for live and imported datasets alike. Returns null when no
+        /// vbrinfo CSV is present or the directory does not exist.
+        /// </summary>
+        public static string ResolveServerNameFromCsvDir(string csvDirectory)
+        {
+            if (string.IsNullOrEmpty(csvDirectory) || !Directory.Exists(csvDirectory))
+                return null;
+
+            try
+            {
+                string match = Directory
+                    .EnumerateFiles(csvDirectory, "*" + VbrInfoCsvSuffix, SearchOption.AllDirectories)
+                    .FirstOrDefault();
+
+                return match == null ? null : ExtractServerNameFromCsvFileName(match);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
         public IEnumerable<CSobrExtentCsvInfos> SobrExtParser()
         {
             this.log.Info($"[CCsvParser] Looking for SOBR Extent CSV file: {this.sobrExtReportName}");

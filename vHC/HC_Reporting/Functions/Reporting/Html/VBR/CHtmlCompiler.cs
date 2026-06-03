@@ -130,51 +130,39 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
                 return CGlobals.REMOTEHOST;
             }
 
-            // Priority 2: Extract VBR server name from vbrinfo CSV (works for import and local)
+            // Priority 2: Derive the VBR server name from the collected CSV file names.
+            // Collection writes "{vbrServerName}_{token}.csv" under Original\VBR\{vbrServerName}\{timestamp},
+            // so the filename prefix is the authoritative VBR server name for both live and imported
+            // datasets. Unlike the PgHost/MsHost columns inside vbrinfo.csv, this stays correct even
+            // when the configuration database lives on a separate host (issue #158).
             try
             {
-                this.log.Info(this.logStart + "Attempting to read VBR server name from vbrinfo.csv...");
-                CCsvParser parser = new();
-                var vbrInfo = parser.BnrCsvParser()?.FirstOrDefault();
+                this.log.Info(this.logStart + "Resolving VBR server name from collected CSV file names...");
+                string csvDir = new CCsvParser().outPath;
+                string serverName = CCsvParser.ResolveServerNameFromCsvDir(csvDir);
 
-                if (vbrInfo != null)
+                if (!string.IsNullOrEmpty(serverName))
                 {
-                    // Determine server name based on database type
-                    string serverName = null;
-
-                    if (!string.IsNullOrEmpty(vbrInfo.DbType))
-                    {
-                        if (vbrInfo.DbType.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) ||
-                            vbrInfo.DbType.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
-                        {
-                            serverName = vbrInfo.PgHost;
-                            this.log.Info(this.logStart + "Using PostgreSQL host: " + serverName);
-                        }
-                        else if (vbrInfo.DbType.Contains("Sql", StringComparison.OrdinalIgnoreCase))
-                        {
-                            serverName = vbrInfo.MsHost;
-                            this.log.Info(this.logStart + "Using SQL Server host: " + serverName);
-                        }
-                    }
-
-                    // If we got a valid server name, use it
-                    if (!string.IsNullOrEmpty(serverName))
-                    {
-                        this.log.Info(this.logStart + "VBR server name from CSV: " + serverName);
-                        return serverName;
-                    }
+                    this.log.Info(this.logStart + "VBR server name from CSV path: " + serverName);
+                    return serverName;
                 }
-                else
-                {
-                    this.log.Warning(this.logStart + "vbrinfo.csv not found or empty");
-                }
+
+                this.log.Warning(this.logStart + "No vbrinfo CSV found under: " + csvDir);
             }
             catch (Exception ex)
             {
-                this.log.Warning(this.logStart + "Failed to read VBR server name from CSV: " + ex.Message);
+                this.log.Warning(this.logStart + "Failed to resolve VBR server name from CSV path: " + ex.Message);
             }
 
-            // Priority 3: Fallback to local hostname
+            // Priority 3: GUI-selected server name, when it is something other than the localhost default.
+            if (!string.IsNullOrEmpty(CGlobals.VBRServerName) &&
+                !CGlobals.VBRServerName.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                this.log.Info(this.logStart + "Using CGlobals.VBRServerName: " + CGlobals.VBRServerName);
+                return CGlobals.VBRServerName;
+            }
+
+            // Priority 4: Fallback to local hostname
             this.log.Info(this.logStart + "Falling back to Dns.GetHostName()...");
             string hostname = Dns.GetHostName();
             this.log.Info(this.logStart + "Using local hostname: " + hostname);
