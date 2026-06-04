@@ -144,7 +144,7 @@ jobs:
       run: |
         $version = "${{ steps.get_version.outputs.version }}"
         $zipPath = "publish/VeeamHealthCheck-$version.zip"
-        $apiKey = "${{ secrets.VT_API_KEY }}"
+        $apiKey = "${{ secrets.VIRUSTOTAL_API_KEY }}"
         $headers = @{ "x-apikey" = $apiKey }
         $form = @{ file = Get-Item $zipPath }
 
@@ -314,6 +314,31 @@ jobs:
           $notes.Add("")
           $notes.Add("---")
           $notes.Add("")
+        } else {
+          # No PR body — auto-generate from git log since last tag
+          $prevTag = git describe --tags --abbrev=0 HEAD 2>$null
+          if ($LASTEXITCODE -eq 0 -and $prevTag) {
+            $logLines = git log "$prevTag..HEAD" --no-merges --format="%s" 2>$null
+            $featLines = [System.Collections.Generic.List[string]]::new()
+            $fixLines  = [System.Collections.Generic.List[string]]::new()
+            foreach ($msg in $logLines) {
+              if ($msg -match '^feat(\([^)]+\))?[!]?:\s*(.+)') { $featLines.Add("- $($Matches[2])") }
+              elseif ($msg -match '^fix(\([^)]+\))?[!]?:\s*(.+)')  { $fixLines.Add("- $($Matches[2])") }
+            }
+            if ($featLines.Count -gt 0) {
+              $notes.Add("### ✨ Features")
+              $notes.Add("")
+              $featLines | ForEach-Object { $notes.Add($_) }
+              $notes.Add("")
+            }
+            if ($fixLines.Count -gt 0) {
+              $notes.Add("### 🐛 Bug Fixes")
+              $notes.Add("")
+              $fixLines | ForEach-Object { $notes.Add($_) }
+              $notes.Add("")
+            }
+            if ($featLines.Count + $fixLines.Count -gt 0) { $notes.Add("---"); $notes.Add("") }
+          }
         }
 
         $notes.Add("### ✅ Security & Quality Verification")
