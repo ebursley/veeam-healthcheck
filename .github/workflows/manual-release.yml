@@ -364,8 +364,11 @@ jobs:
       shell: pwsh
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_VERSION: ${{ steps.get_version.outputs.version }}
+        IS_PRERELEASE: ${{ inputs.prerelease }}
+        GH_REPO: ${{ github.repository }}
       run: |
-        $version = "${{ steps.get_version.outputs.version }}"
+        $version = $env:RELEASE_VERSION
         $zipPath = "publish/VeeamHealthCheck-$version.zip"
         $notesFile = "release_notes.md"
 
@@ -376,10 +379,10 @@ jobs:
           gh release upload "v$version" $zipPath --clobber
         } else {
           Write-Host "Creating new release v$version..."
-          $prereleaseFlag = if ("${{ inputs.prerelease }}" -eq "true") { "--prerelease" } else { "" }
+          $prereleaseFlag = if ($env:IS_PRERELEASE -eq "true") { "--prerelease" } else { "" }
           gh release create "v$version" --title "Veeam Health Check v$version" --notes-file $notesFile $zipPath $prereleaseFlag
         }
-        Write-Host "Release URL: https://github.com/${{ github.repository }}/releases/tag/v$version"
+        Write-Host "Release URL: https://github.com/$env:GH_REPO/releases/tag/v$version"
 
     - name: Dry run summary
       if: ${{ inputs.dry_run }}
