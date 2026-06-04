@@ -146,12 +146,20 @@ jobs:
         $zipPath = "publish/VeeamHealthCheck-$version.zip"
         $apiKey = "${{ secrets.VIRUSTOTAL_API_KEY }}"
         $headers = @{ "x-apikey" = $apiKey }
-        $form = @{ file = Get-Item $zipPath }
+        $fileSizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 
         try {
-          $uploadResponse = Invoke-RestMethod -Uri "https://www.virustotal.com/api/v3/files" -Method Post -Headers $headers -Form $form
+          # Files >32 MB require the large-file upload URL (VT premium endpoint)
+          $uploadUri = "https://www.virustotal.com/api/v3/files"
+          if ($fileSizeMB -gt 32) {
+            Write-Host "File is $fileSizeMB MB — requesting large-file upload URL..."
+            $urlResp = Invoke-RestMethod -Uri "https://www.virustotal.com/api/v3/files/upload_url" -Headers $headers
+            $uploadUri = $urlResp.data
+            Write-Host "Got large-file upload URL"
+          }
+          $uploadResponse = Invoke-RestMethod -Uri $uploadUri -Method Post -Headers $headers -Form @{ file = Get-Item $zipPath }
           $analysisId = $uploadResponse.data.id
-          Write-Host "Uploaded to VirusTotal. Analysis ID: $analysisId"
+          Write-Host "Uploaded to VirusTotal ($fileSizeMB MB). Analysis ID: $analysisId"
 
           $maxAttempts = 20
           $attempt = 0
