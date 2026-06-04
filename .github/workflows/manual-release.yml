@@ -11,6 +11,11 @@ on:
         description: 'Version override (leave empty to use AssemblyVersion from csproj)'
         required: false
         type: string
+      prerelease:
+        description: 'Mark as pre-release (beta/RC from dev branch)'
+        required: false
+        type: boolean
+        default: false
       skip_virustotal:
         description: 'Skip VirusTotal scan'
         required: false
@@ -371,7 +376,8 @@ jobs:
           gh release upload "v$version" $zipPath --clobber
         } else {
           Write-Host "Creating new release v$version..."
-          gh release create "v$version" --title "Veeam Health Check v$version" --notes-file $notesFile $zipPath
+          $prereleaseFlag = if ("${{ inputs.prerelease }}" -eq "true") { "--prerelease" } else { "" }
+          gh release create "v$version" --title "Veeam Health Check v$version" --notes-file $notesFile $zipPath $prereleaseFlag
         }
         Write-Host "Release URL: https://github.com/${{ github.repository }}/releases/tag/v$version"
 
