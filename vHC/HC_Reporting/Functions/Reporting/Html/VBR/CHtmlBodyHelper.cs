@@ -68,15 +68,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.log.Info(this.logStart + "Generating Configuration Tables section...");
             this.ConfigurationTablesSection();
             this.log.Info(this.logStart + "Configuration Tables section completed.");
-            
-            this.log.Info(this.logStart + "Generating General Settings section...");
-            this.GeneralSettingsSection();
-            this.log.Info(this.logStart + "General Settings section completed.");
-            
-            this.log.Info(this.logStart + "Generating RegistryKeyTable...");
-            this.RegistryKeyTable();
-            this.log.Info(this.logStart + "RegistryKeyTable completed.");
-            
+
             this.log.Info(this.logStart + "Generating Proxy Info section...");
             this.ProxyInfoSection();
             this.log.Info(this.logStart + "Proxy Info section completed.");
@@ -92,6 +84,20 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.log.Info(this.logStart + "Generating Job Tables section...");
             this.JobTablesSection();
             this.log.Info(this.logStart + "Job Tables section completed.");
+
+            // General Settings (credentials/roles/email) and Registry Keys are
+            // reference/appendix material. Emit them after the job tables so the body
+            // flows Overview -> Infrastructure -> Cloud -> Jobs -> Misc, matching the
+            // sidebar grouping; Registry Keys map to the sidebar "Misc" group, which is
+            // last (issue #146). Previously these sat between Configuration Tables and
+            // Proxy Info, interrupting the Infrastructure -> Cloud -> Jobs flow.
+            this.log.Info(this.logStart + "Generating General Settings section...");
+            this.GeneralSettingsSection();
+            this.log.Info(this.logStart + "General Settings section completed.");
+
+            this.log.Info(this.logStart + "Generating RegistryKeyTable...");
+            this.RegistryKeyTable();
+            this.log.Info(this.logStart + "RegistryKeyTable completed.");
 
             if (CGlobals.EXPORTINDIVIDUALJOBHTMLS)
             {
