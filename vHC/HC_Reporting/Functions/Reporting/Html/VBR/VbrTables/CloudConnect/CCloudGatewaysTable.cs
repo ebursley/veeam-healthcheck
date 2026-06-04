@@ -80,7 +80,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
                         if (!string.IsNullOrEmpty(hostName) && serverLookup.TryGetValue(hostName, out var srvInfo))
                         {
                             cores = srvInfo.Cores;
-                            ram = srvInfo.Ram;
+                            ram = FormatRamGb(srvInfo.Ram);
                         }
                         s += this.form.TableData(cores, string.Empty);
                         s += this.form.TableData(ram, string.Empty);
@@ -98,6 +98,15 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             s += this.form.SectionEnd();
 
             return s;
+        }
+
+        private static string FormatRamGb(string rawBytes)
+        {
+            if (string.IsNullOrWhiteSpace(rawBytes)) return string.Empty;
+            if (!long.TryParse(rawBytes.Trim(), System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out long bytes)) return rawBytes;
+            long gb = (long)System.Math.Round(bytes / (1024d * 1024d * 1024d));
+            return $"{gb} GB";
         }
     }
 }

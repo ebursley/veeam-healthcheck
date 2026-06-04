@@ -1503,6 +1503,12 @@ namespace VeeamHealthCheck.Html.VBR
             return table.Render(scrub);
         }
 
+        public string AddCloudTenantPerformanceTable(bool scrub)
+        {
+            var table = new CCloudTenantPerformanceTable();
+            return table.Render(scrub);
+        }
+
         public string AddCloudTenantsTable(bool scrub)
         {
             var table = new CCloudTenantsTable();

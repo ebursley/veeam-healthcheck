@@ -70,5 +70,69 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             // non-PII column still renders
             Assert.Contains("Standalone", html);
         }
+
+        [Fact]
+        public void Render_MaxConcurrentTaskZero_DisplaysUnlimited()
+        {
+            WriteCsv("ACME-Tenant,desc,True,Standalone,2026-01-01,Success,0,0,0,0," +
+                     "0,0,0,0,0,0,0,0,0,False,0,MbytePerSec,StandaloneGateways,ACME-Pool,False,Never," +
+                     "2030-01-01,True,30");
+
+            string html = new CCloudTenantsTable().Render(scrub: false);
+
+            Assert.Contains("Unlimited", html);
+        }
+
+        [Fact]
+        public void Render_MaxConcurrentTaskEmpty_DisplaysUnlimited()
+        {
+            WriteCsv("ACME-Tenant,desc,True,Standalone,2026-01-01,Success,0,0,0,0," +
+                     "0,0,0,0,0,0,0,0,,False,0,MbytePerSec,StandaloneGateways,ACME-Pool,False,Never," +
+                     "2030-01-01,True,30");
+
+            string html = new CCloudTenantsTable().Render(scrub: false);
+
+            Assert.Contains("Unlimited", html);
+        }
+
+        [Fact]
+        public void Render_ThrottlingDisabled_DisplaysDashForValueAndUnit()
+        {
+            // ThrottlingEnabled=False → value and unit should show "—", not the raw values
+            WriteCsv("ACME-Tenant,desc,True,Standalone,2026-01-01,Success,0,0,0,0," +
+                     "0,0,0,0,0,0,0,0,4,False,500,MbytePerSec,StandaloneGateways,ACME-Pool,False,Never," +
+                     "2030-01-01,True,30");
+
+            string html = new CCloudTenantsTable().Render(scrub: false);
+
+            Assert.Contains("—", html);
+            Assert.DoesNotContain("500", html);
+            Assert.DoesNotContain("MbytePerSec", html);
+        }
+
+        [Fact]
+        public void Render_ThrottlingEnabled_DisplaysActualValues()
+        {
+            // ThrottlingEnabled=True → value and unit should show actual values
+            WriteCsv("ACME-Tenant,desc,True,Standalone,2026-01-01,Success,0,0,0,0," +
+                     "0,0,0,0,0,0,0,0,4,True,500,MbytePerSec,StandaloneGateways,ACME-Pool,False,Never," +
+                     "2030-01-01,True,30");
+
+            string html = new CCloudTenantsTable().Render(scrub: false);
+
+            Assert.Contains("500", html);
+            Assert.Contains("MbytePerSec", html);
+        }
+
+        [Fact]
+        public void Render_Headers_ContainsMaxBandwidthAndBandwidthUnit()
+        {
+            string html = new CCloudTenantsTable().Render(scrub: false);
+
+            Assert.Contains("Max Bandwidth", html);
+            Assert.Contains("Bandwidth Unit", html);
+            Assert.DoesNotContain("Throttle Value", html);
+            Assert.DoesNotContain("Throttle Unit", html);
+        }
     }
 }
