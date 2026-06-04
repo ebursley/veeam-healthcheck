@@ -25,6 +25,8 @@ param(
     [string] $ImportPath = '',
     [string] $LabServer = '',
     [switch] $Build,
+    [switch] $SkipTests,        # skip BOTH the xUnit suite and the Pester suites
+    [switch] $SkipDotnetTest,   # skip only the (slow) xUnit suite, still run Pester
     [string] $ExePath = '',
     [string] $OutDir = 'C:\temp\vHC',
     [string] $Baseline = '',
@@ -95,6 +97,35 @@ function Invoke-Pass {
     }
 }
 
+function Invoke-Tests {
+    Write-Host '== Unit tests ==' -ForegroundColor Cyan
+    # xUnit suite - the correctness backbone (645 tests). Slow (~2-3 min); -SkipDotnetTest to skip.
+    if (-not $SkipDotnetTest) {
+        $csproj = Join-Path (Split-Path $hcReporting -Parent) 'VhcXTests\VhcXTests.csproj'
+        if (Test-Path $csproj) {
+            $out  = & dotnet test $csproj -c Debug --nologo -v q 2>&1
+            $line = ($out | Select-String 'Passed!|Failed!' | Select-Object -Last 1)
+            $ok   = ($LASTEXITCODE -eq 0) -and ($out -match 'Passed!')
+            Add-Result (New-VhcE2EResult 'Tests:xUnit' $ok (($line -replace '\s+', ' ').Trim()))
+        } else {
+            Add-Result (New-VhcE2EResult 'Tests:xUnit' $false "VhcXTests.csproj not found at $csproj")
+        }
+    }
+    # Pester suites - module unit tests + validation guards + E2E check functions (exclude LiveVBR).
+    try {
+        Import-Module Pester -MinimumVersion 5.0 -ErrorAction Stop
+        $cfg = New-PesterConfiguration
+        $cfg.Run.Path      = (Split-Path (Split-Path $PSScriptRoot))   # vHC-VbrConfig root
+        $cfg.Run.PassThru  = $true
+        $cfg.Filter.ExcludeTag = 'LiveVBR'
+        $cfg.Output.Verbosity  = 'None'
+        $pr = Invoke-Pester -Configuration $cfg
+        Add-Result (New-VhcE2EResult 'Tests:Pester' ($pr.FailedCount -eq 0) "$($pr.PassedCount) passed, $($pr.FailedCount) failed, $($pr.SkippedCount) skipped")
+    } catch {
+        Add-Result (New-VhcE2EResult 'Tests:Pester' $false "Pester run error: $($_.Exception.Message)")
+    }
+}
+
 function Write-Result {
     $pass = @($results | Where-Object { $_.Pass }).Count
     $fail = @($results | Where-Object { -not $_.Pass }).Count
@@ -107,6 +138,7 @@ function Write-Result {
 }
 
 # --- Drive modes ------------------------------------------------------------
+if (-not $SkipTests) { Invoke-Tests }
 if ($Mode -in 'import', 'both') {
     if (-not $ImportPath) { Add-Result (New-VhcE2EResult 'Setup' $false 'import mode needs -ImportPath'); Write-Result; exit 2 }
     Invoke-Pass -PassName 'import' -ExeArgs @("/import:$ImportPath", '/run', '/scrub:false') -CsvDir $ImportPath

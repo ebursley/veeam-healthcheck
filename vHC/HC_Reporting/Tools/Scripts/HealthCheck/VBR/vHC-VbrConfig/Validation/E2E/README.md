@@ -15,7 +15,8 @@ used to prove the `[Bjobs]` retirement was output-neutral.
 A PAI skill wraps this for one-command runs: `bun ~/.claude/skills/VhcE2E/Tools/run-e2e.ts ...`.
 
 ## Gates
-Build (0 errors) · Run (exit 0) · **HTML** (exists, size, anchors, no error leakage) ·
+Build (0 errors) · **Tests:xUnit** (full `VhcXTests` suite) · **Tests:Pester** (module + validation + E2E checks, excl. `LiveVBR`) ·
+Run (exit 0) · **HTML** (exists, size, anchors, no error leakage) ·
 **CSV** (required present, all parse) · **Log** (completion marker, no unexpected errors) ·
 **JSON** (required sections + row counts) · **BaselineDiff** (sections match saved baseline).
 
