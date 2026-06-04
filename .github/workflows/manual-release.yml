@@ -157,7 +157,13 @@ jobs:
             $uploadUri = $urlResp.data
             Write-Host "Got large-file upload URL"
           }
-          $uploadResponse = Invoke-RestMethod -Uri $uploadUri -Method Post -Headers $headers -Form @{ file = Get-Item $zipPath }
+          # Use curl.exe for multipart upload — Invoke-RestMethod -Form mishandles VT's pre-signed URLs
+          Write-Host "Uploading $fileSizeMB MB to VirusTotal..."
+          $curlArgs = @('--silent', '--show-error', '--request', 'POST',
+                        '--header', "x-apikey: $apiKey",
+                        '--form', "file=@`"$zipPath`"",
+                        $uploadUri)
+          $uploadResponse = (& curl.exe @curlArgs) | ConvertFrom-Json
           $analysisId = $uploadResponse.data.id
           Write-Host "Uploaded to VirusTotal ($fileSizeMB MB). Analysis ID: $analysisId"
 
