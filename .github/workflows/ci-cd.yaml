@@ -1969,11 +1969,11 @@ jobs:
         #   Remove-Item -Path "C:\temp\vHC" -Recurse -Force
         # }
 
-  # VirusTotal scan - only on master branch
+  # VirusTotal scan - runs on master (full release gate) and dev (pre-release gate)
   virustotal-scan:
     needs: [integration-test-vbr, integration-test-vbr-13-sql, integration-test-vbr-12]
     runs-on: windows-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
     outputs:
       zip_clean: ${{ steps.evaluate_zip.outputs.clean }}
     
@@ -2391,3 +2391,161 @@ jobs:
       run: |
         echo "🎉 Release v${{ needs.build-and-test.outputs.version }} created successfully!"
         echo "URL: ${{ steps.create_release.outputs.url }}"
+
+  # Automated dev pre-release — triggers on every passing dev push
+  create-prerelease:
+    needs: [build-and-test, virustotal-scan]
+    runs-on: windows-latest
+    if: |
+      github.ref == 'refs/heads/dev' &&
+      needs.virustotal-scan.outputs.zip_clean == 'true'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download ZIP artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: veeam-healthcheck-zip
+        path: release-files
+
+    - name: Compute release hash
+      id: release_hash
+      run: |
+        $zipPath = Get-ChildItem "release-files/*.zip" | Select-Object -First 1
+        $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+        $sizeMB = [math]::Round($zipPath.Length / 1MB, 2)
+        echo "hash=$hash" >> $env:GITHUB_OUTPUT
+        echo "size_mb=$sizeMB" >> $env:GITHUB_OUTPUT
+
+    - name: Generate pre-release notes
+      id: prerelease_notes
+      run: |
+        $version   = "${{ needs.build-and-test.outputs.version }}"
+        $zipHash   = "${{ steps.release_hash.outputs.hash }}"
+        $sizeMB    = "${{ steps.release_hash.outputs.size_mb }}"
+        $commitSha = "${{ github.sha }}"
+        $repo      = "${{ github.repository }}"
+        $buildDate = "${{ github.event.head_commit.timestamp }}"
+
+        # Find last release tag to scope changelog
+        $lastTag = git describe --tags --abbrev=0 2>$null
+        if (-not $lastTag) { $lastTag = git rev-list --max-parents=0 HEAD }
+
+        $features = [System.Collections.Generic.List[string]]::new()
+        $fixes    = [System.Collections.Generic.List[string]]::new()
+        $testsCI  = [System.Collections.Generic.List[string]]::new()
+        $other    = [System.Collections.Generic.List[string]]::new()
+
+        foreach ($line in (git log "$lastTag..HEAD" --pretty=format:"%s|||%h" --no-merges)) {
+          if ([string]::IsNullOrWhiteSpace($line)) { continue }
+          $parts = $line -split '\|\|\|', 2
+          $subj  = $parts[0].Trim()
+          $sha   = if ($parts.Count -gt 1) { $parts[1].Trim() } else { '' }
+
+          if ($subj -match '^feat(?:\([^)]+\))?!?:\s*(.+)') {
+            $features.Add("- $($Matches[1].Trim()) ($sha)")
+          } elseif ($subj -match '^fix(?:\([^)]+\))?!?:\s*(.+)') {
+            $fixes.Add("- $($Matches[1].Trim()) ($sha)")
+          } elseif ($subj -match '^(?:test|ci|chore|docs|build|refactor|style|perf)(?:\([^)]+\))?!?:\s*(.+)') {
+            $testsCI.Add("- $($Matches[1].Trim()) ($sha)")
+          } else {
+            $other.Add("- $subj ($sha)")
+          }
+        }
+
+        $fixedIssues = (git log "$lastTag..HEAD" --pretty=format:"%B") |
+          Select-String -Pattern '(?:Fixes|Closes|Resolves)\s+#(\d+)' -AllMatches |
+          ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } |
+          Sort-Object -Unique
+
+        $n = [System.Collections.Generic.List[string]]::new()
+        $n.Add("## Veeam Health Check v$version — Dev Pre-release")
+        $n.Add("")
+        $n.Add("> ⚠️ **Automated dev pre-release.** Built from the ``dev`` branch after CI/CD passes. Not recommended for production — use the [latest stable release](https://github.com/$repo/releases/latest).")
+        $n.Add("")
+
+        if ($features.Count -gt 0) {
+          $n.Add("### ✨ Features")
+          $n.Add("")
+          $features | ForEach-Object { $n.Add($_) }
+          $n.Add("")
+        }
+
+        if ($fixes.Count -gt 0 -or $fixedIssues.Count -gt 0) {
+          $n.Add("### 🐛 Bug Fixes")
+          $n.Add("")
+          $fixes | ForEach-Object { $n.Add($_) }
+          $fixedIssues | ForEach-Object { $n.Add("- Fixes #$_ ([#$_](https://github.com/$repo/issues/$_))") }
+          $n.Add("")
+        }
+
+        if ($testsCI.Count -gt 0) {
+          $n.Add("### 🧪 Tests & CI")
+          $n.Add("")
+          $testsCI | ForEach-Object { $n.Add($_) }
+          $n.Add("")
+        }
+
+        if ($other.Count -gt 0) {
+          $n.Add("### 📝 Other Changes")
+          $n.Add("")
+          $other | ForEach-Object { $n.Add($_) }
+          $n.Add("")
+        }
+
+        $hasChanges = ($features.Count + $fixes.Count + $fixedIssues.Count + $testsCI.Count + $other.Count) -gt 0
+        if ($hasChanges) { $n.Add("---"); $n.Add("") }
+
+        $n.Add("### ✅ CI Verification")
+        $n.Add("- ✅ Build & Unit Tests: **Passed**")
+        $n.Add("- ✅ VirusTotal Scan: **Clean** (0 detections)")
+        $n.Add("- ✅ Integration Tests: **Passed** (VBR v12, v13, v13+SQL)")
+        $n.Add("")
+        $n.Add("### 📦 Download")
+        $n.Add("**VeeamHealthCheck-$version.zip** ($sizeMB MB)")
+        $n.Add("")
+        $n.Add("**SHA256 Checksum:**")
+        $n.Add('```')
+        $n.Add($zipHash)
+        $n.Add('```')
+        $n.Add("")
+        $n.Add("**Verification Command:**")
+        $n.Add('```powershell')
+        $n.Add("(Get-FileHash ``VeeamHealthCheck-$version.zip``).Hash")
+        $n.Add('```')
+        $n.Add("")
+        $n.Add("### 📋 Requirements")
+        $n.Add("- Windows 7 or later")
+        $n.Add("- .NET 8 runtime (included in self-contained build)")
+        $n.Add("- PowerShell 5.1 or later")
+        $n.Add("")
+        $n.Add("---")
+        $n.Add("")
+        $n.Add("**Branch:** \`dev\`")
+        $n.Add("**Built from:** [$commitSha](https://github.com/$repo/commit/$commitSha)")
+        $n.Add("**Build Date:** $buildDate")
+
+        ($n -join "`n") | Out-File -FilePath "prerelease_notes.md" -Encoding UTF8
+        Write-Host "Generated pre-release notes"
+
+    - name: Create GitHub pre-release
+      id: create_prerelease
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.build-and-test.outputs.version }}-dev
+        name: "[Dev] Veeam Health Check v${{ needs.build-and-test.outputs.version }}"
+        body_path: prerelease_notes.md
+        draft: false
+        prerelease: true
+        files: release-files/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Pre-release created successfully
+      run: |
+        echo "🎉 Pre-release v${{ needs.build-and-test.outputs.version }}-dev created!"
+        echo "URL: ${{ steps.create_prerelease.outputs.url }}"
