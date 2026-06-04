@@ -570,7 +570,6 @@ namespace VeeamHealthCheck.Functions.Collection
 
         private bool TestPsMfaVb365(PSInvoker p)
         {
-            // CScripts scripts = new();
             return p.TestMfaVB365();
         }
 
