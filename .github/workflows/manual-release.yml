@@ -187,6 +187,7 @@ jobs:
             "vt_clean=unknown" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
         } catch {
+          Write-Host "VirusTotal error: $_"
           "vt_result=Scan failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "vt_clean=error" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         }
@@ -321,9 +322,15 @@ jobs:
             $logLines = git log "$prevTag..HEAD" --no-merges --format="%s" 2>$null
             $featLines = [System.Collections.Generic.List[string]]::new()
             $fixLines  = [System.Collections.Generic.List[string]]::new()
+            $ciScopes = @('ci', 'release', 'release-notes', 'test', 'tests', 'deps', 'build')
             foreach ($msg in $logLines) {
-              if ($msg -match '^feat(\([^)]+\))?[!]?:\s*(.+)') { $featLines.Add("- $($Matches[2])") }
-              elseif ($msg -match '^fix(\([^)]+\))?[!]?:\s*(.+)')  { $fixLines.Add("- $($Matches[2])") }
+              if ($msg -match '^(feat|fix)(\(([^)]+)\))?[!]?:\s*(.+)') {
+                $scope = $Matches[3]
+                $text  = $Matches[4]
+                if ($scope -and ($ciScopes -contains $scope)) { continue }
+                if ($Matches[1] -eq 'feat') { $featLines.Add("- $text") }
+                else                        { $fixLines.Add("- $text") }
+              }
             }
             if ($featLines.Count -gt 0) {
               $notes.Add("### ✨ Features")
