@@ -11,6 +11,11 @@ on:
         description: 'Version override (leave empty to use AssemblyVersion from csproj)'
         required: false
         type: string
+      prerelease:
+        description: 'Mark as pre-release (beta/RC from dev branch)'
+        required: false
+        type: boolean
+        default: false
       skip_virustotal:
         description: 'Skip VirusTotal scan'
         required: false
@@ -134,19 +139,33 @@ jobs:
 
     - name: VirusTotal Scan
       id: virustotal
-      if: ${{ !inputs.skip_virustotal && secrets.VT_API_KEY != '' }}
+      if: ${{ !inputs.skip_virustotal }}
       shell: pwsh
       run: |
         $version = "${{ steps.get_version.outputs.version }}"
         $zipPath = "publish/VeeamHealthCheck-$version.zip"
-        $apiKey = "${{ secrets.VT_API_KEY }}"
+        $apiKey = "${{ secrets.VIRUSTOTAL_API_KEY }}"
         $headers = @{ "x-apikey" = $apiKey }
-        $form = @{ file = Get-Item $zipPath }
+        $fileSizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 
         try {
-          $uploadResponse = Invoke-RestMethod -Uri "https://www.virustotal.com/api/v3/files" -Method Post -Headers $headers -Form $form
+          # Files >32 MB require the large-file upload URL (VT premium endpoint)
+          $uploadUri = "https://www.virustotal.com/api/v3/files"
+          if ($fileSizeMB -gt 32) {
+            Write-Host "File is $fileSizeMB MB — requesting large-file upload URL..."
+            $urlResp = Invoke-RestMethod -Uri "https://www.virustotal.com/api/v3/files/upload_url" -Headers $headers
+            $uploadUri = $urlResp.data
+            Write-Host "Got large-file upload URL"
+          }
+          # Use curl.exe for multipart upload — Invoke-RestMethod -Form mishandles VT's pre-signed URLs
+          Write-Host "Uploading $fileSizeMB MB to VirusTotal..."
+          $curlArgs = @('--silent', '--show-error', '--request', 'POST',
+                        '--header', "x-apikey: $apiKey",
+                        '--form', "file=@`"$zipPath`"",
+                        $uploadUri)
+          $uploadResponse = (& curl.exe @curlArgs) | ConvertFrom-Json
           $analysisId = $uploadResponse.data.id
-          Write-Host "Uploaded to VirusTotal. Analysis ID: $analysisId"
+          Write-Host "Uploaded to VirusTotal ($fileSizeMB MB). Analysis ID: $analysisId"
 
           $maxAttempts = 20
           $attempt = 0
@@ -182,6 +201,7 @@ jobs:
             "vt_clean=unknown" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
         } catch {
+          Write-Host "VirusTotal error: $_"
           "vt_result=Scan failed" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "vt_clean=error" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         }
@@ -189,7 +209,7 @@ jobs:
 
     - name: Set VirusTotal defaults
       id: vt_defaults
-      if: ${{ inputs.skip_virustotal || secrets.VT_API_KEY == '' }}
+      if: ${{ inputs.skip_virustotal }}
       shell: pwsh
       env:
         SKIP_VIRUSTOTAL: ${{ inputs.skip_virustotal }}
@@ -237,62 +257,145 @@ jobs:
         $buildDate = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
 
         $vtEmoji = switch ($vtClean) {
-          "true" { "✅" }
-          "false" { "⚠️" }
+          "true"    { "✅" }
+          "false"   { "⚠️" }
           "skipped" { "⏭️" }
-          default { "❓" }
+          default   { "❓" }
+        }
+
+        # Parse structured changelog sections from PR body
+        # Sections: ### ✨ Features | ### 🐛 Bug Fixes | ### 🧪 Tests & CI
+        $features = [System.Collections.Generic.List[string]]::new()
+        $fixes    = [System.Collections.Generic.List[string]]::new()
+        $testsCI  = [System.Collections.Generic.List[string]]::new()
+
+        if (Test-Path "pr_body.txt") {
+          $currentSection = $null
+          foreach ($line in (Get-Content "pr_body.txt")) {
+            if     ($line -match '^###\s+.*\bFeatures?\b')              { $currentSection = 'features' }
+            elseif ($line -match '^###\s+.*\bBug\s+Fixes?\b')          { $currentSection = 'fixes' }
+            elseif ($line -match '^###\s+.*\b(?:Tests?\b|CI\b)')       { $currentSection = 'testsci' }
+            elseif ($line -match '^##')                                 { $currentSection = $null }
+            elseif ($currentSection) {
+              $t = $line.Trim()
+              if ($t -match '^-\s+\S' -and $t -notmatch '^<!--') {
+                switch ($currentSection) {
+                  'features' { $features.Add($t) }
+                  'fixes'    { $fixes.Add($t) }
+                  'testsci'  { $testsCI.Add($t) }
+                }
+              }
+            }
+          }
         }
 
         # Build release notes
-        $notes = @()
-        $notes += "## Veeam Health Check v$version"
-        $notes += ""
+        $notes = [System.Collections.Generic.List[string]]::new()
+        $notes.Add("## Veeam Health Check v$version")
+        $notes.Add("")
 
-        # Add changelog if available
-        if (Test-Path "pr_body.txt") {
-          $prBody = Get-Content "pr_body.txt" -Raw
-          $notes += "### 🆕 What's New"
-          $notes += ""
-          $notes += $prBody
-          $notes += ""
-          $notes += "---"
-          $notes += ""
+        # Structured changelog sections (populated from PR body)
+        $hasChangelog = ($features.Count + $fixes.Count + $testsCI.Count) -gt 0
+
+        if ($features.Count -gt 0) {
+          $notes.Add("### ✨ Features")
+          $notes.Add("")
+          $features | ForEach-Object { $notes.Add($_) }
+          $notes.Add("")
         }
 
-        $notes += "### ✅ Security & Quality Verification"
-        $notes += "- ✅ Build & Unit Tests: **Passed**"
-        $notes += "- $vtEmoji VirusTotal Scan: **$vtResult**"
-        $notes += "- ✅ Code Quality: Analyzed"
-        $notes += ""
-        $notes += "### 📦 Download"
-        $notes += "**VeeamHealthCheck-$version.zip** ($sizeMB MB)"
-        $notes += ""
-        $notes += "**SHA256 Checksum:**"
-        $notes += '```'
-        $notes += $hash
-        $notes += '```'
-        $notes += ""
-        $notes += "**Verification Command:**"
-        $notes += '```powershell'
-        $notes += "(Get-FileHash `"VeeamHealthCheck-$version.zip`").Hash"
-        $notes += '```'
-        $notes += ""
-        $notes += "### 📋 Requirements"
-        $notes += "- Windows 7 or later"
-        $notes += "- .NET 8 runtime (included in self-contained build)"
-        $notes += "- PowerShell 5.1 or later"
-        $notes += ""
-        $notes += "### 🚀 Quick Start"
-        $notes += "1. Download the ZIP file above"
-        $notes += "2. Extract to a folder"
-        $notes += "3. Run ``VeeamHealthCheck.exe``"
-        $notes += ""
-        $notes += "---"
-        $notes += ""
-        $notes += "**Built from:** [$commitSha](https://github.com/$repo/commit/$commitSha)"
-        $notes += "**Build Date:** $buildDate"
+        if ($fixes.Count -gt 0) {
+          $notes.Add("### 🐛 Bug Fixes")
+          $notes.Add("")
+          $fixes | ForEach-Object { $notes.Add($_) }
+          $notes.Add("")
+        }
 
-        $notes -join "`n" | Out-File -FilePath "release_notes.md" -Encoding UTF8
+        if ($testsCI.Count -gt 0) {
+          $notes.Add("### 🧪 Tests & CI")
+          $notes.Add("")
+          $testsCI | ForEach-Object { $notes.Add($_) }
+          $notes.Add("")
+        }
+
+        if ($hasChangelog) {
+          $notes.Add("---")
+          $notes.Add("")
+        } elseif (Test-Path "pr_body.txt") {
+          # Fallback for legacy/unstructured PR bodies
+          $notes.Add("### 🆕 What's New")
+          $notes.Add("")
+          Get-Content "pr_body.txt" | ForEach-Object { $notes.Add($_) }
+          $notes.Add("")
+          $notes.Add("---")
+          $notes.Add("")
+        } else {
+          # No PR body — auto-generate from git log since last tag
+          $prevTag = git describe --tags --abbrev=0 HEAD 2>$null
+          if ($LASTEXITCODE -eq 0 -and $prevTag) {
+            $logLines = git log "$prevTag..HEAD" --no-merges --format="%s" 2>$null
+            $featLines = [System.Collections.Generic.List[string]]::new()
+            $fixLines  = [System.Collections.Generic.List[string]]::new()
+            $ciScopes = @('ci', 'release', 'release-notes', 'test', 'tests', 'deps', 'build')
+            foreach ($msg in $logLines) {
+              if ($msg -match '^(feat|fix)(\(([^)]+)\))?[!]?:\s*(.+)') {
+                $scope = $Matches[3]
+                $text  = $Matches[4]
+                if ($scope -and ($ciScopes -contains $scope)) { continue }
+                if ($Matches[1] -eq 'feat') { $featLines.Add("- $text") }
+                else                        { $fixLines.Add("- $text") }
+              }
+            }
+            if ($featLines.Count -gt 0) {
+              $notes.Add("### ✨ Features")
+              $notes.Add("")
+              $featLines | ForEach-Object { $notes.Add($_) }
+              $notes.Add("")
+            }
+            if ($fixLines.Count -gt 0) {
+              $notes.Add("### 🐛 Bug Fixes")
+              $notes.Add("")
+              $fixLines | ForEach-Object { $notes.Add($_) }
+              $notes.Add("")
+            }
+            if ($featLines.Count + $fixLines.Count -gt 0) { $notes.Add("---"); $notes.Add("") }
+          }
+        }
+
+        $notes.Add("### ✅ Security & Quality Verification")
+        $notes.Add("- ✅ Build & Unit Tests: **Passed**")
+        $notes.Add("- $vtEmoji VirusTotal Scan: **$vtResult**")
+        $notes.Add("- ✅ Code Quality: Analyzed")
+        $notes.Add("")
+        $notes.Add("### 📦 Download")
+        $notes.Add("**VeeamHealthCheck-$version.zip** ($sizeMB MB)")
+        $notes.Add("")
+        $notes.Add("**SHA256 Checksum:**")
+        $notes.Add('```')
+        $notes.Add($hash)
+        $notes.Add('```')
+        $notes.Add("")
+        $notes.Add("**Verification Command:**")
+        $notes.Add('```powershell')
+        $notes.Add("(Get-FileHash `"VeeamHealthCheck-$version.zip`").Hash")
+        $notes.Add('```')
+        $notes.Add("")
+        $notes.Add("### 📋 Requirements")
+        $notes.Add("- Windows 7 or later")
+        $notes.Add("- .NET 8 runtime (included in self-contained build)")
+        $notes.Add("- PowerShell 5.1 or later")
+        $notes.Add("")
+        $notes.Add("### 🚀 Quick Start")
+        $notes.Add("1. Download the ZIP file above")
+        $notes.Add("2. Extract to a folder")
+        $notes.Add("3. Run ``VeeamHealthCheck.exe``")
+        $notes.Add("")
+        $notes.Add("---")
+        $notes.Add("")
+        $notes.Add("**Built from:** [$commitSha](https://github.com/$repo/commit/$commitSha)")
+        $notes.Add("**Build Date:** $buildDate")
+
+        ($notes -join "`n") | Out-File -FilePath "release_notes.md" -Encoding UTF8
         Write-Host "Generated release notes"
 
     - name: Upload artifact
@@ -307,8 +410,11 @@ jobs:
       shell: pwsh
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_VERSION: ${{ steps.get_version.outputs.version }}
+        IS_PRERELEASE: ${{ inputs.prerelease }}
+        GH_REPO: ${{ github.repository }}
       run: |
-        $version = "${{ steps.get_version.outputs.version }}"
+        $version = $env:RELEASE_VERSION
         $zipPath = "publish/VeeamHealthCheck-$version.zip"
         $notesFile = "release_notes.md"
 
@@ -319,9 +425,10 @@ jobs:
           gh release upload "v$version" $zipPath --clobber
         } else {
           Write-Host "Creating new release v$version..."
-          gh release create "v$version" --title "Veeam Health Check v$version" --notes-file $notesFile $zipPath
+          $prereleaseFlag = if ($env:IS_PRERELEASE -eq "true") { "--prerelease" } else { "" }
+          gh release create "v$version" --title "Veeam Health Check v$version" --notes-file $notesFile $zipPath $prereleaseFlag
         }
-        Write-Host "Release URL: https://github.com/${{ github.repository }}/releases/tag/v$version"
+        Write-Host "Release URL: https://github.com/$env:GH_REPO/releases/tag/v$version"
 
     - name: Dry run summary
       if: ${{ inputs.dry_run }}

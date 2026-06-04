@@ -22,11 +22,17 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
     {
         public CCloudGatewaysTableTests() : base("VhcCloudGatewaysTests_") { }
 
-        private const string Headers =
+        private const string GatewayHeaders =
             "name,description,ipaddress,networkmode,incomingport,natport,hostname,enabled";
 
+        private const string ServerHeaders =
+            "Info,ParentId,Id,Uid,Name,Reference,Description,IsUnavailable,Type,ApiVersion,PhysHostId,ProxyServicesCreds,Cores,CPU,Ram";
+
         private void WriteCsv(string rows) =>
-            File.WriteAllText(Path.Combine(VbrDir, "_CloudGateways.csv"), Headers + "\n" + rows);
+            File.WriteAllText(Path.Combine(VbrDir, "_CloudGateways.csv"), GatewayHeaders + "\n" + rows);
+
+        private void WriteServerCsv(string rows) =>
+            File.WriteAllText(Path.Combine(VbrDir, "_Servers.csv"), ServerHeaders + "\n" + rows);
 
         [Fact]
         public void Render_NoData_ShowsEmptyStateMessage()
@@ -59,6 +65,44 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             Assert.DoesNotContain("ACME-Gateway", html);
             Assert.DoesNotContain("acme.corp", html);
             // non-PII column still renders
+            Assert.Contains("DirectMode", html);
+        }
+
+        [Fact]
+        public void Render_ServerRamPresent_DisplaysGigabytes()
+        {
+            // 410665353216 bytes = 382.something GB → rounds to 382
+            WriteCsv("ACME-Gateway,Edge gateway,203.0.113.10,DirectMode,6180,33,gw-host01,True");
+            WriteServerCsv("info1,parentid1,id1,uid1,gw-host01,ref1,desc1,False,Windows,12,physid1,creds1,32,Intel Xeon,410665353216");
+
+            string html = new CCloudGatewaysTable().Render(scrub: false);
+
+            Assert.Contains("382 GB", html);
+            Assert.DoesNotContain("410665353216", html);
+        }
+
+        [Fact]
+        public void Render_ServerRamUnparseable_DisplaysRawValue()
+        {
+            WriteCsv("ACME-Gateway,Edge gateway,203.0.113.10,DirectMode,6180,33,gw-host01,True");
+            WriteServerCsv("info1,parentid1,id1,uid1,gw-host01,ref1,desc1,False,Windows,12,physid1,creds1,32,Intel Xeon,not-a-number");
+
+            string html = new CCloudGatewaysTable().Render(scrub: false);
+
+            Assert.Contains("not-a-number", html);
+        }
+
+        [Fact]
+        public void Render_ServerRamEmpty_RendersWithoutCrash()
+        {
+            WriteCsv("ACME-Gateway,Edge gateway,203.0.113.10,DirectMode,6180,33,gw-host01,True");
+            WriteServerCsv("info1,parentid1,id1,uid1,gw-host01,ref1,desc1,False,Windows,12,physid1,creds1,32,Intel Xeon,");
+
+            // Should not throw; no raw bytes string in output
+            string html = new CCloudGatewaysTable().Render(scrub: false);
+
+            Assert.DoesNotContain("No cloud gateways detected", html);
+            // Empty RAM — just verify the row rendered and no byte-style number leaked
             Assert.Contains("DirectMode", html);
         }
     }

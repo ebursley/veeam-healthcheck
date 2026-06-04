@@ -8,11 +8,30 @@
 
 By contributing, you agree that your contributions will be licensed under the projects original open source license.
 
-## Description
+## Summary
 
-Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context. List any dependencies that are required for this change.
+Brief description of the change and which issue is fixed.
 
 Fixes # (issue)
+
+---
+
+## Changelog
+
+> The sections below populate the GitHub release notes. Fill in what applies; remove sections that don't.
+
+### ✨ Features
+<!-- New features or enhancements — one bullet per line -->
+
+### 🐛 Bug Fixes
+<!-- Bug fixes — one bullet per line. Use "Fixes #N" to auto-close issues -->
+
+### 🧪 Tests & CI
+<!-- Test additions, CI/workflow improvements — one bullet per line -->
+
+---
+
+## Review Details
 
 ### Type of change
 

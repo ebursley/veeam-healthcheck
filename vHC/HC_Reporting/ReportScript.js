@@ -19,12 +19,19 @@ function toggleAll() {
 }
 
 // ===== Legacy Collapsible Toggle (for sections using SectionStartWithButton) =====
+// The element a collapsible button reveals is simply whatever follows it. Historically
+// that was a <div class="content">, but the VB365 stat sections (Job Statistics,
+// Processing Stats, Job Sessions) place a bare <table> there. The old guard only
+// toggled siblings with class="content", so those tables stayed permanently collapsed
+// (issue #49). Toggle the next sibling regardless of class. Reveal by clearing the
+// inline display so each element returns to its natural value (table -> table,
+// div -> block) instead of forcing 'block', which would break <table> column layout.
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.collapsible').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var content = this.nextElementSibling;
-      if (content && content.classList.contains('content')) {
-        content.style.display = (content.style.display === 'none' || content.style.display === '') ? 'block' : 'none';
+      if (content) {
+        content.style.display = (content.style.display === 'none') ? '' : 'none';
       }
     });
   });

@@ -340,6 +340,20 @@ namespace VeeamHealthCheck.Functions.Reporting.Html
                     }
                 }
 
+                // physProtNames was never populated, so the Protected Workloads summary always
+                // rendered "Phy Protected = 0" and undercounted "Phys Total" (it only saw the
+                // not-protected list). Populate it from the protected agents so the counters --
+                // physTotal = physProtNames + physNotProtNames, physProtected = physProtNames --
+                // reflect reality. (Renderer-side companion to the #125 collection fix.)
+                foreach (var p in physProtected)
+                {
+                    if (p.type == "Computer")
+                    {
+                        physNames.Add(p.name);
+                        physProtNames.Add(p.name);
+                    }
+                }
+
                 List<string> vmProtectedByPhys = new();
                 foreach (var p in physProtected)
                 {
