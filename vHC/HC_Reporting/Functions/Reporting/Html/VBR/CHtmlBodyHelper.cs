@@ -226,6 +226,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
             this.HTMLSTRING += this.tables.AddCloudConnectHeader();
             this.CloudGatewaysTable();
             this.CloudGatewayPoolsTable();
+            this.CloudTenantPerformanceTable();
             this.CloudTenantsTable();
             this.CloudTenantBackupResourcesTable();
             this.CloudTenantReplicationResourcesTable();
@@ -245,6 +246,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
         private void CloudGatewayPoolsTable()
         {
             this.HTMLSTRING += this.tables.AddCloudGatewayPoolsTable(this.SCRUB);
+        }
+
+        private void CloudTenantPerformanceTable()
+        {
+            this.HTMLSTRING += this.tables.AddCloudTenantPerformanceTable(this.SCRUB);
         }
 
         private void CloudTenantsTable()

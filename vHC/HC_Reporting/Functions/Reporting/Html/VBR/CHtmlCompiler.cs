@@ -515,6 +515,7 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR
                 nav += this.form.NavSection("Cloud Connect",
                     this.form.NavLink("cloudgateways", "Gateways") +
                     this.form.NavLink("cloudgatewaypools", "Gateway Pools") +
+                    this.form.NavLink("cloudtenantperf", "Tenant Performance") +
                     this.form.NavLink("cloudtenants", "Tenants") +
                     this.form.NavLink("cloudtenantbackup", "Tenant Backup Storage") +
                     this.form.NavLink("cloudtenantreplica", "Tenant Replica Resources") +

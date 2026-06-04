@@ -37,8 +37,8 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             s += this.form.TableHeader("Rental Replicas", string.Empty);
             s += this.form.TableHeader("Max Concurrent Tasks", string.Empty);
             s += this.form.TableHeader("Throttling Enabled", string.Empty);
-            s += this.form.TableHeader("Throttle Value", string.Empty);
-            s += this.form.TableHeader("Throttle Unit", string.Empty);
+            s += this.form.TableHeader("Max Bandwidth", string.Empty);
+            s += this.form.TableHeader("Bandwidth Unit", string.Empty);
             s += this.form.TableHeader("Gateway Selection", string.Empty);
             s += this.form.TableHeader("Gateway Pool", string.Empty);
             s += this.form.TableHeader("Gateway Failover", string.Empty);
@@ -93,10 +93,11 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
                         s += this.form.TableData((string)(item.rentalserverbackupcount ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.rentalworkstationbackupcount ?? ""), string.Empty);
                         s += this.form.TableData((string)(item.rentalreplicacount ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.maxconcurrenttask ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.throttlingenabled ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.throttlingvalue ?? ""), string.Empty);
-                        s += this.form.TableData((string)(item.throttlingunit ?? ""), string.Empty);
+                        s += this.form.TableData(FormatMaxConcurrent((string)(item.maxconcurrenttask ?? "")), string.Empty);
+                        string throttlingEnabled = (string)(item.throttlingenabled ?? "");
+                        s += this.form.TableData(throttlingEnabled, string.Empty);
+                        s += this.form.TableData(FormatThrottleField(throttlingEnabled, (string)(item.throttlingvalue ?? "")), string.Empty);
+                        s += this.form.TableData(FormatThrottleField(throttlingEnabled, (string)(item.throttlingunit ?? "")), string.Empty);
                         s += this.form.TableData((string)(item.gatewayselectiontype ?? ""), string.Empty);
                         s += this.form.TableData(gatewayPoolName, string.Empty);
                         s += this.form.TableData((string)(item.gatewayfailoverenabled ?? ""), string.Empty);
@@ -118,5 +119,13 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
 
             return s;
         }
+
+        private static string FormatMaxConcurrent(string raw) =>
+            (string.IsNullOrWhiteSpace(raw) || raw.Trim() == "0") ? "Unlimited" : raw;
+
+        private static string FormatThrottleField(string throttlingEnabled, string fieldValue) =>
+            (string.IsNullOrWhiteSpace(throttlingEnabled) ||
+             throttlingEnabled.Trim().Equals("False", System.StringComparison.OrdinalIgnoreCase))
+                ? "—" : fieldValue;
     }
 }
