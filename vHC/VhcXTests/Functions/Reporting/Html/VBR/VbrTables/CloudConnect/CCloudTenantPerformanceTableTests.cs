@@ -7,21 +7,11 @@ using Xunit;
 
 namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
 {
-    /// <summary>
-    /// Characterization tests for the Cloud Connect "Tenant Performance Settings" renderer.
-    /// Reuses VbrTableScrubTestBase so the renderer's CCsvParser reads our sample
-    /// _CloudTenants.csv instead of live VBR output.
-    ///
-    /// The table reads the same _CloudTenants.csv as CCloudTenantsTable; it renders
-    /// only the performance-relevant columns (6 columns total).
-    /// Scrubbed PII field: name only.
-    /// </summary>
     [Collection("GlobalState")]
     public class CCloudTenantPerformanceTableTests : VbrTableScrubTestBase
     {
         public CCloudTenantPerformanceTableTests() : base("VhcCloudTenantPerfTests_") { }
 
-        // Same 29-column header as CCloudTenantsTable — the renderer reads the same CSV file.
         private const string Headers =
             "name,description,enabled,type,lastactive,lastresult,vmcount,servercount,workstationcount,replicacount," +
             "newvmbackupcount,newserverbackupcount,newworkstationbackupcount,newreplicacount," +

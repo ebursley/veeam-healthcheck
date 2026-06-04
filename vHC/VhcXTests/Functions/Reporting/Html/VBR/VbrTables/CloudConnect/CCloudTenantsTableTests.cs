@@ -43,8 +43,6 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
         [Fact]
         public void Render_ScrubFalse_RendersRawValues()
         {
-            // ThrottlingEnabled=False → value/unit render as "—" (new behavior).
-            // This test verifies the tenant name, description and non-throttle fields only.
             WriteCsv("ACME-Tenant,Production tenant for acme.corp,True,Standalone,2026-01-01,Success,12,3,4,2," +
                      "1,0,0,0,5,1,0,0,4,False,0,MbytePerSec,StandaloneGateways,ACME-Pool,False,Never," +
                      "2030-01-01,True,30");

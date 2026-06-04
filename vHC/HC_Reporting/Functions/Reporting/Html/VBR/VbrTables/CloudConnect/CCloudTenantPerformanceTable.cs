@@ -54,10 +54,10 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
 
                         s += this.form.TableDataLeftAligned(name, string.Empty);
                         s += this.form.TableData((string)(item.enabled ?? ""), string.Empty);
-                        s += this.form.TableData(FormatMaxConcurrent((string)(item.maxconcurrenttask ?? "")), string.Empty);
+                        s += this.form.TableData(CCloudConnectHelpers.FormatMaxConcurrent((string)(item.maxconcurrenttask ?? "")), string.Empty);
                         s += this.form.TableData(throttlingEnabled, string.Empty);
-                        s += this.form.TableData(FormatThrottleField(throttlingEnabled, (string)(item.throttlingvalue ?? "")), string.Empty);
-                        s += this.form.TableData(FormatThrottleField(throttlingEnabled, (string)(item.throttlingunit ?? "")), string.Empty);
+                        s += this.form.TableData(CCloudConnectHelpers.FormatThrottleField(throttlingEnabled, (string)(item.throttlingvalue ?? "")), string.Empty);
+                        s += this.form.TableData(CCloudConnectHelpers.FormatThrottleField(throttlingEnabled, (string)(item.throttlingunit ?? "")), string.Empty);
 
                         s += "</tr>";
                     }
@@ -73,12 +73,5 @@ namespace VeeamHealthCheck.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
             return s;
         }
 
-        private static string FormatMaxConcurrent(string raw) =>
-            (string.IsNullOrWhiteSpace(raw) || raw.Trim() == "0") ? "Unlimited" : raw;
-
-        private static string FormatThrottleField(string throttlingEnabled, string fieldValue) =>
-            (string.IsNullOrWhiteSpace(throttlingEnabled) ||
-             throttlingEnabled.Trim().Equals("False", System.StringComparison.OrdinalIgnoreCase))
-                ? "—" : fieldValue;
     }
 }

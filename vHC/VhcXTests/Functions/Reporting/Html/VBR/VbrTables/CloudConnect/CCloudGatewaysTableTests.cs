@@ -25,10 +25,6 @@ namespace VhcXTests.Functions.Reporting.Html.VBR.VbrTables.CloudConnect
         private const string GatewayHeaders =
             "name,description,ipaddress,networkmode,incomingport,natport,hostname,enabled";
 
-        // Server CSV: 15 required columns (0–14), indices match CServerCsvInfos.
-        // Index: 0=Info, 1=ParentId, 2=Id, 3=Uid, 4=Name, 5=Reference, 6=Description,
-        //        7=IsUnavailable, 8=Type, 9=ApiVersion, 10=PhysHostId, 11=ProxyServicesCreds,
-        //        12=Cores, 13=CPU, 14=Ram
         private const string ServerHeaders =
             "Info,ParentId,Id,Uid,Name,Reference,Description,IsUnavailable,Type,ApiVersion,PhysHostId,ProxyServicesCreds,Cores,CPU,Ram";
 
