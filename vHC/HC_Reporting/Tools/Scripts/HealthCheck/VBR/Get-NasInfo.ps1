@@ -7,6 +7,34 @@ param(
     [string]$ReportPath = ""
 )
 
+# Self-contained CSV formula-injection neutralizer (this script runs standalone,
+# outside the vHC-VbrConfig module, so it cannot use the module-private copy).
+# Keep in sync with vHC-VbrConfig/Private/Protect-VhciCsvInjection.ps1.
+function ConvertTo-VhciCsvSafeValue {
+    param($Value)
+    if ($Value -isnot [string] -or [string]::IsNullOrEmpty($Value)) { return $Value }
+    $first = $Value[0]
+    if (-not ($first -eq '=' -or $first -eq '+' -or $first -eq '-' -or
+              $first -eq '@' -or $first -eq [char]9 -or $first -eq [char]13)) { return $Value }
+    $parsed = [double]0
+    if ([double]::TryParse($Value, [System.Globalization.NumberStyles]::Any,
+            [System.Globalization.CultureInfo]::InvariantCulture, [ref] $parsed)) { return $Value }
+    return "'" + $Value
+}
+function Protect-VhciCsvInjection {
+    [CmdletBinding()]
+    param([Parameter(ValueFromPipeline)] $InputObject)
+    process {
+        if ($null -eq $InputObject) { return }
+        if ($InputObject -is [string] -or $InputObject -is [System.ValueType]) { return $InputObject }
+        $safe = [ordered]@{}
+        foreach ($prop in $InputObject.PSObject.Properties) {
+            $safe[$prop.Name] = ConvertTo-VhciCsvSafeValue -Value $prop.Value
+        }
+        [pscustomobject] $safe
+    }
+}
+
 # If ReportPath not provided, use default with server name and timestamp structure
 if ([string]::IsNullOrEmpty($ReportPath)) {
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -100,10 +128,10 @@ function ConvertTo-LogProperties([string]$logLine) {
 
 $csvData = @($totalObjectStorageSize | ForEach-Object { [PSCustomObject](ConvertTo-LogProperties $_) })
 if (!(Test-Path $ReportPath)) { New-Item -Path $ReportPath -ItemType Directory -Force | Out-Null }
-$csvData | Export-Csv -Path "$ReportPath\${VBRServer}_NasObjectSourceStorageSize.csv" -NoTypeInformation
+$csvData | Protect-VhciCsvInjection | Export-Csv -Path "$ReportPath\${VBRServer}_NasObjectSourceStorageSize.csv" -NoTypeInformation
 
 $csvData2 = @($nasBackupSourceShareStats | ForEach-Object { [PSCustomObject](ConvertTo-LogProperties $_) })
-$csvData2 | Export-Csv -Path "$ReportPath\${VBRServer}_NasFileData.csv" -NoTypeInformation
+$csvData2 | Protect-VhciCsvInjection | Export-Csv -Path "$ReportPath\${VBRServer}_NasFileData.csv" -NoTypeInformation
 
 # Parse v12 combined lines
 $v12Rows = @($totalShareSize | ForEach-Object {
@@ -149,4 +177,4 @@ $allShareRows = @()
 if ($v13Rows.Count -gt 0) { $allShareRows += $v13Rows }
 if ($v12Rows.Count -gt 0) { $allShareRows += $v12Rows }
 
-$allShareRows | Export-Csv -Path "$ReportPath\${VBRServer}_NasSharesize.csv" -NoTypeInformation
+$allShareRows | Protect-VhciCsvInjection | Export-Csv -Path "$ReportPath\${VBRServer}_NasSharesize.csv" -NoTypeInformation
