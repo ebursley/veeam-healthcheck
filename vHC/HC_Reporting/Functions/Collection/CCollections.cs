@@ -307,10 +307,14 @@ namespace VeeamHealthCheck.Functions.Collection
 
                 // Encode password as Base64 for safe transmission
                 string base64Password = CredentialHelper.EncodePasswordToBase64(creds.Value.Password);
+                // Escape server and username for the double-quoted argument context
+                // (prevents PowerShell argument injection via these fields).
+                string escapedServer = CredentialHelper.EscapeForPowerShellDoubleQuotes(CGlobals.REMOTEHOST);
+                string escapedUser = CredentialHelper.EscapeForPowerShellDoubleQuotes(creds.Value.Username);
 
                 // Build PowerShell arguments with Base64-encoded password
                 // Use double quotes around Base64 string to avoid issues with special characters
-                string args = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -Server {CGlobals.REMOTEHOST} -Username \"{creds.Value.Username}\" -PasswordBase64 \"{base64Password}\"";
+                string args = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -Server \"{escapedServer}\" -Username \"{escapedUser}\" -PasswordBase64 \"{base64Password}\"";
 
                 var processInfo = new ProcessStartInfo
                 {
@@ -323,7 +327,7 @@ namespace VeeamHealthCheck.Functions.Collection
                 };
 
                 // Log processInfo settings - construct safe log message without ever including sensitive data
-                string safeArgs = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -Server {CGlobals.REMOTEHOST} -Username \"{creds.Value.Username}\" -PasswordBase64 \"****\"";
+                string safeArgs = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -Server \"{escapedServer}\" -Username \"{escapedUser}\" -PasswordBase64 \"****\"";
                 CGlobals.Logger.Debug($"ProcessStartInfo Settings:\n  FileName: {processInfo.FileName}\n  Arguments: {safeArgs}\n  RedirectStandardOutput: {processInfo.RedirectStandardOutput}\n  RedirectStandardError: {processInfo.RedirectStandardError}\n  UseShellExecute: {processInfo.UseShellExecute}\n  CreateNoWindow: {processInfo.CreateNoWindow}");
                 using var process = System.Diagnostics.Process.Start(processInfo);
                 string stdOut = process.StandardOutput.ReadToEnd();

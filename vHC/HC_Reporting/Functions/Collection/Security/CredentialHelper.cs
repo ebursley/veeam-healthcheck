@@ -19,28 +19,32 @@ namespace VeeamHealthCheck.Functions.Collection.Security
         }
 
         /// <summary>
-        /// Escapes a password for use in PowerShell command line arguments
+        /// Escapes an arbitrary value (password, username, server/host, etc.) for
+        /// embedding inside a PowerShell <b>single-quoted</b> string literal.
+        /// Within a single-quoted string the only metacharacter is the single
+        /// quote itself, which is escaped by doubling it.
         /// </summary>
-        public static string EscapePasswordForPowerShell(string password)
+        public static string EscapeForPowerShellSingleQuotes(string value)
         {
-            if (string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(value))
                 return string.Empty;
 
-            // For PowerShell, we need to escape special characters
-            // The safest approach is to use single quotes and escape any single quotes in the password
-            return password.Replace("'", "''");
+            return value.Replace("'", "''");
         }
 
         /// <summary>
-        /// Escapes a password for use in PowerShell scripts with double quotes
+        /// Escapes an arbitrary value (password, username, server/host, etc.) for
+        /// embedding inside a PowerShell <b>double-quoted</b> string literal that is
+        /// passed via a process command line. Escapes the quote, backslash,
+        /// subexpression (<c>$</c>) and backtick characters.
         /// </summary>
-        public static string EscapePasswordForDoubleQuotes(string password)
+        public static string EscapeForPowerShellDoubleQuotes(string value)
         {
-            if (string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(value))
                 return string.Empty;
 
             var sb = new StringBuilder();
-            foreach (char c in password)
+            foreach (char c in value)
             {
                 switch (c)
                 {
@@ -62,6 +66,25 @@ namespace VeeamHealthCheck.Functions.Collection.Security
                 }
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Escapes a password for use in PowerShell command line arguments
+        /// (single-quoted context). Delegates to
+        /// <see cref="EscapeForPowerShellSingleQuotes"/>.
+        /// </summary>
+        public static string EscapePasswordForPowerShell(string password)
+        {
+            return EscapeForPowerShellSingleQuotes(password);
+        }
+
+        /// <summary>
+        /// Escapes a password for use in PowerShell scripts with double quotes.
+        /// Delegates to <see cref="EscapeForPowerShellDoubleQuotes"/>.
+        /// </summary>
+        public static string EscapePasswordForDoubleQuotes(string password)
+        {
+            return EscapeForPowerShellDoubleQuotes(password);
         }
 
         /// <summary>

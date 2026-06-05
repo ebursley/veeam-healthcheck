@@ -255,15 +255,18 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                 CredsHandler ch = new();
                 var creds = ch.GetCreds();
 
-                // Properly escape the password
-                string escapedPassword = CredentialHelper.EscapePasswordForPowerShell(creds.Value.Password);
+                // Properly escape the password, username and server for the
+                // single-quoted PowerShell argument context (prevents argument injection).
+                string escapedPassword = CredentialHelper.EscapeForPowerShellSingleQuotes(creds.Value.Password);
+                string escapedUser = CredentialHelper.EscapeForPowerShellSingleQuotes(creds.Value.Username);
+                string escapedServer = CredentialHelper.EscapeForPowerShellSingleQuotes(CGlobals.REMOTEHOST ?? "localhost");
 
 
                 ProcessStartInfo startInfo = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
                     // Use single quotes for the password to avoid interpretation of special characters
-                    Arguments = $"Import-Module Veeam.Backup.PowerShell; Connect-VBRServer -Server '{CGlobals.REMOTEHOST ?? "localhost"}' -User '{creds.Value.Username}' -Password '{escapedPassword}'",
+                    Arguments = $"Import-Module Veeam.Backup.PowerShell; Connect-VBRServer -Server '{escapedServer}' -User '{escapedUser}' -Password '{escapedPassword}'",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -271,7 +274,7 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                 };
 
                 // Log the command with masked password - construct safe log message without ever including sensitive data
-                string safeLogArgs = $"Import-Module Veeam.Backup.PowerShell; Connect-VBRServer -Server '{CGlobals.REMOTEHOST ?? "localhost"}' -User '{creds.Value.Username}' -Password '****'";
+                string safeLogArgs = $"Import-Module Veeam.Backup.PowerShell; Connect-VBRServer -Server '{escapedServer}' -User '{escapedUser}' -Password '****'";
                 CGlobals.Logger.Info("[TestMfa] Arguments: " + safeLogArgs);
 
                 this.log.Info($"[TestMfa] Creating ProcessStartInfo for MFA test:");
@@ -352,11 +355,14 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                 }
 
                 string base64Password = CredentialHelper.EncodePasswordToBase64(creds.Value.Password);
+                // Username sits in a single-quoted PSCredential() argument; server is double-quoted.
+                string escapedUser = CredentialHelper.EscapeForPowerShellSingleQuotes(creds.Value.Username);
+                string escapedServer = CredentialHelper.EscapeForPowerShellDoubleQuotes(CGlobals.REMOTEHOST);
                 string argString = "Import-Module Veeam.Archiver.PowerShell -WarningAction Ignore; " +
                     $"$pw = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{base64Password}')); " +
                     "$secpw = ConvertTo-SecureString $pw -AsPlainText -Force; " +
-                    $"$cred = New-Object System.Management.Automation.PSCredential('{creds.Value.Username}', $secpw); " +
-                    $"Connect-VBOServer -Server \"{CGlobals.REMOTEHOST}\" -Credential $cred";
+                    $"$cred = New-Object System.Management.Automation.PSCredential('{escapedUser}', $secpw); " +
+                    $"Connect-VBOServer -Server \"{escapedServer}\" -Credential $cred";
 
                 CGlobals.Logger.Info("[VB365 MFA Check] Testing remote connection...", false);
                 return this.ExecutePsScriptWithFailover(argString, useShellExecute: false,
@@ -365,7 +371,8 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
             else
             {
                 // Local VB365: use existing Windows auth
-                string argString = $"Connect-VBOServer -Server \"{CGlobals.REMOTEHOST}\"";
+                string escapedServer = CredentialHelper.EscapeForPowerShellDoubleQuotes(CGlobals.REMOTEHOST);
+                string argString = $"Connect-VBOServer -Server \"{escapedServer}\"";
                 CGlobals.Logger.Info("[VB365 MFA Check] Testing local connection...", false);
                 return this.ExecutePsScriptWithFailover(argString, useShellExecute: false,
                     createNoWindow: false, redirectStdErr: true);
@@ -501,8 +508,9 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
             // Build argument string with BOTH VBRVersion and ReportInterval
             // Use Bypass (not Unrestricted) so PS never prompts for unsigned/internet-sourced
             // scripts - Unrestricted still prompts interactively which hangs a windowless process.
+            string escapedServer = CredentialHelper.EscapeForPowerShellDoubleQuotes(CGlobals.REMOTEHOST);
             string argString = $"-NoProfile -ExecutionPolicy Bypass -file \"{this.vbrConfigScript}\" " +
-                               $"-VBRServer \"{CGlobals.REMOTEHOST}\" " +
+                               $"-VBRServer \"{escapedServer}\" " +
                                $"-VBRVersion \"{CGlobals.VBRMAJORVERSION}\" " +
                                $"-ReportInterval {CGlobals.ReportDays} ";
 
@@ -534,8 +542,9 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                 {
                     byte[] passwordBytes = System.Text.Encoding.UTF8.GetBytes(creds.Value.Password);
                     string passwordBase64 = Convert.ToBase64String(passwordBytes);
-                    argString += $"-User \"{creds.Value.Username}\" -PasswordBase64 \"{passwordBase64}\" ";
-                    safeArgString += $"-User \"{creds.Value.Username}\" -PasswordBase64 \"****\" ";
+                    string escapedUser = CredentialHelper.EscapeForPowerShellDoubleQuotes(creds.Value.Username);
+                    argString += $"-User \"{escapedUser}\" -PasswordBase64 \"{passwordBase64}\" ";
+                    safeArgString += $"-User \"{escapedUser}\" -PasswordBase64 \"****\" ";
                 }
             }
 
@@ -678,10 +687,11 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
 
             string argString;
             string safeArgString; // For logging without sensitive data
+            string escapedServer = CredentialHelper.EscapeForPowerShellDoubleQuotes(CGlobals.REMOTEHOST);
             if (days != 0)
             {
                 argString =
-                    $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptLocation}\" -VBRServer \"{CGlobals.REMOTEHOST}\" -ReportInterval {CGlobals.ReportDays} ";
+                    $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptLocation}\" -VBRServer \"{escapedServer}\" -ReportInterval {CGlobals.ReportDays} ";
                 safeArgString = argString;
                 // Add ReportPath parameter if provided
                 if (!string.IsNullOrEmpty(path))
@@ -698,15 +708,16 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                         // Encode password in Base64 for secure transmission
                         byte[] passwordBytes = System.Text.Encoding.UTF8.GetBytes(creds.Value.Password);
                         string passwordBase64 = Convert.ToBase64String(passwordBytes);
-                        argString += $"-User \"{creds.Value.Username}\" -PasswordBase64 \"{passwordBase64}\" ";
-                        safeArgString += $"-User \"{creds.Value.Username}\" -PasswordBase64 \"****\" ";
+                        string escapedUser = CredentialHelper.EscapeForPowerShellDoubleQuotes(creds.Value.Username);
+                        argString += $"-User \"{escapedUser}\" -PasswordBase64 \"{passwordBase64}\" ";
+                        safeArgString += $"-User \"{escapedUser}\" -PasswordBase64 \"****\" ";
                     }
                 }
             }
             else
             {
                 argString =
-                    $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptLocation}\" -VBRServer \"{CGlobals.REMOTEHOST}\" -VBRVersion \"{CGlobals.VBRMAJORVERSION}\" ";
+                    $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptLocation}\" -VBRServer \"{escapedServer}\" -VBRVersion \"{CGlobals.VBRMAJORVERSION}\" ";
                 safeArgString = argString;
                 // Add ReportPath parameter if provided
                 if (!string.IsNullOrEmpty(path))
@@ -723,8 +734,9 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                         // Encode password in Base64 for secure transmission
                         byte[] passwordBytes = System.Text.Encoding.UTF8.GetBytes(creds.Value.Password);
                         string passwordBase64 = Convert.ToBase64String(passwordBytes);
-                        argString += $"-User \"{creds.Value.Username}\" -PasswordBase64 \"{passwordBase64}\" ";
-                        safeArgString += $"-User \"{creds.Value.Username}\" -PasswordBase64 \"****\" ";
+                        string escapedUser = CredentialHelper.EscapeForPowerShellDoubleQuotes(creds.Value.Username);
+                        argString += $"-User \"{escapedUser}\" -PasswordBase64 \"{passwordBase64}\" ";
+                        safeArgString += $"-User \"{escapedUser}\" -PasswordBase64 \"****\" ";
                     }
                 }
             }
@@ -867,7 +879,8 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
         internal string BuildVb365Arguments(out string safeArgs)
         {
             string scriptFile = this.vb365Script;
-            string serverArg = CGlobals.REMOTEEXEC ? $" -VBOServerFqdnOrIp \"{CGlobals.REMOTEHOST}\"" : string.Empty;
+            string escapedServer = CredentialHelper.EscapeForPowerShellDoubleQuotes(CGlobals.REMOTEHOST);
+            string serverArg = CGlobals.REMOTEEXEC ? $" -VBOServerFqdnOrIp \"{escapedServer}\"" : string.Empty;
 
             string baseArgs =
                 $"-NoProfile -ExecutionPolicy unrestricted -file \"{scriptFile}\" " +
@@ -886,8 +899,9 @@ namespace VeeamHealthCheck.Functions.Collection.PSCollections
                 if (creds != null)
                 {
                     string passwordBase64 = CredentialHelper.EncodePasswordToBase64(creds.Value.Password);
-                    args += $" -Username \"{creds.Value.Username}\" -PasswordBase64 \"{passwordBase64}\"";
-                    safeArgs += $" -Username \"{creds.Value.Username}\" -PasswordBase64 \"****\"";
+                    string escapedUser = CredentialHelper.EscapeForPowerShellDoubleQuotes(creds.Value.Username);
+                    args += $" -Username \"{escapedUser}\" -PasswordBase64 \"{passwordBase64}\"";
+                    safeArgs += $" -Username \"{escapedUser}\" -PasswordBase64 \"****\"";
                 }
             }
 
