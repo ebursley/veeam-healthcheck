@@ -47,7 +47,16 @@ function Get-VhcJob {
     try {
         $standaloneBackups = @(Get-VBRBackup -WarningAction SilentlyContinue |
             Where-Object { $_.IsAgentStandaloneJob -eq $true })
-        $standaloneJobs = @($standaloneBackups | ForEach-Object { $_.GetJob() } | Where-Object { $_ })
+        $standaloneJobs = @($standaloneBackups | ForEach-Object {
+            $backup = $_
+            try {
+                $backup.GetJob()
+            } catch {
+                $msg = "Orphaned standalone backup skipped: Id={0} Name='{1}' Error={2}" -f $backup.Id, $backup.Name, $_.Exception.Message
+                Write-LogFile $msg -LogLevel "WARNING"
+                $null
+            }
+        } | Where-Object { $_ })
         Write-LogFile "Standalone agent jobs collected: $($standaloneJobs.Count)"
         if ($standaloneJobs.Count -gt 0) {
             $Jobs = @($Jobs) + $standaloneJobs

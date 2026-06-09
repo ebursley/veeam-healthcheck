@@ -497,8 +497,6 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
         {
             this.log.Info("Starting Job Csv Parse..");
 
-            // var bjobCsv = _csvParser.BJobCsvParser();
-            var bjobCsv = this.csvParser.GetDynamicBjobs();
             var jobCsv = this.csvParser.JobCsvParser().ToList();
             List<CJobTypeInfos> eInfoList = new();
             try
@@ -508,33 +506,11 @@ namespace VeeamHealthCheck.Functions.Reporting.DataTypes
                     {
                         CJobTypeInfos jInfo = new CJobTypeInfos();
 
-                        if (bjobCsv != null)
-                        {
-                            foreach (var b in bjobCsv)
-                            {
-                                int.TryParse(b.type, out int typeId);
-                                if (!this.protectedJobIds.Contains(typeId))
-                                {
-                                    this.protectedJobIds.Add(typeId);
-                                }
-
-                                if (b.name == s.Name)
-                                {
-                                    jInfo.Name = b.name;
-                                    jInfo.ActualSize = b.included_size;
-                                    jInfo.RepoName = this.MatchRepoIdToRepo(b.repository_id);
-                                    jInfo.JobId = b.type;
-                                    if (b.type == "63")
-                                    {
-                                    }
-                                }
-                            }
-                        }
-
-                        if (string.IsNullOrEmpty(jInfo.RepoName))
-                        {
-                            jInfo.RepoName = s.RepoName;
-                        }
+                        // SQL [Bjobs] / _bjobs.csv merge retired (1.3): empirically proven
+                        // byte-for-byte non-contributing to the report (Name/ActualSize were
+                        // overwritten below; JobId/ProtectedJobIds are unconsumed). RepoName
+                        // now comes directly from the PowerShell-collected _Jobs.csv.
+                        jInfo.RepoName = s.RepoName;
 
 
                         jInfo.Algorithm = s.Algorithm;

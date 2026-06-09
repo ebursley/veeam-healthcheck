@@ -511,11 +511,6 @@ namespace VeeamHealthCheck.Functions.Reporting.CsvHandlers
             return this.VbrGetDynamicCsvRecs(this.userRoles, CVariables.vbrDir);
         }
 
-        public IEnumerable<dynamic> GetDynamicBjobs()
-        {
-            return this.VbrGetDynamicCsvRecs(this.bjobs, CVariables.vbrDir);
-        }
-
         public IEnumerable<dynamic> GetDynamincConfigBackup()
         {
             return this.VbrGetDynamicCsvRecs(this.configBackup, CVariables.vbrDir);

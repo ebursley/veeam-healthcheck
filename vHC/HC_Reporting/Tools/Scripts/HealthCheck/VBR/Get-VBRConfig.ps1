@@ -338,5 +338,5 @@ $manifest | Export-Csv -Path (Join-Path $ReportPath "${VBRServer}_CollectionMani
 
 Write-Host "[Get-VBRConfig] Collection complete. Output: $ReportPath"
 } finally {
-    Disconnect-VBRServer -ErrorAction SilentlyContinue
+    try { Disconnect-VBRServer -ErrorAction SilentlyContinue } catch {}
 }
