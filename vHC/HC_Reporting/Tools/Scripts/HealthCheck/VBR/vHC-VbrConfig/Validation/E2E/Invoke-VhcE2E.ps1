@@ -172,7 +172,7 @@ if ($Mode -in 'live', 'both') {
     #              -> @('/run','/remote','/host=<fqdn>','/scrub:false')
     #              The normal /run /remote path uses the DPAPI-stored cred for the
     #              host (seed once: VeeamHealthCheck.exe /savecreds /host=<fqdn>),
-    #              or a /credfile= when supplied. NOTE: do NOT add /silent here —
+    #              or a /credfile= when supplied. NOTE: do NOT add /silent here --
     #              its credential lookup misses stored creds that the normal path
     #              resolves, which breaks unattended remote collection.
     $liveArgs =
