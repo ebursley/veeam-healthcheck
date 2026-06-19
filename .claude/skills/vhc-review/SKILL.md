@@ -1,3 +1,9 @@
+---
+name: vhc-review
+version: 1.0.0
+description: Analyze a Veeam Health Check HTML report and return prioritized findings across security, job health, capacity, and best-practice alignment.
+---
+
 # vhc-review — Veeam Health Check Report Analyzer
 
 Analyze a Veeam Health Check HTML report and return prioritized findings across security, job health, capacity, and best-practice alignment.
