@@ -368,8 +368,10 @@ FodyWeavers.xsd
 /VeeamHealthCheck.cer
 vHC/HC_Reporting/Tools/build/BuildCopy.sh
 
-# Claude working folder
-.claude/
+# Claude working folder (memory/state only — skills are tracked)
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 
 # Test run log
 test_run_log.txt
