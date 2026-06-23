@@ -3,7 +3,7 @@ name: vhc-review
 description: analyze raw veeam backup and replication health check html reports and produce a fixed-format executive html report with grounded findings, evidence, and recommendations. use when given a veeam health check html export, a derived findings page, or an ai studio analysis that should be validated, improved, or normalized to the standard report template.
 ---
 
-## release 1.0.6
+## release 1.7.0
 
 Analyze a raw Veeam Backup & Replication Health Check HTML report and produce one canonical executive report format.
 
