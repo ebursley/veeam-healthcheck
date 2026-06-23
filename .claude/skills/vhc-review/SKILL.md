@@ -1,11 +1,11 @@
 ---
 name: vhc-review
-description: analyze raw veeam backup and replication health check html reports and produce grounded, prioritized findings. use when given a veeam health check html export, a derived findings page, or an ai studio analysis that should be validated or improved.
+description: analyze raw veeam backup and replication health check html reports and produce a fixed-format executive html report with grounded findings, evidence, and recommendations. use when given a veeam health check html export, a derived findings page, or an ai studio analysis that should be validated, improved, or normalized to the standard report template.
 ---
 
-# vhc-review
+## release 1.0.6
 
-Analyze a raw Veeam Backup & Replication Health Check HTML report and produce a grounded, prioritized findings report.
+Analyze a raw Veeam Backup & Replication Health Check HTML report and produce one canonical executive report format.
 
 ## Workflow
 
@@ -15,7 +15,7 @@ Analyze a raw Veeam Backup & Replication Health Check HTML report and produce a 
 4. Normalize checkboxes and status icons to booleans (`✅`, `☐`, `✗`, `⚠️`).
 5. Apply the severity rules in `references/decision-rules.md`.
 6. Apply the evidence and confidence rules in `references/evidence-rules.md`.
-7. Write the report in the output format below.
+7. Render the report using the exact structure in `references/output-pattern.md`.
 
 ## Analysis rules
 
@@ -29,38 +29,21 @@ Analyze a raw Veeam Backup & Replication Health Check HTML report and produce a 
 - Anchor all time-based judgments to the report date in the header/footer, not the current conversation date.
 - Keep recommendations tied to the report data and avoid generic backup advice.
 - If the report is anonymized, keep the anonymized names as written.
+- Preserve the report's polished executive tone, but do not change the canonical section order or rename sections.
 
-## Output format
+## Canonical output rules
 
-Always use this structure unless the user requests a different presentation.
-
-# VHC Analysis — <server-name> (<report-date>)
-VBR Version: <version> | Edition: <edition> | Support Expires: <date or n/a>
-
-## Summary
-| Area | Critical | Warning | Info |
-|------|----------|---------|------|
-| Security | N | N | N |
-| Job Health | N | N | N |
-| Capacity | N | N | N |
-| Best Practices | N | N | N |
-
-## Critical Findings
-1. [Area] Finding — include the exact object, job, proxy, repository, or server name, the report evidence, why it matters, and confidence.
-
-## Warnings
-1. [Area] Finding — include the exact object, job, proxy, repository, or server name, the report evidence, why it matters, and confidence.
-
-## Informational
-- [Area] Useful context or a passed control.
-
-## Recommendations
-1. Most urgent actionable item.
-2. Next priority item.
-3. Additional action item.
+- Always produce a single self-contained executive HTML report.
+- Always use the same section order and labels from `references/output-pattern.md`.
+- Always include the top score cards, the findings-by-area summary, the three finding sections, the infrastructure overview, repository/SOBR capacity, job session summary, security compliance highlights, and the prioritized recommendations.
+- If a section has no entries, keep the section and show `—` or `n/a`; do not remove the section or invent a different layout.
+- Use numbered findings with stable prefixes: `C1`, `C2`, `W1`, `W2`, `I1`, etc.
+- Each finding must include exact evidence and a confidence label (`high`, `medium`, or `low`).
+- Keep the recommendation count and order stable unless the report data truly does not support a slot; in that case, keep the slot and mark it as `n/a` rather than reshaping the report.
 
 ## Resource files
 
+- `references/output-pattern.md`: the required report skeleton and section order.
 - `references/report-map.md`: stable section anchors, tables, and what each one contains.
 - `references/decision-rules.md`: thresholds and prioritization rules for security, job health, capacity, and best practices.
 - `references/evidence-rules.md`: fact versus inference rules, confidence labeling, and date handling.

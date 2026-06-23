@@ -1,0 +1,37 @@
+stages:
+  - test
+  - secret-detection
+  - package
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+variables:
+  SECRET_DETECTION_ENABLED: 'true'
+
+sast:
+  stage: test
+
+secret_detection:
+  stage: secret-detection
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+build-skill-zip:
+  stage: package
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - apk add --no-cache zip
+  script:
+    - VERSION=$(grep -m1 'Current package release:' .claude/skills/vhc-review/references/version.md | awk '{print $NF}')
+    - ARTIFACT="vhc-review-v${VERSION}.zip"
+    - cd .claude/skills && zip -r "../../${ARTIFACT}" vhc-review/
+    - echo "Built ${ARTIFACT}"
+  artifacts:
+    name: vhc-review-v$CI_COMMIT_SHORT_SHA
+    paths:
+      - vhc-review-v*.zip
+    expire_in: 90 days
